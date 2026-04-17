@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI入口</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="./data.js"></script>
+    <style>
+        /* CSS变量定义 */
+        :root {
+            --primary-color: #3B82F6;
+            --hover-color: #2563EB;
+            --bg-color: #F3F4F6;
+            --card-bg: #FFFFFF;
+            --border-color: #E5E7EB;
+            --text-color: #1F2937;
+            --secondary-bg: #F9FAFB;
+        }
+        
+        /* 基础样式 */
+        * { box-sizing: border-box; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 布局容器 */
+        .main-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            max-width: 1680px;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+
+        .header-section {
+            flex-shrink: 0;
+            padding: 1rem 2rem 0;
+        }
+
+        .content-section {
+            flex: 1;
+            overflow: hidden;
+            padding: 0 2rem 2rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 标签栏样式 */
+        .tabs-container {
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-right: 0.5rem;
+            color: #4B5563;
+            border: none;
+            background: none;
+            cursor: pointer;
+        }
+
+        .tab-btn:hover { background-color: #EDF2F7; }
+        .tab-btn.tab-active {
+            background-color: var(--primary-color) !important;
+            color: white !important;
+        }
+
+        /* 内容布局 */
+        .tab-content {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .content-layout {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 1.5rem;
+            height: 100%;
+            min-height: 0;
+        }
+
+        /* 导航样式 */
+        .type-nav {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .type-nav h3 {
+            padding: 1rem;
+            margin: 0;
+            background: var(--secondary-bg);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .type-nav-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .type-nav-item {
+            padding: 0.75rem 1rem;
+            margin: 0.25rem 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .type-nav-item:hover {
+            background: var(--bg-color);
+            color: var(--primary-color);
+        }
+
+        .type-nav-item.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        /* 表格样式 */
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .table-scroll {
+            flex: 1;
+            overflow: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            background: white;
+            table-layout: fixed;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            background: white;
+            text-align: left;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 默认允许换行（除了功能列） */
+        th:not(:nth-child(5)), td:not(:nth-child(5)) {
+            white-space: normal;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            background: var(--secondary-bg);
+            z-index: 2;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .type-cell {
+            position: sticky;
+            left: 0;
+            background: white;
+            z-index: 1;
+            font-weight: 500;
+            border-right: 2px solid var(--border-color);
+        }
+
+        .type-cell.merged {
+            background: #F8FAFC;
+            vertical-align: middle;
+        }
+
+        /* 列宽度比例设置 - 有功能列时 */
+        /* 类型列 - 10% */
+        th:first-child, td:first-child {
+            width: 10%;
+        }
+
+        /* 名称列 - 25.75% */
+        th:nth-child(2), td:nth-child(2) {
+            width: 13%;
+        }
+
+        /* 地址列 - 20% */
+        th:nth-child(3), td:nth-child(3) {
+            width: 20%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 备注列 - 4.25% */
+        th:nth-child(4), td:nth-child(4) {
+            width: 17%;
+        }
+
+        /* 功能列 - 40% */
+        th:nth-child(5), td:nth-child(5) {
+            width: 40%;
+            position: relative;
+            cursor: default;
+            padding: 0.75rem;
+            vertical-align: middle;
+        }
+
+        /* 通用悬浮提示框样式 */
+        .hover-tooltip {
+            position: fixed;
+            background-color: rgba(30, 30, 30, 0.95);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 10000;
+            pointer-events: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.15s ease-in-out;
+        }
+
+        .hover-tooltip.show {
+            opacity: 1;
+        }
+
+        .hover-tooltip.function-tip {
+            white-space: normal;
+            max-width: 400px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+
+        /* 当没有功能列时的列宽度重新分配 */
+        .no-function-column th:first-child,
+        .no-function-column td:first-child {
+            width: 15%; /* 类型列 */
+        }
+
+        .no-function-column th:nth-child(2),
+        .no-function-column td:nth-child(2) {
+            width: 38.75%; /* 名称列 */
+        }
+
+        .no-function-column th:nth-child(3),
+        .no-function-column td:nth-child(3) {
+            width: 50%; /* 地址列 */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .no-function-column th:nth-child(4),
+        .no-function-column td:nth-child(4) {
+            width: 6.25%; /* 备注列 */
+        }
+
+        tr:hover td { background-color: var(--secondary-bg); }
+        tr:hover .type-cell { background-color: #F8FAFC; }
+
+        a {
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        a:hover {
+            color: var(--hover-color);
+            text-decoration: underline;
+        }
+
+        /* 工具类 */
+        .hidden { display: none; }
+        .fade-enter { animation: fadeIn 0.3s ease-in; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+
+        /* 地址列样式 */
+        .address-cell {
+            color: #6B7280;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 0;
+        }
+
+        .address-cell:hover {
+            color: #374151;
+            background-color: #F9FAFB;
+        }
+
+        /* 复制提示框样式 */
+        .copy-tooltip {
+            position: absolute;
+            background: white;
+            border: 1px solid #E5E7EB;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #374151;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .copy-tooltip.show {
+            opacity: 1;
+        }
+
+        /* 移动端卡片容器 - 桌面端隐藏 */
+        .mobile-cards {
+            display: none;
+        }
+
+        /* ==================== 手机竖版响应式设计 ==================== */
+        @media (max-width: 768px) {
+            body {
+                overflow: auto;
+                height: auto;
+            }
+
+            .main-container {
+                height: auto;
+                overflow: visible;
+                padding-bottom: 20px;
+            }
+
+            .header-section {
+                padding: 0.75rem 1rem 0;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                background: var(--bg-color);
+            }
+
+            .tabs-container {
+                padding: 0.5rem;
+                border-radius: 10px;
+                margin-bottom: 0.5rem;
+            }
+
+            .tab-btn {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.85rem;
+                margin-right: 0.25rem;
+                border-radius: 6px;
+            }
+
+            .content-section {
+                padding: 0 1rem 1rem;
+                overflow: visible;
+            }
+
+            .tab-content {
+                height: auto;
+            }
+
+            .content-layout {
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
+                height: auto;
+            }
+
+            /* 类型导航改为横向滚动，固定显示 */
+            .type-nav {
+                order: 1;
+                height: auto;
+                max-height: none;
+                border-radius: 10px;
+                position: sticky;
+                top: 60px;
+                z-index: 99;
+                background: var(--card-bg);
+                margin: 0 -1rem;
+                padding: 0;
+                border-radius: 0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+
+            .type-nav h3 {
+                display: none;
+            }
+
+            .type-nav-list {
+                display: flex;
+                flex-direction: row;
+                overflow-x: auto;
+                gap: 0.5rem;
+                padding: 0.75rem;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+
+            .type-nav-list::-webkit-scrollbar {
+                display: none;
+            }
+
+            .type-nav-item {
+                flex-shrink: 0;
+                padding: 0.5rem 1rem;
+                margin: 0;
+                font-size: 0.85rem;
+                border-radius: 20px;
+                background: var(--bg-color);
+                white-space: nowrap;
+            }
+
+            .type-nav-item.active {
+                background: var(--primary-color);
+                color: white;
+            }
+
+            /* 表格容器改为卡片列表 */
+            .table-container {
+                order: 2;
+                height: auto;
+                border-radius: 10px;
+            }
+
+            .table-scroll {
+                overflow: visible;
+            }
+
+            /* 隐藏桌面端表格，显示移动端卡片 */
+            table {
+                display: none;
+            }
+
+            /* 移动端工具卡片样式 */
+            .mobile-cards {
+                display: flex;
+                flex-direction: column;
+                gap: 0.75rem;
+                padding: 0.75rem;
+            }
+
+            .mobile-card {
+                background: white;
+                border-radius: 10px;
+                padding: 0.75rem 1rem;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+                border: 1px solid var(--border-color);
+            }
+
+            .mobile-card-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .mobile-card-name {
+                font-weight: 600;
+                font-size: 1rem;
+                color: var(--primary-color);
+                text-decoration: none;
+                flex: 1;
+            }
+
+            .mobile-card-name:hover {
+                text-decoration: underline;
+            }
+
+            .mobile-card-tags {
+                display: flex;
+                gap: 0.5rem;
+                flex-shrink: 0;
+                margin-left: 0.5rem;
+            }
+
+            .mobile-tag {
+                font-size: 0.7rem;
+                padding: 0.2rem 0.5rem;
+                border-radius: 4px;
+                background: #EEF2FF;
+                color: #4F46E5;
+                white-space: nowrap;
+            }
+
+            .mobile-tag.tag-vpn {
+                background: #FEE2E2;
+                color: #DC2626;
+            }
+
+            .mobile-tag.tag-free {
+                background: #D1FAE5;
+                color: #059669;
+            }
+
+            .mobile-tag.tag-paid {
+                background: #FEF3C7;
+                color: #D97706;
+            }
+
+            .mobile-card-desc {
+                font-size: 0.85rem;
+                color: #6B7280;
+                line-height: 1.4;
+                margin-top: 0.35rem;
+            }
+
+            .mobile-card-actions {
+                display: flex;
+                gap: 0.5rem;
+            }
+
+            .mobile-btn {
+                flex: 1;
+                padding: 0.6rem 1rem;
+                border-radius: 8px;
+                font-size: 0.85rem;
+                font-weight: 500;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                border: none;
+            }
+
+            .mobile-btn-primary {
+                background: var(--primary-color);
+                color: white;
+            }
+
+            .mobile-btn-primary:hover {
+                background: var(--hover-color);
+            }
+
+            .mobile-btn-secondary {
+                background: var(--bg-color);
+                color: #4B5563;
+            }
+
+            .mobile-btn-secondary:hover {
+                background: #E5E7EB;
+            }
+
+            /* 类型分组标题 */
+            .mobile-type-header {
+                font-weight: 600;
+                font-size: 0.9rem;
+                color: #374151;
+                padding: 0.75rem 0 0.5rem;
+                margin-top: 0.5rem;
+                border-top: 1px solid var(--border-color);
+            }
+
+            .mobile-type-header:first-child {
+                margin-top: 0;
+                border-top: none;
+                padding-top: 0;
+            }
+
+            /* 复制成功提示优化 */
+            .copy-tooltip {
+                position: fixed;
+                left: 50% !important;
+                top: 50% !important;
+                transform: translate(-50%, -50%);
+                padding: 12px 24px;
+                font-size: 14px;
+                border-radius: 8px;
+                background: rgba(0,0,0,0.8);
+                color: white;
+                border: none;
+            }
+
+            /* 悬浮提示在移动端禁用 */
+            .hover-tooltip {
+                display: none !important;
+            }
+        }
+
+        /* 平板设备适配 */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .content-layout {
+                grid-template-columns: 180px 1fr;
+            }
+
+            .header-section {
+                padding: 0.75rem 1.5rem 0;
+            }
+
+            .content-section {
+                padding: 0 1.5rem 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- 头部标签栏 -->
+        <header class="header-section">
+            <div class="tabs-container">
+                <ul id="tabs" class="flex flex-wrap">
+                    <!-- 标签页将动态生成 -->
+                </ul>
+            </div>
+        </header>
+
+        <!-- 内容区域 -->
+        <main class="content-section">
+            <!-- 页面内容将动态生成 -->
+        </main>
+    </div>
+
+    <!-- JavaScript模块 -->
+    <script>
+        // 文件工具函数（保留原有功能）
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        
+        function filledCell(cell) {
+            return cell !== '' && cell != null;
+        }
+        
+        function loadFileData(filename) {
+            if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+                try {
+                    var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                    var firstSheetName = workbook.SheetNames[0];
+                    var worksheet = workbook.Sheets[firstSheetName];
+                    var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                    var filteredData = jsonData.filter(row => row.some(filledCell));
+                    var headerRowIndex = filteredData.findIndex((row, index) =>
+                        row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                    );
+                    if (headerRowIndex === -1 || headerRowIndex > 25) {
+                        headerRowIndex = 0;
+                    }
+                    var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                    csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                    return csv;
+                } catch (e) {
+                    console.error(e);
+                    return "";
+                }
+            }
+            return gk_fileData[filename] || "";
+        }
+
+        // 应用程序主类
+        class AIWebpagesApp {
+            constructor() {
+                this.currentTab = null;
+                this.init();
+            }
+
+            init() {
+                this.generateTabs();
+                this.bindEvents();
+                this.initializeTables();
+            }
+
+            // 从数据中生成标签页
+            generateTabs() {
+                const tabsContainer = document.getElementById('tabs');
+                const contentSection = document.querySelector('.content-section');
+                
+                if (!WEBPAGES_DATA || !WEBPAGES_DATA.pages) {
+                    console.error('WEBPAGES_DATA 未正确加载');
+                    return;
+                }
+
+                const pageNames = Object.keys(WEBPAGES_DATA.pages);
+                
+                // 生成标签页按钮
+                pageNames.forEach((pageName, index) => {
+                    const tabButton = document.createElement('li');
+                    tabButton.innerHTML = `<button data-tab="${this.getTabId(pageName)}" class="tab-btn ${index === 0 ? 'tab-active' : ''}">${pageName}</button>`;
+                    tabsContainer.appendChild(tabButton);
+                });
+
+                // 生成内容区域
+                pageNames.forEach((pageName, index) => {
+                    const pageData = WEBPAGES_DATA.pages[pageName];
+                    const tabContent = this.createTabContent(pageName, index === 0, pageData);
+                    contentSection.appendChild(tabContent);
+                });
+
+                // 设置第一个标签页为当前标签页
+                this.currentTab = pageNames[0];
+            }
+
+            // 获取标签页ID
+            getTabId(pageName) {
+                // 动态生成ID：移除特殊字符并转换为小写
+                return pageName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').toLowerCase();
+            }
+
+            // 创建标签页内容
+            createTabContent(pageName, isActive, pageData) {
+                const tabId = this.getTabId(pageName);
+                const div = document.createElement('div');
+                div.id = tabId;
+                div.className = `tab-content ${isActive ? 'fade-enter' : 'hidden'}`;
+                
+                // 动态检查页面数据中是否有非空的功能字段
+                const showFunctionColumn = pageData && pageData['类型'] && pageData['类型'].length > 0 && 
+                                         pageData['类型'][0] && Object.values(pageData['类型'][0])[0] && 
+                                         Object.values(pageData['类型'][0])[0][0] && 
+                                         Object.values(pageData['类型'][0])[0][0].hasOwnProperty('功能') &&
+                                         Object.values(pageData['类型'][0])[0][0]['功能'] && 
+                                         Object.values(pageData['类型'][0])[0][0]['功能'].trim() !== '';
+                const functionColumnHtml = showFunctionColumn ? '<th>功能</th>' : '';
+                const tableClass = showFunctionColumn ? '' : 'no-function-column';
+                
+                div.innerHTML = `
+                    <div class="content-layout">
+                        <nav class="type-nav">
+                            <h3>类型导航</h3>
+                            <div id="${tabId}TypeNavList" class="type-nav-list"></div>
+                        </nav>
+                        <div class="table-container">
+                            <div class="table-scroll">
+                                <table class="${tableClass}">
+                                    <thead>
+                                        <tr>
+                                            <th class="type-cell">类型</th>
+                                            <th>名称</th>
+                                            <th>地址</th>
+                                            <th>备注</th>
+                                            ${functionColumnHtml}
+                                        </tr>
+                                    </thead>
+                                    <tbody id="${tabId}TableBody">
+                                        <!-- 数据将动态加载 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                return div;
+            }
+
+            // 绑定事件
+            bindEvents() {
+                // 标签切换
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => this.switchTab(e.target));
+                });
+            }
+
+            // 标签切换逻辑
+            switchTab(button) {
+                const tabId = button.dataset.tab;
+                
+                // 隐藏所有内容
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.add('hidden');
+                    content.classList.remove('fade-enter');
+                });
+
+                // 移除所有按钮的激活状态
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('tab-active');
+                });
+
+                // 显示目标内容
+                const targetContent = document.getElementById(tabId);
+                if (targetContent) {
+                    targetContent.classList.remove('hidden');
+                    void targetContent.offsetWidth; // 强制重绘
+                    targetContent.classList.add('fade-enter');
+                }
+
+                // 激活当前按钮
+                button.classList.add('tab-active');
+
+                // 更新当前标签页
+                this.currentTab = button.textContent;
+
+                // 切换标签后重新检测功能列截断
+                this.checkFunctionCellTruncation();
+            }
+
+            // 初始化所有表格
+            initializeTables() {
+                if (!WEBPAGES_DATA || !WEBPAGES_DATA.pages) {
+                    console.error('WEBPAGES_DATA 未正确加载');
+                    return;
+                }
+
+                // 为每个页面生成表格
+                Object.keys(WEBPAGES_DATA.pages).forEach(pageName => {
+                    const tabId = this.getTabId(pageName);
+                    const tableBodyId = `${tabId}TableBody`;
+                    const navListId = `${tabId}TypeNavList`;
+                    
+                    this.generateTable(tableBodyId, navListId, WEBPAGES_DATA.pages[pageName], pageName);
+                });
+            }
+
+            // 生成表格的通用函数
+            generateTable(tableBodyId, navListId, pageData, pageName) {
+                const tableBody = document.getElementById(tableBodyId);
+                if (!tableBody || !pageData || !pageData['类型']) return;
+
+                tableBody.innerHTML = '';
+                const types = []; // 收集类型列表
+
+                // 同时生成移动端卡片视图
+                this.generateMobileCards(tableBodyId, pageData);
+
+                // 动态检查页面数据中是否有非空的功能字段
+                const hasFunctionColumn = pageData['类型'].length > 0 && 
+                                       pageData['类型'][0] && 
+                                       Object.values(pageData['类型'][0])[0] && 
+                                       Object.values(pageData['类型'][0])[0][0] && 
+                                       Object.values(pageData['类型'][0])[0][0].hasOwnProperty('功能') &&
+                                       Object.values(pageData['类型'][0])[0][0]['功能'] && 
+                                       Object.values(pageData['类型'][0])[0][0]['功能'].trim() !== '';
+
+                // 根据是否有功能列来设置表格的CSS类
+                const table = tableBody.closest('table');
+                if (table) {
+                    if (hasFunctionColumn) {
+                        table.classList.remove('no-function-column');
+                    } else {
+                        table.classList.add('no-function-column');
+                    }
+                }
+
+                pageData['类型'].forEach(categoryObj => {
+                    const categoryName = Object.keys(categoryObj)[0];
+                    types.push(categoryName); // 添加到类型列表
+                    const tools = categoryObj[categoryName];
+                    
+                    tools.forEach((tool, index) => {
+                        const row = document.createElement('tr');
+                        
+                        // 类型列 - 第一行显示类型并设置rowspan，后续行不创建类型单元格
+                        if (index === 0) {
+                            const typeCell = document.createElement('td');
+                            typeCell.textContent = categoryName;
+                            typeCell.setAttribute('data-type', categoryName);
+                            typeCell.rowSpan = tools.length; // 设置rowspan为工具数量
+                            typeCell.classList.add('merged'); // 添加合并样式
+                            row.appendChild(typeCell);
+                        }
+                        // 后续行的类型单元格不创建，因为被第一行的rowspan覆盖
+                        
+                        // 名称列
+                        const nameCell = document.createElement('td');
+                        nameCell.className = 'name-cell';
+                        const nameLink = document.createElement('a');
+                        nameLink.href = tool['地址'];
+                        nameLink.target = '_blank';
+                        nameLink.textContent = tool['名称'];
+                        nameCell.appendChild(nameLink);
+                        row.appendChild(nameCell);
+                        
+                        // 地址列
+                        const addressCell = document.createElement('td');
+                        addressCell.textContent = tool['地址'];
+                        addressCell.className = 'address-cell';
+                        addressCell.addEventListener('click', () => this.copyToClipboard(tool['地址'], addressCell));
+                        row.appendChild(addressCell);
+                        
+                        // 备注列
+                        const noteCell = document.createElement('td');
+                        noteCell.textContent = tool['备注'] || '';
+                        row.appendChild(noteCell);
+                        
+                        // 功能列（如果存在）
+                        if (hasFunctionColumn) {
+                            const functionCell = document.createElement('td');
+                            functionCell.className = 'function-cell';
+                            const functionText = tool['功能'] || '';
+                            // 创建文本包装div，使用内联样式强制单行显示
+                            const textWrapper = document.createElement('div');
+                            textWrapper.textContent = functionText;
+                            textWrapper.style.cssText = 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; display: block;';
+                            functionCell.appendChild(textWrapper);
+                            // 添加data-full-text属性，用于tooltip显示完整文本
+                            functionCell.setAttribute('data-full-text', functionText);
+                            row.appendChild(functionCell);
+                        }
+                        
+                        tableBody.appendChild(row);
+                    });
+                });
+
+                // 生成类型导航
+                this.generateTypeNavigation(types, navListId, tableBodyId);
+            }
+
+            // 生成类型导航
+            generateTypeNavigation(types, navListId, tableBodyId) {
+                const navList = document.getElementById(navListId);
+                if (!navList) return;
+
+                navList.innerHTML = '';
+                types.forEach(type => {
+                    const navItem = document.createElement('div');
+                    navItem.className = 'type-nav-item';
+                    navItem.textContent = type;
+                    navItem.addEventListener('click', () => this.scrollToType(type, navListId, tableBodyId));
+                    navList.appendChild(navItem);
+                });
+            }
+
+            // 生成移动端卡片视图
+            generateMobileCards(tableBodyId, pageData) {
+                const tableScroll = document.getElementById(tableBodyId)?.closest('.table-scroll');
+                if (!tableScroll || !pageData || !pageData['类型']) return;
+
+                // 移除现有的移动端卡片容器
+                const existingMobileCards = tableScroll.querySelector('.mobile-cards');
+                if (existingMobileCards) {
+                    existingMobileCards.remove();
+                }
+
+                // 创建移动端卡片容器
+                const mobileContainer = document.createElement('div');
+                mobileContainer.className = 'mobile-cards';
+
+                pageData['类型'].forEach(categoryObj => {
+                    const categoryName = Object.keys(categoryObj)[0];
+                    const tools = categoryObj[categoryName];
+
+                    // 添加类型分组标题
+                    const typeHeader = document.createElement('div');
+                    typeHeader.className = 'mobile-type-header';
+                    typeHeader.textContent = categoryName;
+                    typeHeader.setAttribute('data-type', categoryName);
+                    mobileContainer.appendChild(typeHeader);
+
+                    // 为该类型下的每个工具创建卡片
+                    tools.forEach(tool => {
+                        const card = this.createMobileCard(tool);
+                        mobileContainer.appendChild(card);
+                    });
+                });
+
+                tableScroll.appendChild(mobileContainer);
+            }
+
+            // 创建单个移动端工具卡片
+            createMobileCard(tool) {
+                const card = document.createElement('div');
+                card.className = 'mobile-card';
+
+                // 解析备注获取标签，同时传入地址用于判断
+                const tags = this.parseNoteTags(tool['备注'] || '', tool['地址'] || '');
+
+                // 卡片头部：名称 + 标签
+                const header = document.createElement('div');
+                header.className = 'mobile-card-header';
+
+                const nameLink = document.createElement('a');
+                nameLink.className = 'mobile-card-name';
+                nameLink.href = tool['地址'];
+                nameLink.target = '_blank';
+                nameLink.textContent = tool['名称'];
+                header.appendChild(nameLink);
+
+                if (tags.length > 0) {
+                    const tagsContainer = document.createElement('div');
+                    tagsContainer.className = 'mobile-card-tags';
+                    tags.forEach(tag => {
+                        const tagEl = document.createElement('span');
+                        tagEl.className = `mobile-tag ${tag.class}`;
+                        tagEl.textContent = tag.text;
+                        tagsContainer.appendChild(tagEl);
+                    });
+                    header.appendChild(tagsContainer);
+                }
+
+                card.appendChild(header);
+
+                // 功能描述
+                if (tool['功能']) {
+                    const desc = document.createElement('div');
+                    desc.className = 'mobile-card-desc';
+                    desc.textContent = tool['功能'];
+                    card.appendChild(desc);
+                }
+
+                return card;
+            }
+
+            // 解析备注字段获取标签
+            parseNoteTags(note, url = '') {
+                const tags = [];
+                const noteStr = note.toLowerCase();
+                const urlStr = url.toLowerCase();
+
+                // Netlify 和 Markdown 站点需要翻墙
+                if (urlStr.includes('netlify') || urlStr.includes('markdown')) {
+                    tags.push({ text: '翻墙', class: 'tag-vpn' });
+                } else if (noteStr.includes('翻墙')) {
+                    tags.push({ text: '翻墙', class: 'tag-vpn' });
+                } else if (noteStr.includes('直连')) {
+                    tags.push({ text: '直连', class: 'tag-free' });
+                }
+
+                if (noteStr.includes('免费')) {
+                    tags.push({ text: '免费', class: 'tag-free' });
+                } else if (noteStr.includes('付费')) {
+                    tags.push({ text: '付费', class: 'tag-paid' });
+                } else if (noteStr.includes('freemium')) {
+                    tags.push({ text: 'Freemium', class: '' });
+                }
+
+                return tags;
+            }
+
+            // 滚动到指定类型
+            scrollToType(type, navListId, tableBodyId) {
+                // 检测是否为移动端视图
+                const isMobile = window.innerWidth <= 768;
+
+                if (isMobile) {
+                    // 移动端：滚动到类型标题
+                    const typeHeader = document.querySelector(`.mobile-type-header[data-type="${type}"]`);
+                    if (!typeHeader) return;
+
+                    const headerOffset = 130; // 留出顶部标签栏+类型导航栏空间
+                    const elementPosition = typeHeader.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: 'smooth'
+                    });
+                } else {
+                    // 桌面端：滚动表格
+                    const typeCell = document.querySelector(`#${tableBodyId} td[data-type="${type}"]`);
+                    if (!typeCell) return;
+
+                    const tableScroll = typeCell.closest('.table-scroll');
+                    const tableRect = tableScroll.getBoundingClientRect();
+                    const cellRect = typeCell.getBoundingClientRect();
+                    const headerHeight = tableScroll.querySelector('thead').getBoundingClientRect().height;
+
+                    const scrollTop = tableScroll.scrollTop + (cellRect.top - tableRect.top) - headerHeight - 10;
+
+                    tableScroll.scrollTo({
+                        top: Math.max(0, scrollTop),
+                        behavior: 'smooth'
+                    });
+                }
+
+                this.updateActiveNavItem(type, navListId);
+            }
+
+            // 更新激活的导航项
+            updateActiveNavItem(activeType, navListId) {
+                const navList = document.getElementById(navListId);
+                if (!navList) return;
+
+                navList.querySelectorAll('.type-nav-item').forEach(item => {
+                    item.classList.toggle('active', item.textContent === activeType);
+                });
+            }
+
+            // 复制到剪贴板功能
+            copyToClipboard(text, element) {
+                // 创建临时输入框
+                const tempInput = document.createElement('textarea');
+                tempInput.value = text;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+
+                // 显示复制提示
+                this.showCopyTooltip(element);
+            }
+
+            // 显示复制提示框
+            showCopyTooltip(element) {
+                // 移除现有的提示框
+                const existingTooltip = document.querySelector('.copy-tooltip');
+                if (existingTooltip) {
+                    existingTooltip.remove();
+                }
+
+                // 创建新的提示框
+                const tooltip = document.createElement('div');
+                tooltip.className = 'copy-tooltip';
+                tooltip.textContent = '已复制';
+                document.body.appendChild(tooltip);
+
+                // 定位提示框
+                const rect = element.getBoundingClientRect();
+                tooltip.style.left = rect.left + 'px';
+                tooltip.style.top = (rect.top - 40) + 'px';
+
+                // 显示提示框
+                setTimeout(() => {
+                    tooltip.classList.add('show');
+                }, 10);
+
+                // 2秒后隐藏提示框
+                setTimeout(() => {
+                    tooltip.classList.remove('show');
+                    setTimeout(() => {
+                        if (tooltip.parentNode) {
+                            tooltip.parentNode.removeChild(tooltip);
+                        }
+                    }, 300);
+                }, 2000);
+            }
+
+            // 检测功能列文本是否被截断并添加truncated类
+            checkFunctionCellTruncation() {
+                document.querySelectorAll('.function-cell').forEach(cell => {
+                    const textWrapper = cell.querySelector('div');
+                    if (textWrapper && textWrapper.scrollWidth > textWrapper.clientWidth) {
+                        cell.classList.add('truncated');
+                    } else {
+                        cell.classList.remove('truncated');
+                    }
+                });
+            }
+
+            // 创建悬浮提示元素
+            createHoverTooltip() {
+                if (this.hoverTooltip) return;
+                this.hoverTooltip = document.createElement('div');
+                this.hoverTooltip.className = 'hover-tooltip';
+                document.body.appendChild(this.hoverTooltip);
+            }
+
+            // 显示悬浮提示
+            showHoverTooltip(element, text, isFunction = false) {
+                if (!this.hoverTooltip) this.createHoverTooltip();
+
+                this.hoverTooltip.textContent = text;
+                this.hoverTooltip.classList.toggle('function-tip', isFunction);
+
+                const rect = element.getBoundingClientRect();
+                this.hoverTooltip.style.left = rect.left + 'px';
+                this.hoverTooltip.style.top = (rect.bottom + 4) + 'px';
+
+                // 延迟显示以触发动画
+                requestAnimationFrame(() => {
+                    this.hoverTooltip.classList.add('show');
+                });
+            }
+
+            // 隐藏悬浮提示
+            hideHoverTooltip() {
+                if (this.hoverTooltip) {
+                    this.hoverTooltip.classList.remove('show');
+                }
+            }
+
+            // 绑定悬浮提示事件（使用事件委托，只需绑定一次）
+            bindTooltipEvents() {
+                if (this.tooltipEventsBound) return;
+                this.tooltipEventsBound = true;
+
+                document.addEventListener('mouseover', (e) => {
+                    // 名称列链接 - 点击打开
+                    const link = e.target.closest('.name-cell a');
+                    if (link) {
+                        this.showHoverTooltip(link, '点击打开');
+                        return;
+                    }
+
+                    // 地址列 - 点击复制
+                    const addressCell = e.target.closest('.address-cell');
+                    if (addressCell) {
+                        this.showHoverTooltip(addressCell, '点击复制');
+                        return;
+                    }
+
+                    // 功能列 - 被截断时显示全文
+                    const functionCell = e.target.closest('.function-cell');
+                    if (functionCell && functionCell.classList.contains('truncated')) {
+                        const fullText = functionCell.getAttribute('data-full-text');
+                        if (fullText) {
+                            this.showHoverTooltip(functionCell, fullText, true);
+                        }
+                    }
+                });
+
+                document.addEventListener('mouseout', (e) => {
+                    const target = e.target.closest('.name-cell a, .address-cell, .function-cell');
+                    if (target) {
+                        this.hideHoverTooltip();
+                    }
+                });
+            }
+        }
+
+        // 页面加载完成后初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            window.AIWebpagesApp = new AIWebpagesApp();
+
+            // 初始检测功能列文本截断
+            window.AIWebpagesApp.checkFunctionCellTruncation();
+
+            // 绑定悬浮提示事件
+            window.AIWebpagesApp.bindTooltipEvents();
+
+            // 窗口大小改变时重新检测
+            window.addEventListener('resize', () => {
+                window.AIWebpagesApp.checkFunctionCellTruncation();
+            });
+
+            // 为所有表格添加滚动事件监听器
+            document.querySelectorAll('.table-scroll').forEach(tableScroll => {
+                tableScroll.addEventListener('scroll', () => {
+                    const tableRect = tableScroll.getBoundingClientRect();
+                    
+                    let currentVisibleType = null;
+                    let minDistance = Infinity;
+                    
+                    // 查找当前可见的类型
+                    tableScroll.querySelectorAll('td[data-type]').forEach(typeCell => {
+                        const cellRect = typeCell.getBoundingClientRect();
+                        const distance = Math.abs(cellRect.top - tableRect.top);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            currentVisibleType = typeCell.getAttribute('data-type');
+                        }
+                    });
+
+                    if (currentVisibleType) {
+                        // 根据当前表格找到对应的导航列表ID
+                        const navListId = tableScroll.closest('.tab-content').querySelector('.type-nav-list').id;
+                        const app = window.AIWebpagesApp;
+                        if (app) {
+                            app.updateActiveNavItem(currentVisibleType, navListId);
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
