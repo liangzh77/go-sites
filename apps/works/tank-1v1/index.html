@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PvP 分屏枪战</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="app">
+        <header class="app-header">
+            <div class="brand">PvP Arena</div>
+            <div class="hint">
+                <span>A玩家: W/A/S/D 移动，空格 射击</span>
+                <span>｜</span>
+                <span>B玩家: I/J/K/L 移动，Enter 射击</span>
+            </div>
+        </header>
+
+        <main class="arena">
+            <section class="panel panel-left">
+                <div class="panel-header">
+                    <span class="player-tag a">A 玩家</span>
+                    <div class="hud">
+                        <span class="hp" id="hpA">HP: 100</span>
+                        <span class="score" id="scoreA">Score: 0</span>
+                    </div>
+                </div>
+                <canvas id="canvasA"></canvas>
+            </section>
+
+            <section class="panel panel-right">
+                <div class="panel-header">
+                    <span class="player-tag b">B 玩家</span>
+                    <div class="hud">
+                        <span class="hp" id="hpB">HP: 100</span>
+                        <span class="score" id="scoreB">Score: 0</span>
+                    </div>
+                </div>
+                <canvas id="canvasB"></canvas>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <div>赢取 10 分获胜。命中减对方 20 HP，被击倒后 2 秒重生。</div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>狼人杀使用手册</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            color: #1d1d1f;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .toc {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-left: 5px solid #667eea;
+        }
+
+        .toc h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .toc ul {
+            list-style: none;
+        }
+
+        .toc li {
+            margin-bottom: 12px;
+        }
+
+        .toc a {
+            color: #495057;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 8px 15px;
+            border-radius: 8px;
+            display: block;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .toc a:hover {
+            background: #667eea;
+            color: white;
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .section h2 {
+            color: #667eea;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            font-weight: 600;
+        }
+
+        .section h3 {
+            color: #495057;
+            font-size: 1.3rem;
+            margin: 25px 0 15px 0;
+            font-weight: 600;
+        }
+
+        .section h4 {
+            color: #6c757d;
+            font-size: 1.1rem;
+            margin: 20px 0 10px 0;
+            font-weight: 500;
+        }
+
+        .section p {
+            margin-bottom: 15px;
+            text-align: justify;
+            color: #495057;
+        }
+
+        .section strong {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        tr:hover {
+            background: #e3f2fd;
+            transition: background 0.3s ease;
+        }
+
+        .interaction-tip {
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 100%);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #fdcb6e;
+            box-shadow: 0 3px 10px rgba(253, 203, 110, 0.3);
+        }
+
+        .interaction-tip strong {
+            color: #d63031;
+            font-weight: 600;
+        }
+
+        .highlight {
+            background: linear-gradient(120deg, #a8edea 0%, #fed6e3 100%);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .role-card {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #ff9a9e;
+            box-shadow: 0 3px 10px rgba(255, 154, 158, 0.3);
+        }
+
+        .role-card h4 {
+            color: #d63031;
+            margin-bottom: 8px;
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        }
+
+        .video-links {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .video-links h4 {
+            color: #2d3436;
+            margin-bottom: 15px;
+        }
+
+        .video-links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            display: block;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .video-links a:hover {
+            color: #764ba2;
+            padding-left: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .section {
+                padding: 20px;
+            }
+
+            .section h2 {
+                font-size: 1.5rem;
+            }
+
+            table {
+                font-size: 0.8rem;
+            }
+
+            th, td {
+                padding: 8px 6px;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container fade-in">
+        <div class="header">
+            <h1>🃏 狼人杀使用手册</h1>
+            <div class="subtitle">从零基础到高手进阶的完整指南</div>
+        </div>
+
+        <div class="toc">
+            <h2>📚 目录</h2>
+            <ul>
+                <li><a href="index.html#section1">1. 游戏概述</a></li>
+                <li><a href="index.html#section2">2. 基础操作：规则、角色与术语</a></li>
+                <li><a href="index.html#section3">3. 基础实战：入门策略</a></li>
+                <li><a href="index.html#section4">4. 进阶扩展：深化规则与角色</a></li>
+                <li><a href="index.html#section5">5. 精通层面：高手策略</a></li>
+                <li><a href="index.html#section6">6. 附录：常见问题与资源</a></li>
+            </ul>
+        </div>
+
+        <div id="section1" class="section">
+            <h2>1. 游戏概述</h2>
+            
+            <h3>游戏简介</h3>
+            <p>狼人杀（Werewolf/Mafia）是一种社交推理桌游，玩家分为<strong>好人阵营（村民）</strong>和<strong>坏人阵营（狼人）</strong>。好人需通过发言、推理和投票找出并处决狼人；狼人则需夜晚杀戮并伪装身份，直到人数优势。</p>
+            
+            <ul>
+                <li><strong>核心机制</strong>：夜晚闭眼行动 + 白天公开讨论。</li>
+                <li><strong>玩家人数</strong>：5-18人（新手推荐8-12人，小局5-7人需简化规则）。</li>
+                <li><strong>一局时长</strong>：20-60分钟。</li>
+                <li><strong>游戏益处</strong>：提升逻辑思维、观察力和社交技能，充满惊喜与欢笑。</li>
+            </ul>
+
+            <h3>快速开始</h3>
+            <ol>
+                <li>准备身份牌（总牌数=玩家数）。</li>
+                <li>主持人（经验玩家）主持流程。</li>
+                <li>抽牌保密，游戏开始！</li>
+            </ol>
+
+            <div class="interaction-tip">
+                <strong>互动提示</strong>：分享一句游戏台词，如"我是预言家，你是狼！" 以激发兴趣。
+            </div>
+        </div>
+
+        <div id="section2" class="section">
+            <h2>2. 基础操作：规则、角色与术语</h2>
+            <p>本节聚焦核心玩法。新手先掌握此部分，建议模拟一局闭眼环节。</p>
+
+            <h3>基础规则</h3>
+            <p>游戏循环：夜晚行动 → 白天讨论 → 投票。主持人控制指令。</p>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>阶段</th>
+                            <th>描述</th>
+                            <th>关键指令</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>夜晚阶段</strong></td>
+                            <td>玩家闭眼，特殊角色依次行动。狼人选一人"刀"（杀戮）。</td>
+                            <td>"天黑请闭眼""狼人请睁眼"</td>
+                        </tr>
+                        <tr>
+                            <td><strong>白天阶段</strong></td>
+                            <td>睁眼发言（轮流1-2分钟/人），分析身份。</td>
+                            <td>"天亮了""轮到X号发言"</td>
+                        </tr>
+                        <tr>
+                            <td><strong>投票</strong></td>
+                            <td>每个人指一人"票"，票最多者出局（公布身份）。</td>
+                            <td>"投票环节"</td>
+                        </tr>
+                        <tr>
+                            <td><strong>结束</strong></td>
+                            <td>村民胜：狼人全灭。<br>狼人胜：狼人数 ≥ 村民数。</td>
+                            <td>-</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p><strong>禁忌规则</strong>：</p>
+            <ul>
+                <li>身份保密，不可明说或剧透。</li>
+                <li>发言时勿抢话，尊重顺序。</li>
+                <li>死亡玩家禁言（可旁观）。</li>
+            </ul>
+
+            <h3>基础角色介绍</h3>
+            <p>基础牌型（8人局示例）：平民4、神职2、狼人2。角色技能夜晚使用。</p>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>阵营</th>
+                            <th>角色</th>
+                            <th>技能描述</th>
+                            <th>玩法Tips</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>村民</strong></td>
+                            <td>平民</td>
+                            <td>无技能，靠发言推理。</td>
+                            <td>观察他人，找逻辑漏洞。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>狼人</strong></td>
+                            <td>狼人</td>
+                            <td>夜晚集体选1人杀。</td>
+                            <td>白天伪装好人，搅局。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>神职（村民）</strong></td>
+                            <td>预言家</td>
+                            <td>夜晚查1人身份（金水=好人，狼坑=狼人）。</td>
+                            <td>白天自爆带节奏。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>神职（村民）</strong></td>
+                            <td>女巫</td>
+                            <td>救命丸（救昨晚刀人，1次）；毒药（毒1人，1次）。</td>
+                            <td>夜晚睁眼选目标。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>常用术语</h3>
+            <p>扩展列表整合基础与进阶常用术语，按类别分类，便于查阅。术语源于游戏社区共识，涵盖发言、行动与博弈。</p>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>类别</th>
+                            <th>术语</th>
+                            <th>解释</th>
+                            <th>示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td rowspan="7"><strong>行动相关</strong></td>
+                            <td>天黑请闭眼</td>
+                            <td>夜晚开始指令。</td>
+                            <td>主持人喊后，全员闭眼。</td>
+                        </tr>
+                        <tr>
+                            <td>刀/狼杀</td>
+                            <td>狼人夜晚杀一人。</td>
+                            <td>"昨晚刀口在3号。"</td>
+                        </tr>
+                        <tr>
+                            <td>自刀</td>
+                            <td>狼人自杀骗女巫解药。</td>
+                            <td>狼队策略，制造信任。</td>
+                        </tr>
+                        <tr>
+                            <td>空刀</td>
+                            <td>狼人不杀任何人。</td>
+                            <td>用于迷惑女巫。</td>
+                        </tr>
+                        <tr>
+                            <td>毒杀</td>
+                            <td>女巫夜晚毒死一人。</td>
+                            <td>死者无遗言。</td>
+                        </tr>
+                        <tr>
+                            <td>刀口</td>
+                            <td>被狼刀的位置。</td>
+                            <td>"刀口发言太水。"</td>
+                        </tr>
+                        <tr>
+                            <td>验/查杀</td>
+                            <td>预言家查验身份。</td>
+                            <td>"昨晚查杀4号。"</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="8"><strong>身份/博弈</strong></td>
+                            <td>金水</td>
+                            <td>预言家查好人。</td>
+                            <td>"5号金水，可信。"</td>
+                        </tr>
+                        <tr>
+                            <td>狼坑</td>
+                            <td>预言家查疑狼。</td>
+                            <td>"3号进狼坑。"</td>
+                        </tr>
+                        <tr>
+                            <td>悍跳狼</td>
+                            <td>狼人假跳预言家。</td>
+                            <td>混淆好人视听。</td>
+                        </tr>
+                        <tr>
+                            <td>冲锋狼</td>
+                            <td>站边时假跳狼。</td>
+                            <td>保护队友。</td>
+                        </tr>
+                        <tr>
+                            <td>表水</td>
+                            <td>解释自己不是狼。</td>
+                            <td>"我表水，不是悍跳。"</td>
+                        </tr>
+                        <tr>
+                            <td>水</td>
+                            <td>灌水发言，无实质内容。</td>
+                            <td>平民常见。</td>
+                        </tr>
+                        <tr>
+                            <td>带</td>
+                            <td>猎人死亡带走一人。</td>
+                            <td>"猎人带走狼人。"</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="6"><strong>投票/警徽</strong></td>
+                            <td>票型</td>
+                            <td>投票模式。</td>
+                            <td>"全票3号出局。"</td>
+                        </tr>
+                        <tr>
+                            <td>公投</td>
+                            <td>投票环节。</td>
+                            <td>"公投前冲票。"</td>
+                        </tr>
+                        <tr>
+                            <td>冲票/裸冲</td>
+                            <td>突然拉票。</td>
+                            <td>狼人常用。</td>
+                        </tr>
+                        <tr>
+                            <td>上警/警上</td>
+                            <td>竞选警长玩家。</td>
+                            <td>"警上发言逻辑好。"</td>
+                        </tr>
+                        <tr>
+                            <td>警下</td>
+                            <td>未竞选玩家。</td>
+                            <td>"警下多是狼坑。"</td>
+                        </tr>
+                        <tr>
+                            <td>警徽流</td>
+                            <td>警徽走向分析。</td>
+                            <td>"镜子流，警徽回转。"</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="3"><strong>视角/其他</strong></td>
+                            <td>视角</td>
+                            <td>从自身身份分析局面。</td>
+                            <td>"平民视角，谁可疑？"</td>
+                        </tr>
+                        <tr>
+                            <td>面</td>
+                            <td>像预言家的程度。</td>
+                            <td>"他面高，真预。"</td>
+                        </tr>
+                        <tr>
+                            <td>强神杀</td>
+                            <td>快速票疑狼。</td>
+                            <td>少发言，直接出局。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>推荐牌型配置</h3>
+            <p>根据社区标准，以下为常见人数的推荐牌型配置，从5人局开始。基础局注重平衡（神:狼:民 ≈ 1:1:2），新手优先明牌/暗牌局。小局（5-7人）简化技能，减少神职以防过快结束。配置包括核心角色，进阶可替换。</p>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>人数</th>
+                            <th>推荐配置</th>
+                            <th>角色详情</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>5人</strong></td>
+                            <td>简化局</td>
+                            <td>狼人2 + 女巫1 + 平民2。胜利：好人需快速投票，狼人协作刀。适合入门，发言轮次少。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>6人</strong></td>
+                            <td>标准明牌局</td>
+                            <td>狼人2 + 女巫1 + 平民3。胜利：好人明牌，狼人暗杀。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>6人</strong></td>
+                            <td>暗牌局</td>
+                            <td>预言家1 + 守卫1 + 平民2 + 狼人2。胜利：好人暗牌，狼人需屠边。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>7人</strong></td>
+                            <td>生还者</td>
+                            <td>预言家1 + 女巫1 + 猎人1 + 守卫1 + 平民1 + 狼人2。胜利：强调生存博弈。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>8人</strong></td>
+                            <td>诸神黄昏</td>
+                            <td>预言家1 + 女巫1 + 猎人1 + 守卫1 + 白痴1 + 狼人3。胜利：神职对抗强狼。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>8人</strong></td>
+                            <td>末日狂徒</td>
+                            <td>预言家1 + 守卫1 + 骑士1 + 平民2 + 狼人3。胜利：快速节奏，狼队协作。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>9人</strong></td>
+                            <td>暗牌局</td>
+                            <td>预言家1 + 女巫1 + 猎人1 + 平民3 + 狼人3。胜利：标准暗牌，平衡推理。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10人</strong></td>
+                            <td>普通局</td>
+                            <td>预言家1 + 女巫1 + 猎人1 + 平民4 + 狼人3。胜利：基础扩展，适合中手。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>10人</strong></td>
+                            <td>白痴局</td>
+                            <td>预言家1 + 女巫1 + 猎人1 + 白痴1 + 平民3 + 狼人3。胜利：白痴增加钓鱼乐趣。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>11人</strong></td>
+                            <td>标准局</td>
+                            <td>预言家1 + 女巫1 + 猎人1 + 白痴1 + 平民3 + 狼人4。胜利：狼队强势，好人需团队。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>12人</strong></td>
+                            <td>预女猎白标准板</td>
+                            <td>预言家1 + 女巫1 + 猎人1 + 白痴1 + 平民4 + 狼人4。胜利：经典平衡，警徽机制。</td>
+                        </tr>
+                        <tr>
+                            <td><strong>12人</strong></td>
+                            <td>狼王守卫</td>
+                            <td>预言家1 + 女巫1 + 猎人1 + 守卫1 + 平民4 + 狼人3 + 狼王1。胜利：狼王技能翻盘点。</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="interaction-tip">
+                <strong>互动提示</strong>：闭眼模拟夜晚，猜行动顺序。抽牌试角色技能。根据人数选一配置，试玩一局。
+            </div>
+        </div>
+
+        <div id="section3" class="section">
+            <h2>3. 基础实战：入门策略</h2>
+            <p>规则上手后，焦点转向"怎么赢"。新手原则：听多说少，逻辑优先。</p>
+
+            <h3>核心策略</h3>
+            <ol>
+                <li><strong>观察发言</strong>：注意语气、细节。狼人常回避昨晚事件或逻辑矛盾。</li>
+                <li><strong>投票决策</strong>：优先票高疑玩家（e.g., 自称神职无证据者）。跟风或质疑。</li>
+                <li><strong>心态管理</strong>：第一局多听，被票时冷静辩护。</li>
+                <li><strong>避坑指南</strong>：
+                    <ul>
+                        <li>别信假预言家（问："昨晚查谁？证据？"）。</li>
+                        <li>别乱自爆身份。</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h3>实战案例</h3>
+            <div class="role-card">
+                <h4>场景</h4>
+                <p>有人自称预言家，说"5号金水"。</p>
+                <h4>策略</h4>
+                <p>追问细节，若支吾 → 票他。结果：村民胜。</p>
+            </div>
+
+            <div class="interaction-tip">
+                <strong>互动提示</strong>：脑storm：你是平民，有人承认狼人，你怎么票？（答：确认真假后票。）
+            </div>
+        </div>
+
+        <div id="section4" class="section">
+            <h2>4. 进阶扩展：深化规则与角色</h2>
+            <p>玩2-3局基础后扩展。保持牌平衡（神:狼:民 ≈ 3:3:4）。</p>
+
+            <h3>进阶规则</h3>
+            <ul>
+                <li><strong>多狼模式</strong>：狼人3-4人，夜晚协作刀。</li>
+                <li><strong>复活/守护</strong>：加守卫角色，夜晚守护1人免刀。</li>
+                <li><strong>自定义</strong>：用APP限时发言（1分钟/轮）。</li>
+            </ul>
+
+            <h3>进阶角色介绍</h3>
+            <p>扩展添加常见进阶角色，聚焦平衡与趣味。这些角色增加博弈深度，适合12人局及以上的复杂对局。按阵营分类，便于理解和记忆。</p>
+
+            <h4>村民阵营 - 神职角色</h4>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>角色</th>
+                            <th>技能描述</th>
+                            <th>使用时机</th>
+                            <th>玩法Tips</th>
+                            <th>克制关系</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>猎人</strong></td>
+                            <td>死亡时开枪带走1人（被毒无效）</td>
+                            <td>被票或被刀后</td>
+                            <td>晚死翻盘神器，优先守护。可带狼或疑神。</td>
+                            <td>克制狼人，被女巫毒克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>白痴</strong></td>
+                            <td>被票时撕牌免死（1次），失去投票权</td>
+                            <td>被票时自动触发</td>
+                            <td>狼人克星，用来钓鱼。撕牌后仍可发言。</td>
+                            <td>克制狼人冲票，被狼王克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>守卫</strong></td>
+                            <td>夜晚守护1人免刀（可自守，不能连续守同一人）</td>
+                            <td>夜晚阶段</td>
+                            <td>空守/自守迷惑狼队。与女巫配合形成双保险。</td>
+                            <td>克制狼人刀杀，被狼王克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>骑士</strong></td>
+                            <td>白天可决斗1人，若对方是狼则对方死，若对方是好人则自己死</td>
+                            <td>白天发言阶段</td>
+                            <td>高风险高回报，护强神。优先决斗疑狼。</td>
+                            <td>克制狼人，被好人误用克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>魔术师</strong></td>
+                            <td>夜晚交换2人身份（1次），影响当晚所有行动</td>
+                            <td>夜晚阶段</td>
+                            <td>制造混乱，保护关键角色。可交换狼人和好人。</td>
+                            <td>克制狼人，被狼王克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>摄梦人</strong></td>
+                            <td>夜晚摄梦1人，若被摄梦者被刀则摄梦人死，被摄梦者活</td>
+                            <td>夜晚阶段</td>
+                            <td>保护关键角色，可自摄。与守卫配合。</td>
+                            <td>克制狼人刀杀，被狼王克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>乌鸦</strong></td>
+                            <td>夜晚诅咒1人，被诅咒者白天发言时只能说"过"</td>
+                            <td>夜晚阶段</td>
+                            <td>限制狼人发言，制造信息不对称。</td>
+                            <td>克制狼人发言，被白痴克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>禁言长老</strong></td>
+                            <td>夜晚禁言1人，被禁言者白天不能发言</td>
+                            <td>夜晚阶段</td>
+                            <td>限制关键角色发言，配合狼队。</td>
+                            <td>克制好人发言，被白痴克制</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>狼人阵营 - 特殊狼人</h4>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>角色</th>
+                            <th>技能描述</th>
+                            <th>使用时机</th>
+                            <th>玩法Tips</th>
+                            <th>克制关系</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>狼王</strong></td>
+                            <td>死亡时带走1人（被毒无效）</td>
+                            <td>被票或被刀后</td>
+                            <td>狼队核心，优先保护。可带神职或疑民。</td>
+                            <td>克制神职，被女巫毒克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>白狼王</strong></td>
+                            <td>白天可自爆带走1人，立即进入夜晚</td>
+                            <td>白天发言阶段</td>
+                            <td>翻盘神器，优先带走强神。可打断发言。</td>
+                            <td>克制神职，被骑士克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>狼美人</strong></td>
+                            <td>夜晚魅惑1人，若狼美人被票则被魅惑者殉情</td>
+                            <td>夜晚阶段</td>
+                            <td>制造第三方，魅惑关键角色。可自魅。</td>
+                            <td>克制神职，被女巫毒克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>隐狼</strong></td>
+                            <td>被预言家查验显示好人，被女巫毒死</td>
+                            <td>被动技能</td>
+                            <td>隐藏身份，混淆好人判断。可悍跳预言家。</td>
+                            <td>克制预言家，被女巫克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>石像鬼</strong></td>
+                            <td>夜晚查验1人身份，不与狼队见面</td>
+                            <td>夜晚阶段</td>
+                            <td>独立行动，提供信息。可悍跳预言家。</td>
+                            <td>克制好人，被女巫毒克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>梦魇</strong></td>
+                            <td>夜晚恐惧1人，被恐惧者当晚技能无效</td>
+                            <td>夜晚阶段</td>
+                            <td>限制神职技能，优先恐惧守卫女巫。</td>
+                            <td>克制神职，被白痴克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>血月使徒</strong></td>
+                            <td>自爆后所有神职当晚技能无效</td>
+                            <td>白天发言阶段</td>
+                            <td>翻盘神器，优先自爆。可打断发言。</td>
+                            <td>克制神职，被骑士克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>恶灵骑士</strong></td>
+                            <td>被预言家查验时预言家死，被女巫毒时女巫死</td>
+                            <td>被动技能</td>
+                            <td>反制神职，可悍跳预言家。优先被查验。</td>
+                            <td>克制预言家女巫，被骑士克制</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>第三方阵营 - 独立角色</h4>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>角色</th>
+                            <th>技能描述</th>
+                            <th>胜利条件</th>
+                            <th>玩法Tips</th>
+                            <th>克制关系</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>丘比特</strong></td>
+                            <td>第一晚指定2人成情侣（同死），情侣存活则丘比特胜利</td>
+                            <td>情侣存活到最后</td>
+                            <td>制造第三方胜负，复杂博弈。可自连。</td>
+                            <td>克制狼人，被女巫毒克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>混血儿</strong></td>
+                            <td>第一晚选择1人作为主人，主人死则混血儿死</td>
+                            <td>主人阵营胜利</td>
+                            <td>跟随主人阵营，可悍跳神职。</td>
+                            <td>克制狼人，被女巫毒克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>野孩子</strong></td>
+                            <td>第一晚选择1人作为榜样，榜样死则野孩子变狼</td>
+                            <td>榜样死前跟随好人，死后跟随狼人</td>
+                            <td>双重身份，可悍跳神职。</td>
+                            <td>克制狼人，被女巫毒克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>吹笛者</strong></td>
+                            <td>夜晚魅惑2人，所有被魅惑者存活则吹笛者胜利</td>
+                            <td>所有被魅惑者存活</td>
+                            <td>制造第三方胜负，可自魅。</td>
+                            <td>克制狼人，被女巫毒克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>炸弹人</strong></td>
+                            <td>被票时带走投票者，被刀时带走刀者</td>
+                            <td>最后存活</td>
+                            <td>反制攻击，可悍跳神职。</td>
+                            <td>克制狼人，被女巫毒克制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>盗贼</strong></td>
+                            <td>第一晚选择2张身份牌，选择1张作为自己的身份</td>
+                            <td>根据选择的身份</td>
+                            <td>灵活选择身份，可悍跳神职。</td>
+                            <td>克制狼人，被女巫毒克制</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>特殊机制角色</h4>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>角色</th>
+                            <th>技能描述</th>
+                            <th>特殊机制</th>
+                            <th>玩法Tips</th>
+                            <th>适用局数</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>警长</strong></td>
+                            <td>白天竞选，拥有1.5票投票权</td>
+                            <td>警徽流：死亡时指定下任警长</td>
+                            <td>控制投票，传递信息。可悍跳预言家。</td>
+                            <td>12人以上</td>
+                        </tr>
+                        <tr>
+                            <td><strong>长老</strong></td>
+                            <td>被票时不死，被刀时死亡</td>
+                            <td>被票时失去技能，被刀时死亡</td>
+                            <td>保护关键角色，可悍跳神职。</td>
+                            <td>10人以上</td>
+                        </tr>
+                        <tr>
+                            <td><strong>替罪羊</strong></td>
+                            <td>平票时替罪羊死亡</td>
+                            <td>平票时自动死亡</td>
+                            <td>避免平票，可悍跳神职。</td>
+                            <td>12人以上</td>
+                        </tr>
+                        <tr>
+                            <td><strong>长老</strong></td>
+                            <td>被票时不死，被刀时死亡</td>
+                            <td>被票时失去技能，被刀时死亡</td>
+                            <td>保护关键角色，可悍跳神职。</td>
+                            <td>10人以上</td>
+                        </tr>
+                        <tr>
+                            <td><strong>替罪羊</strong></td>
+                            <td>平票时替罪羊死亡</td>
+                            <td>平票时自动死亡</td>
+                            <td>避免平票，可悍跳神职。</td>
+                            <td>12人以上</td>
+                        </tr>
+                        <tr>
+                            <td><strong>长老</strong></td>
+                            <td>被票时不死，被刀时死亡</td>
+                            <td>被票时失去技能，被刀时死亡</td>
+                            <td>保护关键角色，可悍跳神职。</td>
+                            <td>10人以上</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="interaction-tip">
+                <strong>互动提示</strong>：用12人牌试猎人，讨论"被刀带谁"。
+            </div>
+        </div>
+
+        <div id="section5" class="section">
+            <h2>5. 精通层面：高手策略</h2>
+            <p>多玩10局后，进入心理战。记录每局心得。高手策略强调多维度博弈：逻辑、心理、团队。以下详细描述核心技巧，结合实战应用。</p>
+
+            <h3>高手技巧</h3>
+            
+            <div class="role-card">
+                <h4>1. 心理博弈：读微表情与制造假象</h4>
+                <p>高手通过观察非语言线索（如眼神回避、犹豫停顿）判断身份，准确率可达70%以上。狼人常利用此制造假象，例如悍跳预言家时，先自刀不上警（避免暴露），再用"怂"发言（如承认小错）提升身份安全感。好人则模拟神职发言，误导狼队：例如平民假装预言家，报假金水拉票。实战中，狼人可对女巫毒药威胁下"穿衣"（刀女巫），迫使好人内斗。Tips：多练读人，结合逻辑（如发言连贯性）验证。</p>
+            </div>
+
+            <div class="role-card">
+                <h4>2. 团队协作：默契沟通与统一票型</h4>
+                <p>狼队夜晚"脑内会议"选刀目标，优先刀强神（如预言家）；白天用暗号（如特定短语）协调。村民间通过信息共享（如"昨晚刀口逻辑"）统一视角，避免内斗。高手强调"枪徽流"：用猎人枪或警徽拉票，制造威胁。案例：在4狼局，狼队一狼悍跳拿警徽，另一狼冲锋站边，成功扛出真预言家。Tips：村民用"保身份"对话（如逻辑链条）协同；狼队防"倒钩"（队友被票时反拉）。</p>
+            </div>
+
+            <div class="role-card">
+                <h4>3. 全局分析：反推逻辑与算牌</h4>
+                <p>高手从"若A是狼，则B发言不对"反推全局，结合剩余牌算狼坑（e.g., "神全跳，死2人，剩3狼"）。狼人策略：首夜刀边缘玩家，避开核心神；好人用"打煽动"强势拉票（给弱好人逻辑保底）。数学模型：博弈论视角，预言家查验优先高威胁位，胜率提升30%。Tips：记录发言表格，复盘"信息不对称"点。</p>
+            </div>
+
+            <div class="role-card">
+                <h4>4. 避坑与进阶应用：忽略安静玩家与过度自信</h4>
+                <p>常见坑：安静玩家（警下）常藏狼，高手必追问。防过度自信：狼人别早穿女巫（毒药克制）；好人别信全金水。应用：用"诈身份"测试（如发后置位查杀），或在公投前"裸冲"拉票。长期：观摩高手局，模拟AI对决提升。</p>
+            </div>
+
+            <h3>高手案例</h3>
+            
+            <div class="role-card">
+                <h4>案例1：狼人悍跳翻盘局（12人进阶场，3狼1魔狼）</h4>
+                <p><strong>局况</strong>：真预言家（5号）首夜查杀狼人（8号），白天自爆。狼队策略：一狼（2号）自刀不上警，制造"弱势好人"形象；魔狼（10号）学习女巫技能，夜晚空刀迷惑。白天，2号悍跳预言家，报假金水（保队友4号），并煽动"5号面低，是冲锋狼"。好人内斗，票出真预言家。次夜，魔狼变女巫毒疑神（7号守卫），狼队刀平民。第三天，2号拿警徽，统一票型冲猎人（9号），猎人带走白痴（无效）。狼队剩2人，好人剩3——狼胜。</p>
+                <p><strong>分析</strong>：狼队心理博弈胜出，悍跳+自刀提升信任（面高30%），全局算牌避开骑士守护。启发：好人需早辨"镜子流"（警徽回转疑狼）。此局常见于官方进阶版，胜率狼队65%。</p>
+            </div>
+
+            <div class="role-card">
+                <h4>案例2：村民挡刀神操作（8人基础局）</h4>
+                <p><strong>局况</strong>：狼队刀预言家（6号），女巫救回。白天，平民（3号）视角：刀口发言水，疑狼坑。3号发言模拟预言家："我查3金水（自保），8号狼坑（边缘玩家）"，煽动票8号（真狼）。狼队冲票3号，但3号逻辑链（"若我不跳，狼队稳赢"）说服2好人跟票。8号出局，身份曝狼。次夜狼刀3号，猎人（1号）带走剩狼。村民胜。</p>
+                <p><strong>分析</strong>：3号用"挡刀"技巧（后置位认神，猛攻狼），逆转弱势。关键：观察刀口+反推（狼必扛假预）。此案启发新手：平民也能翻盘，靠发言说服率达70%。</p>
+            </div>
+
+            <div class="interaction-tip">
+                <strong>互动提示</strong>：分享"神操作"，布置作业：玩3局记笔记。
+            </div>
+        </div>
+
+        <div id="section6" class="section">
+            <h2>6. 附录：常见问题与资源</h2>
+            
+            <h3>资源推荐</h3>
+            <ul>
+                <li><strong>APP</strong>：狼人杀官方APP（练习模式）。</li>
+                <li><strong>社区</strong>：加入狼人杀微信群或Discord。</li>
+                <li><strong>扩展阅读</strong>：进阶书籍《狼人杀策略指南》。</li>
+            </ul>
+
+            <h3>视频讲解链接</h3>
+            
+            <div class="video-links">
+                <h4>Bilibili推荐（新手到进阶教程）</h4>
+                <a href="https://www.bilibili.com/video/BV1e4411e7ZM/" target="_blank">狼人杀良心教学视频全程干货</a>
+                <a href="https://www.bilibili.com/video/BV1Lx411m7Rj/" target="_blank">狼人杀游戏新手入门教学视频第一集（基础规则和玩法）</a>
+                <a href="https://www.bilibili.com/video/BV1xQ4y1P7HB" target="_blank">【狼人杀初级教程】告别速成！2小时讲座带你初步了解狼人杀理论体系</a>
+                <a href="https://www.bilibili.com/video/BV1BFBsYeEKC/" target="_blank">【狼人杀逻辑大师课01】狼人杀基础理念及初步分析真假预言家</a>
+                <a href="https://www.bilibili.com/video/BV1Nx411U7Q7/" target="_blank">【申屠讲堂01】狼人杀10分钟包教包会</a>
+                <a href="https://www.bilibili.com/video/BV1g5EnzuEHQ/" target="_blank">【从萌新到高手】狼人杀教学来了！7年狼人杀经验完全分享！</a>
+                <a href="https://search.bilibili.com/all?keyword=%25E7%258B%25BC%25E4%25BA%25BA%25E6%259D%2580%25E6%2595%2599%25E7%25A8%258B" target="_blank">6分钟带你入门狼人杀，新手极速上手</a>
+            </div>
+
+            <div class="video-links">
+                <h4>YouTube推荐</h4>
+                <a href="https://www.youtube.com/playlist?list=PLdx7vs13qZNAH9kzwPRawyh6PoQgl3kOk" target="_blank">【狼人杀】——教学实操课</a>
+            </div>
+
+            <div class="interaction-tip">
+                <strong>适用对象</strong>：狼人杀新手及进阶玩家<br>
+                <strong>手册目的</strong>：本手册提供狼人杀游戏的完整指南，帮助您从零基础快速上手，并逐步掌握高手技巧。适合个人自学或小组教学。建议结合实际游戏练习，每节后有互动提示。<br>
+                <strong>游戏工具</strong>：实体身份牌、APP（如"狼人杀-无限法外"）或在线平台。<br>
+                <strong>视频链接</strong>：见手册末尾。
+            </div>
+        </div>
+    </div>
+
+    <button class="back-to-top" onclick="scrollToTop()" title="回到顶部">↑</button>
+
+    <script>
+        // 平滑滚动到顶部
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // 目录链接平滑滚动
+        document.querySelectorAll('.toc a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // 滚动时显示/隐藏回到顶部按钮
+        window.addEventListener('scroll', function() {
+            const backToTop = document.querySelector('.back-to-top');
+            if (window.pageYOffset > 300) {
+                backToTop.style.display = 'block';
+            } else {
+                backToTop.style.display = 'none';
+            }
+        });
+
+        // 初始化时隐藏回到顶部按钮
+        document.querySelector('.back-to-top').style.display = 'none';
+
+        // 添加页面加载动画
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = document.querySelectorAll('.section');
+            sections.forEach((section, index) => {
+                section.style.opacity = '0';
+                section.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    section.style.transition = 'all 0.6s ease';
+                    section.style.opacity = '1';
+                    section.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+</body>
+</html>

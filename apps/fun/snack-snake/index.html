@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>贪吃蛇游戏</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="options-panel">
+            <h2>游戏设置</h2>
+            <div class="option-group">
+                <label for="areaSize">区域大小:</label>
+                <select id="areaSize">
+                    <option value="small">小 (400x400)</option>
+                    <option value="medium" selected>中 (800x800)</option>
+                    <option value="large">大 (1100x1100)</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label for="blockSize">方块大小:</label>
+                <select id="blockSize">
+                    <option value="small">小 (15px)</option>
+                    <option value="medium" selected>中 (20px)</option>
+                    <option value="large">大 (25px)</option>
+                    <option value="huge">巨大 (50px)</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label for="gameSpeed">游戏速度:</label>
+                <select id="gameSpeed">
+                    <option value="slow">慢 (100像素/秒)</option>
+                    <option value="medium" selected>中 (200像素/秒)</option>
+                    <option value="fast">快 (400像素/秒)</option>
+                    <option value="huge">巨快 (800像素/秒)</option>
+                    <option value="superfast">超快 (20000像素/秒)</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label for="foodCount">食物数量:</label>
+                <select id="foodCount">
+                    <option value="1" selected>1个</option>
+                    <option value="2">2个</option>
+                    <option value="3">3个</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="game-panel">
+            <canvas id="gameCanvas"></canvas>
+            <div class="game-info">
+                <div class="game-controls">
+                    <div class="score">分数: <span id="scoreText">0</span></div>
+                    <button id="startButton">开始游戏</button>
+                    <div class="multiplier">分数倍率: <span id="multiplierText">1.0x</span></div>
+                    <div class="pause-hint">按回车键暂停/继续</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="side-panels">
+            <div class="history-panel">
+                <h2>记录</h2>
+                <div id="historyList"></div>
+            </div>
+            
+            <div class="leaderboard-panel">
+                <h2>排行榜</h2>
+                <div class="leaderboard-tabs">
+                    <button class="tab-button active" data-period="all">全部</button>
+                    <button class="tab-button" data-period="today">今日</button>
+                    <button class="tab-button" data-period="week">本周</button>
+                </div>
+                <div id="leaderboardList"></div>
+            </div>
+        </div>
+        
+        <div class="ai-debug-panels">
+            <div class="ai-controls">
+                <h3>AI机器人控制</h3>
+                <div class="ai-options">
+                    <label for="aiEnabled">启用AI:</label>
+                    <input type="checkbox" id="aiEnabled">
+                    
+                    <label for="aiBotSelect">选择机器人:</label>
+                    <select id="aiBotSelect">
+                        <option value="">请选择机器人</option>
+                    </select>
+                    
+                    <button id="reloadBotsButton">重新加载机器人</button>
+                    
+                    <label for="debugEnabled">调试:</label>
+                    <input type="checkbox" id="debugEnabled">
+                </div>
+                <div class="ai-status">
+                    <span id="aiStatusText">AI未启用</span>
+                </div>
+            </div>
+            
+            <div class="debug-panel" id="debugPanel" style="display: none;">
+                <h3>调试信息</h3>
+                <div class="debug-info">
+                    <div class="debug-section">
+                        <h4>游戏状态</h4>
+                        <pre id="gameStateText"></pre>
+                    </div>
+                    <div class="debug-section">
+                        <h4>AI决策</h4>
+                        <div id="aiDecisionText">等待AI决策...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html> 

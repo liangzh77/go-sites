@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片拼接工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: white;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .drop-zone {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border: 3px dashed #ccc;
+            color: #ccc;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .drop-zone.dragover {
+            border-color: #007bff;
+            color: #007bff;
+            background: #f8f9fa;
+        }
+
+        .drop-zone.hidden {
+            display: none;
+        }
+
+        .canvas-container {
+            width: 100vw;
+            height: 100vh;
+            overflow: auto;
+            background: white;
+            display: none;
+            position: relative;
+        }
+
+        .canvas-container.active {
+            display: block;
+        }
+
+        .image-grid {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            min-height: 100vh;
+            width: 100%;
+        }
+
+        .image-item {
+            position: relative;
+            cursor: move;
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .image-item:hover {
+            border-color: #007bff;
+        }
+
+        .image-item img {
+            display: block;
+            height: auto;
+            max-width: 100%;
+        }
+
+        .image-item.dragging {
+            opacity: 0.5;
+            z-index: 1000;
+        }
+
+        .drop-indicator {
+            width: 3px;
+            background: #007bff;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            display: none;
+            z-index: 999;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1001;
+            display: none;
+        }
+
+        .controls.active {
+            display: block;
+        }
+
+        .controls button {
+            margin: 5px;
+            padding: 8px 15px;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .gap-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .gap-controls button {
+            width: 30px;
+            height: 30px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        #gapDisplay {
+            color: #333;
+            font-size: 12px;
+            min-width: 70px;
+            text-align: center;
+        }
+
+        .controls button:hover {
+            background: #0056b3;
+        }
+
+        .final-image {
+            max-width: 100%;
+            max-height: 100vh;
+            display: block;
+            margin: 0 auto;
+            cursor: grab;
+        }
+
+        .final-image:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body>
+    <div class="drop-zone" id="dropZone">
+        拖拽图片到这里开始拼接
+    </div>
+
+    <div class="canvas-container" id="canvasContainer">
+        <div class="image-grid" id="imageGrid"></div>
+        <div class="drop-indicator" id="dropIndicator"></div>
+    </div>
+
+    <div class="controls" id="controls">
+        <button onclick="setRowCount(1)">单排</button>
+        <button onclick="setRowCount(2)">双排</button>
+        <button onclick="setRowCount(3)">三排</button>
+        <br><br>
+        <div class="gap-controls">
+            <button onclick="adjustGap(-1)">-</button>
+            <span id="gapDisplay">间隙: 5px</span>
+            <button onclick="adjustGap(1)">+</button>
+        </div>
+        <br>
+        <button onclick="reset()">重新开始</button>
+    </div>
+
+    <script>
+        let images = [];
+        let rowCount = 1; // 默认单排
+        let gap = parseInt(localStorage.getItem('imageGap')) || 5; // 默认间隙5px
+        let draggedElement = null;
+        let draggedIndex = -1;
+
+        const dropZone = document.getElementById('dropZone');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const imageGrid = document.getElementById('imageGrid');
+        const controls = document.getElementById('controls');
+        const dropIndicator = document.getElementById('dropIndicator');
+
+        // 初始化拖拽事件
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            canvasContainer.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+            canvasContainer.addEventListener(eventName, highlightCanvas, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+            canvasContainer.addEventListener(eventName, unhighlightCanvas, false);
+        });
+
+        dropZone.addEventListener('drop', handleDrop, false);
+        canvasContainer.addEventListener('drop', handleDrop, false);
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        function highlightCanvas(e) {
+            canvasContainer.style.background = '#f8f9fa';
+            canvasContainer.style.border = '3px dashed #007bff';
+        }
+
+        function unhighlightCanvas(e) {
+            canvasContainer.style.background = 'white';
+            canvasContainer.style.border = 'none';
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            [...files].forEach(file => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        addImage(e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        function addImage(src) {
+            images.push(src);
+            renderImages();
+
+            if (images.length === 1) {
+                dropZone.classList.add('hidden');
+                canvasContainer.classList.add('active');
+                controls.classList.add('active');
+            }
+        }
+
+        function renderImages() {
+            // 直接生成拼接图片，不显示单独的图片
+            generateFinalImage();
+        }
+
+        function applyLayout() {
+            const items = document.querySelectorAll('.image-item');
+            if (rowCount === 0) {
+                // 自动排列 - 单行
+                items.forEach(item => {
+                    item.style.width = 'auto';
+                    item.style.flexBasis = 'auto';
+                });
+                imageGrid.style.flexDirection = 'row';
+            } else {
+                // 多行排列
+                const itemsPerRow = Math.ceil(images.length / rowCount);
+                const itemWidth = 100 / itemsPerRow;
+
+                items.forEach(item => {
+                    item.style.width = `${itemWidth}%`;
+                    item.style.flexBasis = `${itemWidth}%`;
+                });
+                imageGrid.style.flexDirection = 'row';
+            }
+        }
+
+        function setRowCount(count) {
+            rowCount = count;
+            generateFinalImage();
+        }
+
+        function adjustGap(delta) {
+            gap = Math.max(0, gap + delta);
+            localStorage.setItem('imageGap', gap);
+            document.getElementById('gapDisplay').textContent = `间隙: ${gap}px`;
+            if (images.length > 0) {
+                generateFinalImage();
+            }
+        }
+
+        function drawRoundedImage(ctx, img, x, y, width, height, radius) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(img, x, y, width, height);
+            ctx.restore();
+        }
+
+        // 初始化间隙显示
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('gapDisplay').textContent = `间隙: ${gap}px`;
+        });
+
+        // 图片重排序功能
+        function handleDragStart(e) {
+            draggedElement = e.target.closest('.image-item');
+            draggedIndex = parseInt(draggedElement.dataset.index);
+            draggedElement.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+
+            const target = e.target.closest('.image-item');
+            if (target && target !== draggedElement) {
+                const rect = target.getBoundingClientRect();
+                const midpoint = rect.left + rect.width / 2;
+                const isAfter = e.clientX > midpoint;
+
+                if (isAfter) {
+                    dropIndicator.style.left = (rect.right - 3) + 'px';
+                } else {
+                    dropIndicator.style.left = rect.left + 'px';
+                }
+                dropIndicator.style.display = 'block';
+            }
+        }
+
+        function handleImageDrop(e) {
+            e.preventDefault();
+            dropIndicator.style.display = 'none';
+
+            const target = e.target.closest('.image-item');
+            if (target && target !== draggedElement) {
+                const targetIndex = parseInt(target.dataset.index);
+                const rect = target.getBoundingClientRect();
+                const isAfter = e.clientX > rect.left + rect.width / 2;
+
+                // 重新排序数组
+                const draggedImage = images[draggedIndex];
+                images.splice(draggedIndex, 1);
+
+                let newIndex = targetIndex;
+                if (draggedIndex < targetIndex) {
+                    newIndex = isAfter ? targetIndex : targetIndex - 1;
+                } else {
+                    newIndex = isAfter ? targetIndex + 1 : targetIndex;
+                }
+
+                images.splice(newIndex, 0, draggedImage);
+                renderImages();
+            }
+        }
+
+        function handleDragEnd(e) {
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+                draggedElement = null;
+                draggedIndex = -1;
+            }
+            dropIndicator.style.display = 'none';
+        }
+
+        function generateFinalImage() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // 创建图片元素并计算尺寸
+            Promise.all(images.map(src => {
+                return new Promise(resolve => {
+                    const img = new Image();
+                    img.onload = function() {
+                        resolve(img);
+                    };
+                    img.src = src;
+                });
+            })).then(loadedImages => {
+                if (rowCount === 1) {
+                    // 水平拼接 - 单行，统一高度
+                    const targetHeight = Math.min(...loadedImages.map(img => img.height));
+
+                    // 计算每张图片缩放到目标高度后的尺寸
+                    const scaledImages = loadedImages.map(img => {
+                        const scale = targetHeight / img.height;
+                        return {
+                            originalImg: img,
+                            width: img.width * scale,
+                            height: targetHeight
+                        };
+                    });
+
+                    const totalWidth = scaledImages.reduce((sum, img) => sum + img.width, 0) + gap * (scaledImages.length - 1) + gap * 2;
+
+                    canvas.width = totalWidth;
+                    canvas.height = targetHeight + gap * 2;
+
+                    // 填充白色背景
+                    if (gap > 0) {
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }
+
+                    let currentX = gap;
+                    const currentY = gap;
+                    const cornerRadius = gap > 0 ? Math.min(10, gap * 2) : 0;
+
+                    scaledImages.forEach(img => {
+                        if (gap > 0 && cornerRadius > 0) {
+                            drawRoundedImage(ctx, img.originalImg, currentX, currentY, img.width, img.height, cornerRadius);
+                        } else {
+                            ctx.drawImage(img.originalImg, currentX, currentY, img.width, img.height);
+                        }
+                        currentX += img.width + gap;
+                    });
+                } else {
+                    // 多行拼接 - 每排内同高度，每排间同宽度
+                    const rows = [];
+                    let remainingImages = [...loadedImages];
+
+                    // 先分配图片到各行
+                    for (let i = 0; i < rowCount && remainingImages.length > 0; i++) {
+                        const remainingRows = rowCount - i;
+                        const imagesForThisRow = Math.ceil(remainingImages.length / remainingRows);
+                        const rowImages = remainingImages.splice(0, imagesForThisRow);
+                        rows.push({ images: rowImages });
+                    }
+
+                    // 第一步：每排内统一高度
+                    rows.forEach(row => {
+                        // 找到该排的目标高度（取该排最小高度作为基准）
+                        const targetHeight = Math.min(...row.images.map(img => img.height));
+
+                        // 计算每张图片缩放到目标高度后的宽度
+                        row.scaledImages = row.images.map(img => {
+                            const scale = targetHeight / img.height;
+                            return {
+                                originalImg: img,
+                                width: img.width * scale,
+                                height: targetHeight,
+                                scale: scale
+                            };
+                        });
+
+                        // 计算该排的总宽度
+                        row.totalWidth = row.scaledImages.reduce((sum, img) => sum + img.width, 0);
+                        row.height = targetHeight;
+                    });
+
+                    // 第二步：所有排统一宽度
+                    const maxRowWidth = Math.max(...rows.map(row => row.totalWidth));
+
+                    rows.forEach(row => {
+                        const widthScale = maxRowWidth / row.totalWidth;
+
+                        // 对该排的所有图片再次缩放以统一宽度
+                        row.finalImages = row.scaledImages.map(img => ({
+                            originalImg: img.originalImg,
+                            width: img.width * widthScale,
+                            height: img.height * widthScale
+                        }));
+
+                        row.finalWidth = maxRowWidth;
+                        row.finalHeight = row.height * widthScale;
+                    });
+
+                    // 添加间隙到尺寸计算
+                    rows.forEach(row => {
+                        row.finalWidth = row.finalImages.reduce((sum, img) => sum + img.width, 0) + gap * (row.finalImages.length - 1);
+                    });
+
+                    const maxRowWidthWithGap = Math.max(...rows.map(row => row.finalWidth)) + gap * 2;
+                    const totalHeight = rows.reduce((sum, row) => sum + row.finalHeight, 0) + gap * (rows.length - 1) + gap * 2;
+
+                    canvas.width = maxRowWidthWithGap;
+                    canvas.height = totalHeight;
+
+                    // 填充白色背景
+                    if (gap > 0) {
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }
+
+                    // 绘制图片
+                    let currentY = gap;
+                    const cornerRadius = gap > 0 ? Math.min(10, gap * 2) : 0;
+
+                    rows.forEach(row => {
+                        let currentX = gap;
+                        row.finalImages.forEach(img => {
+                            if (gap > 0 && cornerRadius > 0) {
+                                drawRoundedImage(ctx, img.originalImg, currentX, currentY, img.width, img.height, cornerRadius);
+                            } else {
+                                ctx.drawImage(img.originalImg, currentX, currentY, img.width, img.height);
+                            }
+                            currentX += img.width + gap;
+                        });
+                        currentY += row.finalHeight + gap;
+                    });
+                }
+
+                // 显示最终图片
+                showFinalImage(canvas);
+            });
+        }
+
+        function showFinalImage(canvas) {
+            imageGrid.innerHTML = '';
+
+            const finalImg = document.createElement('img');
+            finalImg.className = 'final-image';
+            finalImg.src = canvas.toDataURL('image/png');
+            finalImg.draggable = true;
+
+            // 添加拖拽保存功能
+            finalImg.addEventListener('dragstart', (e) => {
+                canvas.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    e.dataTransfer.setData('DownloadURL', `image/png:拼接图片.png:${url}`);
+                });
+            });
+
+            imageGrid.appendChild(finalImg);
+        }
+
+        function reset() {
+            images = [];
+            rowCount = 1;
+            dropZone.classList.remove('hidden');
+            canvasContainer.classList.remove('active');
+            controls.classList.remove('active');
+            imageGrid.innerHTML = '';
+        }
+    </script>
+</body>
+</html>

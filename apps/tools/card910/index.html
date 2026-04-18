@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教师节贺卡制作</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f7;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .container {
+            display: flex;
+            width: 90%;
+            max-width: 1000px;
+            height: 85vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: #ffffff;
+        }
+        .sidebar {
+            width: 220px;
+            background-color: #f9f9fb;
+            border-right: 1px solid #e0e0e0;
+            padding: 30px 0;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+        .sidebar h2 {
+            margin: 0 0 25px 20px;
+            font-size: 20px;
+            font-weight: 600;
+            color: #007aff;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .sidebar li {
+            padding: 14px 20px;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            color: #555;
+        }
+        .sidebar li:hover {
+            background-color: rgba(0, 122, 255, 0.1);
+            color: #007aff;
+        }
+        .sidebar li.active {
+            background-color: rgba(0, 122, 255, 0.1);
+            border-left: 4px solid #007aff;
+            color: #007aff;
+            font-weight: 500;
+        }
+        .main-panel {
+            flex: 1;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            box-sizing: border-box;
+            background-color: #ffffff;
+            overflow-y: auto;
+        }
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .sample-image {
+            flex: 2;
+            background-color: #f5f5f7;
+            border-radius: 12px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        .sample-image:hover {
+            transform: scale(1.02);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .sample-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: all 0.5s ease;
+        }
+        .prompt-area {
+            height: 180px;
+            background-color: #f9f9fb;
+            border-radius: 12px;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            padding: 30px 15px 15px 15px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            border: 1px solid #e5e5e5;
+            font-size: 15px;
+            line-height: 1.6;
+            color: #444;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .prompt-area::before {
+            content: 'Prompt（已复制到剪贴板，直接打开doubao.com，粘贴即可）';
+            position: absolute;
+            top: 0px;
+            left: 15px;
+            font-size: 18px;
+            font-weight: 500;
+            color: #007aff;
+        }
+        .prompt-area:hover {
+            border-color: #007aff;
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+        }
+        .instructions {
+            background-color: #f9f9fb;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            padding: 20px;
+            font-size: 15px;
+            border: 1px solid #e5e5e5;
+        }
+        .instructions h3 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: #007aff;
+            font-weight: 500;
+        }
+        .instructions ol {
+            margin: 0;
+            padding-left: 22px;
+        }
+        .instructions li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .input-group label {
+            display: inline-block;
+            width: 110px;
+            font-weight: 500;
+            color: #555;
+        }
+        .input-group input {
+            padding: 8px 12px;
+            border: 1px solid #d0d0d0;
+            border-radius: 8px;
+            width: 220px;
+            font-size: 15px;
+            transition: all 0.2s ease;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #007aff;
+            box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
+        }
+        a {
+            color: #007aff;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>贺卡风格</h2>
+            <ul>
+                <li class="active" data-style="chalkboard">黑板粉笔画</li>
+                <li data-style="candy">糖果像素风</li>
+                <li data-style="handbook">手账本立体图</li>
+            </ul>
+        </div>
+        <div class="main-panel">
+            <div class="title">教师节贺卡制作</div>
+            <div class="sample-image">
+                <img id="sample-img" src="index.html" alt="样图">
+            </div>
+            <div class="prompt-area" id="prompt-text"></div>
+            <div class="instructions">
+                <h3>操作指南</h3>
+                <div class="input-group">
+                    <label for="name-input">1. 输入名字：</label>
+                    <input type="text" id="name-input" placeholder="请输入名字">
+                </div>
+                <ol start="2">
+                    <li>打开 <a href="https://www.doubao.com" target="_blank">www.doubao.com</a>。</li>
+                    <li>点击“图像生成”。</li>
+                    <li>粘贴prompt，回车。</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+    <script>
+        const prompts = {
+            chalkboard: `这是一张教师节主题的创意版画,主体内容：以黑板为载体，用白色粉笔画呈现创意图案与文字，核心是用几何线条构成的立体字母 “U”，搭配 “感恩教师节“等文字，传递快乐、积极的情绪，契合教师节感恩与祝福的氛围。
+场景设定：模拟教室黑板场景，唤起校园回忆，让观者联想到课堂、老师的教诲，营造亲切、怀旧的氛围，强化教师节的主题关联。
+风格参考：属于校园创意风，借鉴黑板粉笔画的质朴、随性特质，结合几何线条的创意组合，类似学生在课间的趣味创作，传递青春活力与创意。
+色调色彩：以黑板的深绿为底色，白色粉笔线条 / 文字形成鲜明对比，简洁清晰，突出图案与文字内容
+构图视角：采用正面平视视角，完整呈现黑板画面，让观者清晰看到所有元素（图案、文字、辅助涂鸦 ），引导视线从笑脸图案到祝福文字，感受 “快乐传递” 的逻辑。
+细节补充：周围的辅助涂鸦（如 “Happy”“fun””Happy Teachers' day“ ）、粉笔的质感（颗粒感、笔触 ），丰富画面层次，让黑板画更具真实感与生活化气息，每一处细节都引发对校园生活和老师的美好联想。
+文字细节：右下角有 大的“From {{name}}” 无衬线体的字样`,
+            candy: `糖果色像素办公室构图，“教师节快乐”像素风格字与“Happy Teacher's Day”手写体拼接，Q版猫老师抱着教案微笑，桌面散布立体卡通咖啡杯和彩虹曲别针，漫画式速度线背景渲染。文字细节：右下角有 大的“From {{name}}” 无衬线体的字样`,
+            handbook: `手账本立体构图，浅蓝格纹底板上“教师节快乐”烫金字与“Happy Teacher's Day”毛绒字拼接，周围散布3D卡通化的茶杯老师、蝴蝶结钢笔、星星便利贴，文字投射彩虹光晕，8K材质渲染精度。文字细节：右下角有 大的“From {{name}}” 无衬线体的字样`
+        };
+
+        const sampleImages = {
+            chalkboard: '黑板粉笔画.jpg',
+            candy: '糖果像素风.jpg',
+            handbook: '手账本立体图.jpg'
+        };
+
+        let currentStyle = 'chalkboard';
+        let currentName = localStorage.getItem('teacherCardName') || '';
+
+        function updatePrompt() {
+            let prompt = prompts[currentStyle];
+            if (currentName) {
+                prompt = prompt.replace('{{name}}', currentName);
+            }
+            document.getElementById('prompt-text').textContent = prompt;
+            navigator.clipboard.writeText(prompt).catch(err => console.error('无法复制到剪贴板', err));
+        }
+
+        function updateSampleImage() {
+            document.getElementById('sample-img').src = sampleImages[currentStyle] || '';
+        }
+
+        document.querySelectorAll('.sidebar li').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.sidebar li').forEach(el => el.classList.remove('active'));
+                this.classList.add('active');
+                currentStyle = this.getAttribute('data-style');
+                updatePrompt();
+                updateSampleImage();
+            });
+        });
+
+        document.getElementById('name-input').addEventListener('input', function() {
+            currentName = this.value.trim();
+            localStorage.setItem('teacherCardName', currentName);
+            updatePrompt();
+        });
+
+        // 初始化
+        document.getElementById('name-input').value = currentName;
+        updatePrompt();
+        updateSampleImage();
+    </script>
+</body>
+</html>

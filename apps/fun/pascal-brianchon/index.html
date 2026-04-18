@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>帕斯卡定理与布里安雄定理 - 交互式几何探索</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: all 0.5s ease;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .theme-selector {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .theme-selector h4 {
+            margin: 0 0 10px 0;
+            color: #2d3748;
+            font-size: 14px;
+        }
+
+        .theme-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .theme-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            min-width: 60px;
+        }
+
+        .theme-btn.active {
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        /* 默认主题 */
+        :root {
+            --bg-gradient-1: #667eea;
+            --bg-gradient-2: #764ba2;
+            --primary-color: #667eea;
+            --secondary-color: #4299e1;
+            --accent-color: #48bb78;
+            --highlight-color: #e53e3e;
+            --text-color: #2d3748;
+            --card-bg: rgba(255, 255, 255, 0.95);
+        }
+
+        /* 黑神话主题 */
+        .theme-black-myth {
+            --bg-gradient-1: #0d0d0d;
+            --bg-gradient-2: #2c1810;
+            --primary-color: #ffd700;
+            --secondary-color: #ff8c00;
+            --accent-color: #dc143c;
+            --highlight-color: #ff4500;
+            --text-color: #f4e4c1;
+            --card-bg: rgba(20, 15, 10, 0.9);
+        }
+
+        .theme-black-myth .definition {
+            background: rgba(40, 30, 20, 0.7);
+            border-left-color: var(--primary-color);
+        }
+
+        .theme-black-myth .info-box {
+            background: linear-gradient(135deg, rgba(40, 30, 20, 0.8), rgba(30, 20, 15, 0.8));
+            border-color: rgba(255, 215, 0, 0.3);
+        }
+
+        .theme-black-myth .math-formula {
+            background: #1a1a1a;
+            color: #ffd700;
+            border: 1px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .theme-black-myth .canvas-container {
+            background: linear-gradient(135deg, #1a1612 0%, #2c1810 100%);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5), 0 0 20px rgba(255, 215, 0, 0.1);
+        }
+
+        .theme-black-myth .btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: #000;
+            font-weight: bold;
+            text-shadow: none;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+        }
+
+        .theme-black-myth .btn:hover {
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .theme-black-myth h1 {
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.5), 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        .theme-black-myth .theorem-title {
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+
+        /* 黑神话主题的特殊发光效果 */
+        .theme-black-myth .theorem-section {
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 40px rgba(255, 215, 0, 0.1);
+        }
+
+        .theme-black-myth .theorem-section:hover {
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6), 0 0 50px rgba(255, 215, 0, 0.2);
+        }
+
+        /* 黑神话主题的画布发光效果 */
+        .theme-black-myth canvas {
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+        }
+
+        .theme-black-myth canvas:hover {
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
+        }
+
+        /* 黑神话主题的交互提示文字 */
+        .theme-black-myth .interactive-hint {
+            color: rgba(255, 215, 0, 0.7);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+
+        /* 塞尔达主题 */
+        .theme-zelda {
+            --bg-gradient-1: #1e3a5f;
+            --bg-gradient-2: #2d5a3d;
+            --primary-color: #4a9eff;
+            --secondary-color: #6abf69;
+            --accent-color: #ffc107;
+            --highlight-color: #ff6b35;
+            --text-color: #2c5530;
+            --card-bg: rgba(240, 248, 255, 0.95);
+        }
+
+        .theme-zelda .definition {
+            background: rgba(224, 247, 250, 0.8);
+            border-left-color: var(--primary-color);
+            box-shadow: 0 2px 10px rgba(74, 158, 255, 0.1);
+        }
+
+        .theme-zelda .info-box {
+            background: linear-gradient(135deg, rgba(224, 247, 250, 0.9), rgba(232, 245, 233, 0.9));
+            border: 1px solid rgba(74, 158, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(106, 191, 105, 0.1);
+        }
+
+        .theme-zelda .math-formula {
+            background: linear-gradient(135deg, #1e3a5f, #2d5a3d);
+            color: #4a9eff;
+            border: 1px solid rgba(74, 158, 255, 0.4);
+            box-shadow: 0 0 20px rgba(74, 158, 255, 0.2);
+        }
+
+        .theme-zelda .canvas-container {
+            background: linear-gradient(135deg, #f0f8ff 0%, #e8f5e8 50%, #f0fff0 100%);
+            border: 2px solid rgba(106, 191, 105, 0.3);
+            box-shadow: 
+                inset 0 2px 10px rgba(74, 158, 255, 0.1),
+                                 0 0 25px rgba(106, 191, 105, 0.15);
+        }
+
+        .theme-zelda .btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 15px rgba(74, 158, 255, 0.3);
+            border: 1px solid rgba(106, 191, 105, 0.3);
+        }
+
+        .theme-zelda .btn:hover {
+            box-shadow: 0 6px 20px rgba(74, 158, 255, 0.4), 0 0 20px rgba(106, 191, 105, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .theme-zelda h1 {
+            text-shadow: 
+                0 0 20px rgba(74, 158, 255, 0.6),
+                0 0 40px rgba(106, 191, 105, 0.3),
+                2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .theme-zelda .theorem-title {
+            text-shadow: 0 0 15px rgba(74, 158, 255, 0.4);
+        }
+
+        /* 塞尔达主题的自然发光效果 */
+        .theme-zelda .theorem-section {
+            border: 1px solid rgba(106, 191, 105, 0.3);
+            box-shadow: 
+                0 10px 30px rgba(0,0,0,0.15), 
+                0 0 30px rgba(74, 158, 255, 0.1),
+                0 0 50px rgba(106, 191, 105, 0.08);
+        }
+
+        .theme-zelda .theorem-section:hover {
+            box-shadow: 
+                0 15px 40px rgba(0,0,0,0.2), 
+                0 0 40px rgba(74, 158, 255, 0.15),
+                0 0 60px rgba(106, 191, 105, 0.12);
+        }
+
+        /* 塞尔达主题的画布效果 */
+        .theme-zelda canvas {
+            border: 1px solid rgba(74, 158, 255, 0.4);
+            box-shadow: 
+                0 0 15px rgba(74, 158, 255, 0.2),
+                0 0 25px rgba(106, 191, 105, 0.1);
+        }
+
+        .theme-zelda canvas:hover {
+            box-shadow: 
+                0 0 25px rgba(74, 158, 255, 0.3),
+                0 0 35px rgba(106, 191, 105, 0.15);
+        }
+
+        /* 塞尔达主题的交互提示文字 */
+        .theme-zelda .interactive-hint {
+            color: rgba(44, 85, 48, 0.8);
+            text-shadow: 0 0 10px rgba(74, 158, 255, 0.3);
+        }
+
+        /* 塞尔达主题的特殊背景效果 */
+        .theme-zelda body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 25% 25%, rgba(74, 158, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(106, 191, 105, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(255, 193, 7, 0.05) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .theme-zelda .theorem-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                linear-gradient(45deg, rgba(74, 158, 255, 0.03) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(106, 191, 105, 0.03) 25%, transparent 25%);
+            background-size: 20px 20px;
+            border-radius: inherit;
+            pointer-events: none;
+        }
+
+        /* 马里奥主题 */
+        .theme-mario {
+            --bg-gradient-1: #ff4757;
+            --bg-gradient-2: #3742fa;
+            --primary-color: #ff4757;
+            --secondary-color: #2ed573;
+            --accent-color: #ffa502;
+            --highlight-color: #ff3838;
+            --text-color: #2f3542;
+            --card-bg: rgba(255, 255, 255, 0.96);
+        }
+
+        .theme-mario .definition {
+            background: rgba(255, 245, 235, 0.9);
+            border-left-color: var(--primary-color);
+            border-width: 4px;
+            box-shadow: 0 4px 15px rgba(255, 71, 87, 0.2);
+        }
+
+        .theme-mario .info-box {
+            background: linear-gradient(135deg, rgba(255, 245, 235, 0.95), rgba(235, 255, 245, 0.95));
+            border: 2px solid rgba(255, 165, 2, 0.4);
+            border-radius: 15px;
+            box-shadow: 0 6px 20px rgba(255, 165, 2, 0.2);
+        }
+
+        .theme-mario .math-formula {
+            background: linear-gradient(135deg, #ff4757, #3742fa);
+            color: white;
+            border: 2px solid rgba(255, 165, 2, 0.6);
+            border-radius: 12px;
+            box-shadow: 0 0 25px rgba(255, 71, 87, 0.3);
+            font-weight: bold;
+        }
+
+        .theme-mario .canvas-container {
+            background: linear-gradient(135deg, #fff5f5 0%, #f0fff4 30%, #fffacd 60%, #f0f8ff 100%);
+            border: 3px solid rgba(255, 165, 2, 0.5);
+            border-radius: 20px;
+            box-shadow: 
+                inset 0 3px 15px rgba(255, 71, 87, 0.1),
+                0 0 30px rgba(255, 165, 2, 0.2),
+                                 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .theme-mario .btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
+            box-shadow: 
+                0 4px 15px rgba(255, 71, 87, 0.4),
+                0 2px 8px rgba(255, 165, 2, 0.3);
+            border: 2px solid rgba(255, 165, 2, 0.6);
+            border-radius: 12px;
+            transform: perspective(100px) rotateX(0deg);
+            transition: all 0.3s ease;
+        }
+
+        .theme-mario .btn:hover {
+            box-shadow: 
+                0 6px 20px rgba(255, 71, 87, 0.5),
+                0 4px 12px rgba(255, 165, 2, 0.4),
+                0 0 20px rgba(46, 213, 115, 0.2);
+            transform: perspective(100px) rotateX(-5deg) translateY(-3px);
+        }
+
+        .theme-mario h1 {
+            text-shadow: 
+                3px 3px 0px rgba(255, 71, 87, 0.8),
+                6px 6px 0px rgba(255, 165, 2, 0.6),
+                9px 9px 15px rgba(0, 0, 0, 0.3);
+            transform: perspective(200px) rotateX(5deg);
+        }
+
+        .theme-mario .theorem-title {
+            text-shadow: 
+                2px 2px 0px rgba(255, 71, 87, 0.7),
+                4px 4px 0px rgba(255, 165, 2, 0.5);
+            transform: perspective(150px) rotateX(3deg);
+        }
+
+        /* 马里奥主题的立体效果 */
+        .theme-mario .theorem-section {
+            border: 2px solid rgba(255, 165, 2, 0.5);
+            border-radius: 25px;
+            box-shadow: 
+                0 12px 35px rgba(0,0,0,0.2), 
+                0 0 30px rgba(255, 71, 87, 0.15),
+                0 0 50px rgba(255, 165, 2, 0.1),
+                inset 0 1px 0px rgba(255, 255, 255, 0.8);
+            transform: perspective(800px) rotateX(2deg);
+        }
+
+        .theme-mario .theorem-section:hover {
+            box-shadow: 
+                0 16px 45px rgba(0,0,0,0.25), 
+                0 0 40px rgba(255, 71, 87, 0.2),
+                0 0 60px rgba(255, 165, 2, 0.15),
+                inset 0 1px 0px rgba(255, 255, 255, 0.9);
+            transform: perspective(800px) rotateX(1deg) translateY(-5px);
+        }
+
+        /* 马里奥主题的画布效果 */
+        .theme-mario canvas {
+            border: 2px solid rgba(255, 165, 2, 0.6);
+            border-radius: 15px;
+            box-shadow: 
+                0 0 20px rgba(255, 71, 87, 0.3),
+                0 0 30px rgba(255, 165, 2, 0.2),
+                inset 0 2px 5px rgba(255, 255, 255, 0.3);
+        }
+
+        .theme-mario canvas:hover {
+            box-shadow: 
+                0 0 30px rgba(255, 71, 87, 0.4),
+                0 0 40px rgba(255, 165, 2, 0.3),
+                0 0 20px rgba(46, 213, 115, 0.2),
+                inset 0 2px 5px rgba(255, 255, 255, 0.4);
+            transform: scale(1.02);
+        }
+
+        /* 马里奥主题的交互提示文字 */
+        .theme-mario .interactive-hint {
+            color: rgba(47, 53, 66, 0.8);
+            text-shadow: 1px 1px 2px rgba(255, 165, 2, 0.4);
+            font-weight: 600;
+        }
+
+        /* 马里奥主题的特殊背景效果 */
+        .theme-mario body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(255, 71, 87, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(55, 66, 250, 0.1) 0%, transparent 40%),
+                radial-gradient(circle at 50% 10%, rgba(255, 165, 2, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 10% 80%, rgba(46, 213, 115, 0.08) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .theme-mario .theorem-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 8px,
+                    rgba(255, 165, 2, 0.02) 8px,
+                    rgba(255, 165, 2, 0.02) 16px
+                ),
+                repeating-linear-gradient(
+                    -45deg,
+                    transparent,
+                    transparent 8px,
+                    rgba(255, 71, 87, 0.02) 8px,
+                    rgba(255, 71, 87, 0.02) 16px
+                );
+            border-radius: inherit;
+            pointer-events: none;
+        }
+
+        /* 马里奥主题的弹跳动画 */
+        @keyframes mario-bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: perspective(800px) rotateX(2deg) translateY(0);
+            }
+            40% {
+                transform: perspective(800px) rotateX(2deg) translateY(-3px);
+            }
+            60% {
+                transform: perspective(800px) rotateX(2deg) translateY(-1px);
+            }
+        }
+
+        .theme-mario .theorem-section:hover {
+            animation: mario-bounce 0.6s ease-in-out;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-gradient-1) 0%, var(--bg-gradient-2) 100%);
+        }
+
+        .theorem-section {
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+
+        .theorem-title::after {
+            background: linear-gradient(90deg, var(--primary-color), var(--bg-gradient-2));
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            animation: titleGlow 3s ease-in-out infinite alternate;
+        }
+
+        @keyframes titleGlow {
+            from { text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+            to { text-shadow: 0 0 20px rgba(255,255,255,0.5), 2px 2px 4px rgba(0,0,0,0.3); }
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .theorem-section {
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.5s ease, color 0.5s ease;
+        }
+
+        .theorem-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .theorem-title {
+            font-size: 2.2em;
+            color: var(--text-color);
+            text-align: center;
+            margin-bottom: 20px;
+            position: relative;
+            transition: color 0.5s ease;
+        }
+
+        .theorem-title::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 3px;
+            border-radius: 2px;
+            transition: background 0.5s ease;
+        }
+
+        .theorem-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .theory-text {
+            font-size: 1.1em;
+            line-height: 1.8;
+            color: var(--text-color);
+            transition: color 0.5s ease;
+        }
+
+        .definition {
+            background: rgba(247, 250, 252, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid var(--primary-color);
+            margin: 20px 0;
+            transition: border-color 0.5s ease, background 0.5s ease;
+        }
+
+        .canvas-container {
+            position: relative;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        canvas {
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        canvas:hover {
+            transform: scale(1.02);
+        }
+
+        .controls {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, var(--primary-color), var(--bg-gradient-2));
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            margin: 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #e6f3ff, #f0f8ff);
+            border: 1px solid #b3d9ff;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .math-formula {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        .point-info {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-size: 12px;
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            margin-top: -10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .interactive-hint {
+            text-align: center;
+            color: #718096;
+            font-style: italic;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .theorem-content {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .theorem-title {
+                font-size: 1.8em;
+            }
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 主题选择器 -->
+    <div class="theme-selector">
+        <h4>🎨 主题配色</h4>
+        <div class="theme-buttons">
+            <button class="theme-btn active" data-theme="default" style="background: linear-gradient(45deg, #667eea, #764ba2); color: white;">默认</button>
+            <button class="theme-btn" data-theme="black-myth" style="background: linear-gradient(45deg, #0d0d0d, #2c1810); color: #ffd700; border: 1px solid rgba(255, 215, 0, 0.3);">黑神话</button>
+            <button class="theme-btn" data-theme="zelda" style="background: linear-gradient(45deg, #1e3a5f, #2d5a3d); color: #4a9eff; border: 1px solid rgba(74, 158, 255, 0.4);">塞尔达</button>
+            <button class="theme-btn" data-theme="mario" style="background: linear-gradient(45deg, #ff4757, #3742fa); color: white; border: 2px solid rgba(255, 165, 2, 0.5); border-radius: 8px; font-weight: bold;">马里奥</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>几何定理的美妙世界</h1>
+            <p class="subtitle">探索帕斯卡定理与布里安雄定理的数学之美</p>
+        </header>
+
+        <!-- 帕斯卡定理部分 -->
+        <section class="theorem-section">
+            <h2 class="theorem-title">帕斯卡定理 (Pascal's Theorem)</h2>
+            <div class="theorem-content">
+                <div class="theory-text">
+                    <div class="definition">
+                        <h3>定理描述</h3>
+                        <p>如果一个六边形内接于圆锥曲线（如圆、椭圆、抛物线或双曲线），那么这个六边形的三对相对边延长后的交点共线。这条直线称为<strong>帕斯卡线</strong>。</p>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>历史背景</h4>
+                        <p>这个定理由法国数学家布莱兹·帕斯卡（Blaise Pascal）在1640年发现，当时他年仅16岁。这是射影几何学中的一个重要定理。</p>
+                    </div>
+
+                    <div class="math-formula">
+设六边形ABCDEF内接于圆锥曲线，
+AB与DE的延长线交于点P，
+BC与EF的延长线交于点Q，
+CD与FA的延长线交于点R，
+则P、Q、R三点共线。
+                    </div>
+
+                    <div class="info-box">
+                        <h4>特殊情况</h4>
+                        <p>当六边形退化为三角形（即相邻的两个顶点重合）时，帕斯卡定理退化为更简单的形式，仍然成立。</p>
+                    </div>
+                </div>
+
+                <div class="canvas-container">
+                    <canvas id="pascalCanvas" width="400" height="400"></canvas>
+                    <div class="controls">
+                        <button class="btn" onclick="resetPascal()">重置</button>
+                        <button class="btn" onclick="randomizePascal()">随机</button>
+                        <button class="btn" onclick="resetPascalView()">重置视图</button>
+                        <button class="btn" onclick="togglePascalLine()">显示/隐藏帕斯卡线</button>
+                    </div>
+                    <p class="interactive-hint">拖拽点探索定理 | 随机生成新配置 | 点击按钮显示帕斯卡线 | 滚轮缩放 | 空白处拖拽平移</p>
+                    <div id="pascalPointInfo" class="point-info"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 布里安雄定理部分 -->
+        <section class="theorem-section">
+            <h2 class="theorem-title">布里安雄定理 (Brianchon's Theorem)</h2>
+            <div class="theorem-content">
+                <div class="theory-text">
+                    <div class="definition">
+                        <h3>定理描述</h3>
+                        <p>如果一个六边形外切于圆锥曲线（即六边形的每条边都与圆锥曲线相切），那么这个六边形的三条对角线共点。这个点称为<strong>布里安雄点</strong>。</p>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>对偶关系</h4>
+                        <p>布里安雄定理是帕斯卡定理的对偶定理。在射影几何中，点和线可以互换，"内接"与"外切"对偶，"共线"与"共点"对偶。</p>
+                    </div>
+
+                    <div class="math-formula">
+设六边形ABCDEF外切于圆锥曲线，
+连接A与D得到对角线AD，
+连接B与E得到对角线BE，
+连接C与F得到对角线CF，
+则AD、BE、CF三条对角线共点。
+                    </div>
+
+                    <div class="info-box">
+                        <h4>实际应用</h4>
+                        <p>布里安雄定理在计算机图形学、机器人学和光学设计中有重要应用，特别是在处理圆锥曲线的几何变换时。</p>
+                    </div>
+                </div>
+
+                <div class="canvas-container">
+                    <canvas id="brianchonCanvas" width="400" height="400"></canvas>
+                    <div class="controls">
+                        <button class="btn" onclick="resetBrianchon()">重置</button>
+                        <button class="btn" onclick="randomizeBrianchon()">随机</button>
+                        <button class="btn" onclick="resetBrianchonView()">重置视图</button>
+                        <button class="btn" onclick="toggleBrianchonPoint()">显示/隐藏布里安雄点</button>
+                    </div>
+                    <p class="interactive-hint">拖拽切点探索定理 | 随机生成新配置 | 点击按钮显示布里安雄点 | 红色对角线、紫色延长线 | 滚轮缩放 | 空白处拖拽平移</p>
+                    <div id="brianchonPointInfo" class="point-info"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 对偶关系说明 -->
+        <section class="theorem-section">
+            <h2 class="theorem-title">两定理的对偶关系</h2>
+            <div style="text-align: center;">
+                <div class="info-box">
+                    <h3>射影几何中的对偶原理</h3>
+                    <p>帕斯卡定理和布里安雄定理展示了射影几何中美妙的对偶关系：</p>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                        <div>
+                            <h4>帕斯卡定理</h4>
+                            <ul style="text-align: left; list-style-position: inside;">
+                                <li>六边形<strong>内接</strong>于圆锥曲线</li>
+                                <li>相对边的交点<strong>共线</strong></li>
+                                <li>结果是一条<strong>直线</strong></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4>布里安雄定理</h4>
+                            <ul style="text-align: left; list-style-position: inside;">
+                                <li>六边形<strong>外切</strong>于圆锥曲线</li>
+                                <li>对角线<strong>共点</strong></li>
+                                <li>结果是一个<strong>点</strong></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <p>这种对偶关系是射影几何学的核心概念之一，它揭示了几何世界中深层的对称性和美感。</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // 帕斯卡定理可视化
+        class PascalVisualization {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.center = {x: 200, y: 200};
+                this.radius = 120;
+                this.points = [];
+                this.showPascalLine = false;
+                this.scale = 1.0;
+                this.offset = {x: 0, y: 0};
+                this.minScale = 0.05;
+                this.maxScale = 5.0;
+                this.init();
+                this.setupEvents();
+            }
+
+            init() {
+                // 生成六个点在圆上，按逆时针排列确保正确的几何顺序
+                this.points = [];
+                for(let i = 0; i < 6; i++) {
+                    const angle = (i * Math.PI * 2) / 6 + Math.PI / 6;
+                    this.points.push({
+                        x: this.center.x + Math.cos(angle) * this.radius,
+                        y: this.center.y + Math.sin(angle) * this.radius,
+                        label: String.fromCharCode(65 + i) // A, B, C, D, E, F
+                    });
+                }
+                this.draw();
+            }
+
+            setupEvents() {
+                let isDragging = false;
+                let dragIndex = -1;
+                let isPanning = false;
+                let lastPanPoint = {x: 0, y: 0};
+
+                this.canvas.addEventListener('mousedown', (e) => {
+                    const mousePos = this.getMousePos(e);
+
+                    // 检查是否点击在某个点上
+                    let pointClicked = false;
+                    for(let i = 0; i < this.points.length; i++) {
+                        const transformedPoint = this.transformPoint(this.points[i]);
+                        const dx = mousePos.x - transformedPoint.x;
+                        const dy = mousePos.y - transformedPoint.y;
+                        if(Math.sqrt(dx*dx + dy*dy) < 15) {
+                            isDragging = true;
+                            dragIndex = i;
+                            pointClicked = true;
+                            break;
+                        }
+                    }
+
+                    // 如果没有点击在点上，开始平移
+                    if(!pointClicked && e.button === 0) {
+                        isPanning = true;
+                        lastPanPoint = mousePos;
+                    }
+                });
+
+                this.canvas.addEventListener('mousemove', (e) => {
+                    const mousePos = this.getMousePos(e);
+
+                    if(isDragging && dragIndex >= 0) {
+                        // 将鼠标位置转换回原始坐标系
+                        const originalMousePos = this.inverseTransformPoint(mousePos);
+                        
+                        // 约束点在圆上
+                        const dx = originalMousePos.x - this.center.x;
+                        const dy = originalMousePos.y - this.center.y;
+                        const angle = Math.atan2(dy, dx);
+                        
+                        this.points[dragIndex].x = this.center.x + Math.cos(angle) * this.radius;
+                        this.points[dragIndex].y = this.center.y + Math.sin(angle) * this.radius;
+                        
+                        // 智能重排序：保持拖动点的标签，调整其在数组中的位置
+                        dragIndex = this.smartReorder(dragIndex);
+                        
+                        this.draw();
+                    } else if(isPanning) {
+                        // 平移画布
+                        this.offset.x += mousePos.x - lastPanPoint.x;
+                        this.offset.y += mousePos.y - lastPanPoint.y;
+                        lastPanPoint = mousePos;
+                        this.draw();
+                    }
+                });
+
+                this.canvas.addEventListener('mouseup', () => {
+                    isDragging = false;
+                    dragIndex = -1;
+                    isPanning = false;
+                });
+
+                // 添加滚轮缩放功能
+                this.canvas.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    
+                    const mousePos = this.getMousePos(e);
+                    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                    const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.scale * zoomFactor));
+                    
+                    if(newScale !== this.scale) {
+                        // 计算缩放中心
+                        const zoomPointX = (mousePos.x - this.offset.x) / this.scale;
+                        const zoomPointY = (mousePos.y - this.offset.y) / this.scale;
+                        
+                        this.scale = newScale;
+                        
+                        // 调整偏移量以保持缩放中心点不变
+                        this.offset.x = mousePos.x - zoomPointX * this.scale;
+                        this.offset.y = mousePos.y - zoomPointY * this.scale;
+                        
+                        this.draw();
+                    }
+                });
+            }
+
+            getMousePos(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+
+            transformPoint(point) {
+                return {
+                    x: point.x * this.scale + this.offset.x,
+                    y: point.y * this.scale + this.offset.y
+                };
+            }
+
+            inverseTransformPoint(point) {
+                return {
+                    x: (point.x - this.offset.x) / this.scale,
+                    y: (point.y - this.offset.y) / this.scale
+                };
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // 获取当前主题颜色
+                const colors = themeManager ? themeManager.getThemeColors() : {
+                    primary: '#667eea',
+                    secondary: '#4299e1',
+                    accent: '#48bb78',
+                    highlight: '#e53e3e'
+                };
+                
+                // 保存当前变换状态
+                this.ctx.save();
+                
+                // 应用缩放和平移变换
+                this.ctx.translate(this.offset.x, this.offset.y);
+                this.ctx.scale(this.scale, this.scale);
+                
+                // 绘制圆
+                let circleColor = '#e2e8f0';
+                if (themeManager) {
+                    if (themeManager.currentTheme === 'black-myth') {
+                        circleColor = 'rgba(255, 215, 0, 0.4)';
+                    } else if (themeManager.currentTheme === 'zelda') {
+                        circleColor = 'rgba(74, 158, 255, 0.5)';
+                    } else if (themeManager.currentTheme === 'mario') {
+                        circleColor = 'rgba(255, 165, 2, 0.6)';
+                    }
+                }
+                this.ctx.strokeStyle = circleColor;
+                this.ctx.lineWidth = Math.max(0.5, 2 / this.scale);
+                this.ctx.beginPath();
+                this.ctx.arc(this.center.x, this.center.y, this.radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+
+                // 绘制六边形
+                this.ctx.strokeStyle = colors.secondary;
+                this.ctx.lineWidth = Math.max(0.5, 2 / this.scale);
+                this.ctx.beginPath();
+                for(let i = 0; i < 6; i++) {
+                    if(i === 0) {
+                        this.ctx.moveTo(this.points[i].x, this.points[i].y);
+                    } else {
+                        this.ctx.lineTo(this.points[i].x, this.points[i].y);
+                    }
+                }
+                this.ctx.closePath();
+                this.ctx.stroke();
+
+                // 绘制帕斯卡线
+                if(this.showPascalLine) {
+                    this.drawPascalLine();
+                }
+
+                // 绘制点
+                for(let i = 0; i < 6; i++) {
+                    this.ctx.fillStyle = colors.primary;
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.points[i].x, this.points[i].y, Math.max(2, 8 / this.scale), 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // 标签
+                    this.ctx.fillStyle = colors.primary;
+                    this.ctx.font = `bold ${Math.max(8, 14 / this.scale)}px Arial`;
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText(this.points[i].label, this.points[i].x, this.points[i].y - Math.max(8, 15 / this.scale));
+                }
+                
+                // 恢复变换状态
+                this.ctx.restore();
+            }
+
+            drawPascalLine() {
+                // 获取当前主题颜色
+                const colors = themeManager ? themeManager.getThemeColors() : {
+                    highlight: '#e53e3e'
+                };
+                
+                // 计算三个交点
+                const intersections = [];
+                
+                // AB 与 DE 的交点
+                const p1 = this.lineIntersection(
+                    this.points[0], this.points[1],
+                    this.points[3], this.points[4]
+                );
+                if(p1) intersections.push(p1);
+
+                // BC 与 EF 的交点
+                const p2 = this.lineIntersection(
+                    this.points[1], this.points[2],
+                    this.points[4], this.points[5]
+                );
+                if(p2) intersections.push(p2);
+
+                // CD 与 FA 的交点
+                const p3 = this.lineIntersection(
+                    this.points[2], this.points[3],
+                    this.points[5], this.points[0]
+                );
+                if(p3) intersections.push(p3);
+
+                // 绘制延长线
+                this.ctx.strokeStyle = colors.highlight;
+                this.ctx.globalAlpha = 0.6;
+                this.ctx.lineWidth = Math.max(0.5, 1 / this.scale);
+                this.ctx.setLineDash([Math.max(2, 5 / this.scale), Math.max(2, 5 / this.scale)]);
+                
+                this.drawExtendedLine(this.points[0], this.points[1]);
+                this.drawExtendedLine(this.points[3], this.points[4]);
+                this.drawExtendedLine(this.points[1], this.points[2]);
+                this.drawExtendedLine(this.points[4], this.points[5]);
+                this.drawExtendedLine(this.points[2], this.points[3]);
+                this.drawExtendedLine(this.points[5], this.points[0]);
+
+                this.ctx.setLineDash([]);
+                this.ctx.globalAlpha = 1.0;
+
+                // 绘制帕斯卡线
+                if(intersections.length >= 2) {
+                    this.ctx.strokeStyle = colors.highlight;
+                    this.ctx.lineWidth = Math.max(1, 3 / this.scale);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(intersections[0].x, intersections[0].y);
+                    this.ctx.lineTo(intersections[1].x, intersections[1].y);
+                    if(intersections.length === 3) {
+                        this.ctx.lineTo(intersections[2].x, intersections[2].y);
+                    }
+                    this.ctx.stroke();
+
+                    // 标记交点
+                    intersections.forEach((point, index) => {
+                        this.ctx.fillStyle = colors.highlight;
+                        this.ctx.beginPath();
+                        this.ctx.arc(point.x, point.y, Math.max(1.5, 5 / this.scale), 0, Math.PI * 2);
+                        this.ctx.fill();
+                    });
+                }
+            }
+
+            lineIntersection(p1, p2, p3, p4) {
+                const denom = (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
+                if(Math.abs(denom) < 1e-10) return null;
+
+                const t = ((p1.x - p3.x) * (p3.y - p4.y) - (p1.y - p3.y) * (p3.x - p4.x)) / denom;
+                
+                return {
+                    x: p1.x + t * (p2.x - p1.x),
+                    y: p1.y + t * (p2.y - p1.y)
+                };
+            }
+
+            drawExtendedLine(p1, p2) {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const length = Math.sqrt(dx*dx + dy*dy);
+                const unitX = dx / length;
+                const unitY = dy / length;
+                const extend = 2000; // 大幅增加延长线长度
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(p1.x - unitX * extend, p1.y - unitY * extend);
+                this.ctx.lineTo(p2.x + unitX * extend, p2.y + unitY * extend);
+                this.ctx.stroke();
+            }
+
+
+
+            togglePascalLine() {
+                this.showPascalLine = !this.showPascalLine;
+                this.draw();
+            }
+
+            reset() {
+                this.init();
+                this.resetView();
+            }
+
+            resetView() {
+                this.scale = 1.0;
+                this.offset = {x: 0, y: 0};
+                this.draw();
+            }
+
+            // 智能重排序：保持拖动点的标签，调整其在数组中的位置
+            smartReorder(draggedIndex) {
+                const draggedPoint = this.points[draggedIndex];
+                
+                // 计算拖动点的当前角度
+                const dx = draggedPoint.x - this.center.x;
+                const dy = draggedPoint.y - this.center.y;
+                let draggedAngle = Math.atan2(dy, dx);
+                if (draggedAngle < 0) draggedAngle += 2 * Math.PI;
+                
+                // 计算其他点的角度
+                const otherPoints = this.points.filter((_, index) => index !== draggedIndex);
+                const otherAngles = otherPoints.map(point => {
+                    const dx = point.x - this.center.x;
+                    const dy = point.y - this.center.y;
+                    let angle = Math.atan2(dy, dx);
+                    if (angle < 0) angle += 2 * Math.PI;
+                    return { point, angle };
+                });
+                
+                // 找到拖动点应该插入的正确位置
+                let insertIndex = 0;
+                for (let i = 0; i < otherAngles.length; i++) {
+                    if (draggedAngle > otherAngles[i].angle) {
+                        insertIndex = i + 1;
+                    }
+                }
+                
+                // 重新构建数组，保持角度顺序
+                const newPoints = [];
+                let otherIndex = 0;
+                
+                for (let i = 0; i <= otherAngles.length; i++) {
+                    if (i === insertIndex) {
+                        newPoints.push(draggedPoint);
+                    }
+                    if (i < otherAngles.length) {
+                        newPoints.push(otherAngles[i].point);
+                    }
+                }
+                
+                this.points = newPoints;
+                
+                // 更新dragIndex以反映新位置
+                return insertIndex;
+            }
+
+            // 此函数仅在随机生成时使用，确保点按角度顺序排列
+            sortPointsByAngle() {
+                // 计算每个点的角度并排序
+                const pointsWithAngles = this.points.map((point, index) => {
+                    const dx = point.x - this.center.x;
+                    const dy = point.y - this.center.y;
+                    let angle = Math.atan2(dy, dx);
+                    if (angle < 0) angle += 2 * Math.PI; // 确保角度为正值
+                    return { point, angle, originalIndex: index };
+                });
+                
+                // 按角度排序
+                pointsWithAngles.sort((a, b) => a.angle - b.angle);
+                
+                // 重新分配标签
+                this.points = pointsWithAngles.map((item, index) => ({
+                    x: item.point.x,
+                    y: item.point.y,
+                    label: String.fromCharCode(65 + index) // A, B, C, D, E, F
+                }));
+            }
+
+            randomize() {
+                // 随机生成六个点在圆上的位置
+                this.points = [];
+                for(let i = 0; i < 6; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    this.points.push({
+                        x: this.center.x + Math.cos(angle) * this.radius,
+                        y: this.center.y + Math.sin(angle) * this.radius,
+                        label: String.fromCharCode(65 + i) // 临时标签
+                    });
+                }
+                
+                // 按角度排序并重新分配标签
+                this.sortPointsByAngle();
+                this.draw();
+            }
+
+
+        }
+
+        // 布里安雄定理可视化
+        class BrianchonVisualization {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.center = {x: 200, y: 200};
+                this.radius = 100;
+                this.tangentLines = [];
+                this.showBrianchonPoint = false;
+                this.scale = 1.0;
+                this.offset = {x: 0, y: 0};
+                this.minScale = 0.05;
+                this.maxScale = 5.0;
+                this.init();
+                this.setupEvents();
+            }
+
+            init() {
+                // 生成六条切线
+                this.tangentLines = [];
+                for(let i = 0; i < 6; i++) {
+                    const angle = (i * Math.PI * 2) / 6;
+                    this.tangentLines.push({
+                        angle: angle,
+                        touchPoint: {
+                            x: this.center.x + Math.cos(angle) * this.radius,
+                            y: this.center.y + Math.sin(angle) * this.radius
+                        }
+                    });
+                }
+                this.draw();
+            }
+
+            setupEvents() {
+                let isDragging = false;
+                let dragIndex = -1;
+                let isPanning = false;
+                let lastPanPoint = {x: 0, y: 0};
+
+                this.canvas.addEventListener('mousedown', (e) => {
+                    const mousePos = this.getMousePos(e);
+
+                    // 检查是否点击在某个切点上
+                    let pointClicked = false;
+                    for(let i = 0; i < this.tangentLines.length; i++) {
+                        const transformedPoint = this.transformPoint(this.tangentLines[i].touchPoint);
+                        const dx = mousePos.x - transformedPoint.x;
+                        const dy = mousePos.y - transformedPoint.y;
+                        if(Math.sqrt(dx*dx + dy*dy) < 15) {
+                            isDragging = true;
+                            dragIndex = i;
+                            pointClicked = true;
+                            break;
+                        }
+                    }
+
+                    // 如果没有点击在点上，开始平移
+                    if(!pointClicked && e.button === 0) {
+                        isPanning = true;
+                        lastPanPoint = mousePos;
+                    }
+                });
+
+                this.canvas.addEventListener('mousemove', (e) => {
+                    const mousePos = this.getMousePos(e);
+
+                    if(isDragging && dragIndex >= 0) {
+                        // 将鼠标位置转换回原始坐标系
+                        const originalMousePos = this.inverseTransformPoint(mousePos);
+                        
+                        // 约束切点在圆上
+                        const dx = originalMousePos.x - this.center.x;
+                        const dy = originalMousePos.y - this.center.y;
+                        const angle = Math.atan2(dy, dx);
+                        
+                        this.tangentLines[dragIndex].angle = angle;
+                        this.tangentLines[dragIndex].touchPoint = {
+                            x: this.center.x + Math.cos(angle) * this.radius,
+                            y: this.center.y + Math.sin(angle) * this.radius
+                        };
+                        
+                        // 智能重排序：保持拖动切线的顺序
+                        dragIndex = this.smartReorderTangents(dragIndex);
+                        
+                        this.draw();
+                    } else if(isPanning) {
+                        // 平移画布
+                        this.offset.x += mousePos.x - lastPanPoint.x;
+                        this.offset.y += mousePos.y - lastPanPoint.y;
+                        lastPanPoint = mousePos;
+                        this.draw();
+                    }
+                });
+
+                this.canvas.addEventListener('mouseup', () => {
+                    isDragging = false;
+                    dragIndex = -1;
+                    isPanning = false;
+                });
+
+                // 添加滚轮缩放功能
+                this.canvas.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    
+                    const mousePos = this.getMousePos(e);
+                    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                    const newScale = Math.max(this.minScale, Math.min(this.maxScale, this.scale * zoomFactor));
+                    
+                    if(newScale !== this.scale) {
+                        // 计算缩放中心
+                        const zoomPointX = (mousePos.x - this.offset.x) / this.scale;
+                        const zoomPointY = (mousePos.y - this.offset.y) / this.scale;
+                        
+                        this.scale = newScale;
+                        
+                        // 调整偏移量以保持缩放中心点不变
+                        this.offset.x = mousePos.x - zoomPointX * this.scale;
+                        this.offset.y = mousePos.y - zoomPointY * this.scale;
+                        
+                        this.draw();
+                    }
+                });
+            }
+
+            getMousePos(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                return {
+                    x: e.clientX - rect.left,
+                    y: e.clientY - rect.top
+                };
+            }
+
+            transformPoint(point) {
+                return {
+                    x: point.x * this.scale + this.offset.x,
+                    y: point.y * this.scale + this.offset.y
+                };
+            }
+
+            inverseTransformPoint(point) {
+                return {
+                    x: (point.x - this.offset.x) / this.scale,
+                    y: (point.y - this.offset.y) / this.scale
+                };
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // 获取当前主题颜色
+                const colors = themeManager ? themeManager.getThemeColors() : {
+                    primary: '#667eea',
+                    secondary: '#4299e1',
+                    accent: '#48bb78',
+                    highlight: '#e53e3e'
+                };
+                
+                // 保存当前变换状态
+                this.ctx.save();
+                
+                // 应用缩放和平移变换
+                this.ctx.translate(this.offset.x, this.offset.y);
+                this.ctx.scale(this.scale, this.scale);
+                
+                // 绘制圆
+                let circleColor = '#e2e8f0';
+                if (themeManager) {
+                    if (themeManager.currentTheme === 'black-myth') {
+                        circleColor = 'rgba(255, 215, 0, 0.4)';
+                    } else if (themeManager.currentTheme === 'zelda') {
+                        circleColor = 'rgba(74, 158, 255, 0.5)';
+                    } else if (themeManager.currentTheme === 'mario') {
+                        circleColor = 'rgba(255, 165, 2, 0.6)';
+                    }
+                }
+                this.ctx.strokeStyle = circleColor;
+                this.ctx.lineWidth = Math.max(0.5, 2 / this.scale);
+                this.ctx.beginPath();
+                this.ctx.arc(this.center.x, this.center.y, this.radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+
+                // 绘制切线和六边形
+                const vertices = [];
+                this.ctx.strokeStyle = colors.secondary;
+                this.ctx.lineWidth = Math.max(0.5, 2 / this.scale);
+
+                for(let i = 0; i < 6; i++) {
+                    const nextI = (i + 1) % 6;
+                    const line1 = this.getTangentLine(i);
+                    const line2 = this.getTangentLine(nextI);
+                    
+                    // 绘制切线
+                    this.drawLine(line1);
+                    
+                    // 计算相邻切线的交点作为六边形顶点
+                    const vertex = this.lineIntersection(line1, line2);
+                    if(vertex) {
+                        vertices.push({...vertex, label: String.fromCharCode(65 + i)});
+                    }
+                }
+
+                // 绘制六边形
+                if(vertices.length === 6) {
+                    this.ctx.strokeStyle = colors.accent;
+                    this.ctx.lineWidth = Math.max(1, 3 / this.scale);
+                    this.ctx.beginPath();
+                    for(let i = 0; i < 6; i++) {
+                        if(i === 0) {
+                            this.ctx.moveTo(vertices[i].x, vertices[i].y);
+                        } else {
+                            this.ctx.lineTo(vertices[i].x, vertices[i].y);
+                        }
+                    }
+                    this.ctx.closePath();
+                    this.ctx.stroke();
+
+                    // 绘制布里安雄点
+                    if(this.showBrianchonPoint) {
+                        this.drawBrianchonPoint(vertices);
+                    }
+
+                    // 绘制顶点
+                    vertices.forEach((vertex, i) => {
+                        this.ctx.fillStyle = colors.accent;
+                        this.ctx.beginPath();
+                        this.ctx.arc(vertex.x, vertex.y, Math.max(1.5, 6 / this.scale), 0, Math.PI * 2);
+                        this.ctx.fill();
+
+                        // 标签
+                        this.ctx.fillStyle = colors.accent;
+                        this.ctx.font = `bold ${Math.max(6, 12 / this.scale)}px Arial`;
+                        this.ctx.textAlign = 'center';
+                        this.ctx.fillText(vertex.label, vertex.x, vertex.y - Math.max(6, 12 / this.scale));
+                    });
+                }
+
+                // 绘制切点
+                this.tangentLines.forEach((tangent, i) => {
+                    this.ctx.fillStyle = colors.primary;
+                    this.ctx.beginPath();
+                    this.ctx.arc(tangent.touchPoint.x, tangent.touchPoint.y, Math.max(1, 4 / this.scale), 0, Math.PI * 2);
+                    this.ctx.fill();
+                });
+                
+                // 恢复变换状态
+                this.ctx.restore();
+            }
+
+            getTangentLine(index) {
+                const tangent = this.tangentLines[index];
+                const angle = tangent.angle;
+                
+                // 切线垂直于半径
+                const tangentAngle = angle + Math.PI / 2;
+                const dx = Math.cos(tangentAngle);
+                const dy = Math.sin(tangentAngle);
+
+                return {
+                    p1: {
+                        x: tangent.touchPoint.x - dx * 150,
+                        y: tangent.touchPoint.y - dy * 150
+                    },
+                    p2: {
+                        x: tangent.touchPoint.x + dx * 150,
+                        y: tangent.touchPoint.y + dy * 150
+                    }
+                };
+            }
+
+            drawLine(line) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(line.p1.x, line.p1.y);
+                this.ctx.lineTo(line.p2.x, line.p2.y);
+                this.ctx.stroke();
+            }
+
+            lineIntersection(line1, line2) {
+                const denom = (line1.p1.x - line1.p2.x) * (line2.p1.y - line2.p2.y) - 
+                             (line1.p1.y - line1.p2.y) * (line2.p1.x - line2.p2.x);
+                
+                if(Math.abs(denom) < 1e-10) return null;
+
+                const t = ((line1.p1.x - line2.p1.x) * (line2.p1.y - line2.p2.y) - 
+                          (line1.p1.y - line2.p1.y) * (line2.p1.x - line2.p2.x)) / denom;
+                
+                return {
+                    x: line1.p1.x + t * (line1.p2.x - line1.p1.x),
+                    y: line1.p1.y + t * (line1.p2.y - line1.p1.y)
+                };
+            }
+
+            drawBrianchonPoint(vertices) {
+                if(vertices.length !== 6) return;
+
+                // 获取当前主题颜色
+                const colors = themeManager ? themeManager.getThemeColors() : {
+                    highlight: '#e53e3e'
+                };
+
+                // 计算三条对角线
+                const diagonal1 = {p1: vertices[0], p2: vertices[3]};
+                const diagonal2 = {p1: vertices[1], p2: vertices[4]};
+                const diagonal3 = {p1: vertices[2], p2: vertices[5]};
+
+                // 绘制延长的对角线
+                this.ctx.lineWidth = Math.max(0.5, 2 / this.scale);
+                this.ctx.setLineDash([Math.max(2, 5 / this.scale), Math.max(2, 5 / this.scale)]);
+
+                [diagonal1, diagonal2, diagonal3].forEach(diagonal => {
+                    this.drawExtendedDiagonal(diagonal.p1, diagonal.p2);
+                });
+
+                this.ctx.setLineDash([]);
+
+                // 计算布里安雄点（对角线交点）
+                const brianchonPoint = this.lineIntersection(diagonal1, diagonal2);
+                
+                if(brianchonPoint) {
+                    this.ctx.fillStyle = colors.highlight;
+                    this.ctx.beginPath();
+                    this.ctx.arc(brianchonPoint.x, brianchonPoint.y, Math.max(2, 8 / this.scale), 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    this.ctx.fillStyle = colors.highlight;
+                    this.ctx.font = `bold ${Math.max(8, 14 / this.scale)}px Arial`;
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('B', brianchonPoint.x, brianchonPoint.y - Math.max(8, 15 / this.scale));
+                }
+            }
+
+
+
+            toggleBrianchonPoint() {
+                this.showBrianchonPoint = !this.showBrianchonPoint;
+                this.draw();
+            }
+
+            reset() {
+                this.init();
+                this.resetView();
+            }
+
+            resetView() {
+                this.scale = 1.0;
+                this.offset = {x: 0, y: 0};
+                this.draw();
+            }
+
+            // 智能重排序切线：保持切线顺序
+            smartReorderTangents(draggedIndex) {
+                const draggedTangent = this.tangentLines[draggedIndex];
+                
+                // 计算拖动切线的当前角度
+                let draggedAngle = draggedTangent.angle;
+                if (draggedAngle < 0) draggedAngle += 2 * Math.PI;
+                
+                // 计算其他切线的角度
+                const otherTangents = this.tangentLines.filter((_, index) => index !== draggedIndex);
+                const otherAngles = otherTangents.map(tangent => {
+                    let angle = tangent.angle;
+                    if (angle < 0) angle += 2 * Math.PI;
+                    return { tangent, angle };
+                });
+                
+                // 找到拖动切线应该插入的正确位置
+                let insertIndex = 0;
+                for (let i = 0; i < otherAngles.length; i++) {
+                    if (draggedAngle > otherAngles[i].angle) {
+                        insertIndex = i + 1;
+                    }
+                }
+                
+                // 重新构建数组，保持角度顺序
+                const newTangents = [];
+                
+                for (let i = 0; i <= otherAngles.length; i++) {
+                    if (i === insertIndex) {
+                        newTangents.push(draggedTangent);
+                    }
+                    if (i < otherAngles.length) {
+                        newTangents.push(otherAngles[i].tangent);
+                    }
+                }
+                
+                this.tangentLines = newTangents;
+                
+                // 返回新的索引位置
+                return insertIndex;
+            }
+
+            // 此函数仅在随机生成时使用，确保切线按角度顺序排列
+            sortTangentsByAngle() {
+                // 按角度排序切线
+                this.tangentLines.sort((a, b) => {
+                    let angleA = a.angle;
+                    let angleB = b.angle;
+                    if (angleA < 0) angleA += 2 * Math.PI;
+                    if (angleB < 0) angleB += 2 * Math.PI;
+                    return angleA - angleB;
+                });
+            }
+
+            drawExtendedDiagonal(p1, p2) {
+                // 获取当前主题颜色
+                const colors = themeManager ? themeManager.getThemeColors() : {
+                    highlight: '#e53e3e',
+                    accent: '#48bb78'
+                };
+                
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const length = Math.sqrt(dx*dx + dy*dy);
+                const unitX = dx / length;
+                const unitY = dy / length;
+                const extend = 2000; // 大幅增加对角线长度
+
+                // 保存当前样式
+                const oldStrokeStyle = this.ctx.strokeStyle;
+                
+                // 绘制原始对角线部分（主题高亮色虚线）
+                this.ctx.strokeStyle = colors.highlight;
+                this.ctx.beginPath();
+                this.ctx.moveTo(p1.x, p1.y);
+                this.ctx.lineTo(p2.x, p2.y);
+                this.ctx.stroke();
+                
+                // 绘制延长部分（主题强调色虚线）
+                this.ctx.strokeStyle = colors.accent;
+                this.ctx.globalAlpha = 0.7;
+                
+                // 延长线段1：从p1向外延伸
+                this.ctx.beginPath();
+                this.ctx.moveTo(p1.x, p1.y);
+                this.ctx.lineTo(p1.x - unitX * extend, p1.y - unitY * extend);
+                this.ctx.stroke();
+                
+                // 延长线段2：从p2向外延伸
+                this.ctx.beginPath();
+                this.ctx.moveTo(p2.x, p2.y);
+                this.ctx.lineTo(p2.x + unitX * extend, p2.y + unitY * extend);
+                this.ctx.stroke();
+                
+                // 恢复原始样式
+                this.ctx.strokeStyle = oldStrokeStyle;
+                this.ctx.globalAlpha = 1.0;
+            }
+
+            randomize() {
+                // 随机生成六条切线的位置
+                this.tangentLines = [];
+                for(let i = 0; i < 6; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    this.tangentLines.push({
+                        angle: angle,
+                        touchPoint: {
+                            x: this.center.x + Math.cos(angle) * this.radius,
+                            y: this.center.y + Math.sin(angle) * this.radius
+                        }
+                    });
+                }
+                
+                // 按角度排序
+                this.sortTangentsByAngle();
+                this.draw();
+            }
+
+            reset() {
+                this.init();
+                this.resetView();
+            }
+
+            resetView() {
+                this.scale = 1.0;
+                this.offset = {x: 0, y: 0};
+                this.draw();
+            }
+
+
+
+            toggleBrianchonPoint() {
+                this.showBrianchonPoint = !this.showBrianchonPoint;
+                this.draw();
+            }
+        }
+
+        // 主题管理
+        class ThemeManager {
+            constructor() {
+                this.currentTheme = 'default';
+                this.setupThemeSelector();
+            }
+
+            setupThemeSelector() {
+                const themeButtons = document.querySelectorAll('.theme-btn');
+                themeButtons.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const theme = btn.dataset.theme;
+                        this.changeTheme(theme);
+                        this.updateActiveButton(btn);
+                    });
+                });
+            }
+
+            changeTheme(theme) {
+                // 移除所有主题类
+                document.body.classList.remove('theme-default', 'theme-black-myth', 'theme-zelda', 'theme-mario');
+                
+                // 添加新主题类
+                if (theme !== 'default') {
+                    document.body.classList.add(`theme-${theme}`);
+                }
+                
+                this.currentTheme = theme;
+                
+                // 重新绘制画布
+                if (pascalViz) pascalViz.draw();
+                if (brianchonViz) brianchonViz.draw();
+            }
+
+            updateActiveButton(activeBtn) {
+                document.querySelectorAll('.theme-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                activeBtn.classList.add('active');
+            }
+
+            getThemeColors() {
+                const style = getComputedStyle(document.documentElement);
+                return {
+                    primary: style.getPropertyValue('--primary-color').trim(),
+                    secondary: style.getPropertyValue('--secondary-color').trim(),
+                    accent: style.getPropertyValue('--accent-color').trim(),
+                    highlight: style.getPropertyValue('--highlight-color').trim()
+                };
+            }
+        }
+
+        // 初始化可视化
+        let pascalViz, brianchonViz, themeManager;
+
+        window.addEventListener('load', () => {
+            themeManager = new ThemeManager();
+            pascalViz = new PascalVisualization('pascalCanvas');
+            brianchonViz = new BrianchonVisualization('brianchonCanvas');
+        });
+
+        // 控制函数
+        function resetPascal() {
+            pascalViz.reset();
+        }
+
+        function togglePascalLine() {
+            pascalViz.togglePascalLine();
+        }
+
+        function resetBrianchon() {
+            brianchonViz.reset();
+        }
+
+        function toggleBrianchonPoint() {
+            brianchonViz.toggleBrianchonPoint();
+        }
+
+        function resetPascalView() {
+            pascalViz.resetView();
+        }
+
+        function resetBrianchonView() {
+            brianchonViz.resetView();
+        }
+
+        function randomizePascal() {
+            pascalViz.randomize();
+        }
+
+        function randomizeBrianchon() {
+            brianchonViz.randomize();
+        }
+    </script>
+</body>
+</html>

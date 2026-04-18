@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>照片墙</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            z-index: 1000;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1d1d1f;
+            letter-spacing: -0.5px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .control-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            color: #1d1d1f;
+        }
+
+        .control-btn:hover {
+            background: rgba(0, 0, 0, 0.2);
+            transform: scale(1.1);
+        }
+
+        .drop-zone {
+            position: fixed;
+            top: 70px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px dashed transparent;
+            transition: all 0.3s ease;
+            z-index: 5;
+        }
+
+        .drop-zone.dragover {
+            background: rgba(0, 122, 255, 0.1);
+            border-color: #007aff;
+        }
+
+        .drop-message {
+            text-align: center;
+            color: #86868b;
+            font-size: 18px;
+            font-weight: 500;
+            opacity: 0.8;
+        }
+
+        .drop-message .icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.6;
+        }
+
+        .photo-container {
+            position: fixed;
+            top: 70px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            user-select: none;
+            z-index: 1;
+        }
+
+
+        .photo-grid {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            min-height: 100%;
+            box-sizing: border-box;
+        }
+
+        .photo-item {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+            cursor: pointer;
+            aspect-ratio: 1;
+            will-change: transform;
+            transform: translateZ(0);
+        }
+
+        .photo-item:hover {
+            transform: translateY(-4px) translateZ(0);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            will-change: auto;
+            backface-visibility: hidden;
+        }
+
+        .photo-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.6));
+            color: white;
+            padding: 15px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .photo-item:hover .photo-overlay {
+            transform: translateY(0);
+        }
+
+        .photo-name {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .photo-size {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .zoom-indicator {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1001;
+        }
+
+        .zoom-indicator.show {
+            opacity: 1;
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #86868b;
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1002;
+        }
+
+        .loading.show {
+            opacity: 1;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .lightbox {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            overflow: hidden;
+        }
+
+        .lightbox.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .lightbox-viewport {
+            position: absolute;
+            top: 80px;
+            left: 0;
+            right: 0;
+            bottom: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .lightbox-image-wrapper {
+            position: relative;
+            cursor: grab;
+            transform-origin: center center;
+            transition: transform 0.2s ease-out;
+            will-change: transform;
+        }
+
+        .lightbox-image-wrapper.dragging {
+            cursor: grabbing;
+        }
+
+        .lightbox-image {
+            display: block;
+            user-select: none;
+            pointer-events: none;
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .lightbox-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, transparent 100%);
+            z-index: 10001;
+        }
+
+        .lightbox-counter {
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .lightbox-close {
+            width: 44px;
+            height: 44px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 22px;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .lightbox-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: scale(1.05);
+        }
+
+        .lightbox-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 30px;
+            background: linear-gradient(0deg, rgba(0, 0, 0, 0.3) 0%, transparent 100%);
+            z-index: 10001;
+        }
+
+        .lightbox-info {
+            text-align: center;
+            color: white;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .lightbox-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            max-width: 80vw;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .lightbox-details {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .lightbox-nav {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 30px;
+            color: white;
+            font-size: 28px;
+            font-weight: 300;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 10001;
+            opacity: 0;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .lightbox.show .lightbox-nav {
+            opacity: 1;
+        }
+
+        .lightbox-nav:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        .lightbox-nav:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .lightbox-nav:disabled:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-50%);
+        }
+
+        .lightbox-nav.prev {
+            left: 30px;
+        }
+
+        .lightbox-nav.next {
+            right: 30px;
+        }
+
+        .photo-item.loaded {
+            opacity: 1;
+            transform: translateY(0) translateZ(0);
+        }
+
+        .photo-item:not(.loaded) {
+            opacity: 0;
+            transform: translateY(20px) translateZ(0);
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 0 20px;
+            }
+
+            .photo-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 15px;
+                padding: 20px;
+            }
+
+            .logo {
+                font-size: 20px;
+            }
+
+            .lightbox-header {
+                padding: 0 20px;
+            }
+
+            .lightbox-footer {
+                padding: 15px 20px;
+                height: 100px;
+            }
+
+            .lightbox-viewport {
+                top: 60px;
+                bottom: 100px;
+            }
+
+            .lightbox-nav {
+                width: 50px;
+                height: 50px;
+                font-size: 24px;
+            }
+
+            .lightbox-nav.prev {
+                left: 15px;
+            }
+
+            .lightbox-nav.next {
+                right: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">📸 照片墙</div>
+        <div class="controls">
+            <button class="control-btn" onclick="clearPhotos()" title="清空照片">🗑️</button>
+        </div>
+    </div>
+
+    <div class="drop-zone" id="dropZone">
+        <div class="drop-message">
+            <div class="icon">📁</div>
+            <div>点击选择文件夹</div>
+        </div>
+    </div>
+
+    <div class="photo-container hidden" id="photoContainer">
+        <div class="photo-grid" id="photoGrid"></div>
+    </div>
+
+    <div class="loading" id="loading">正在加载照片...</div>
+
+    <script>
+        class PhotoWall {
+            constructor() {
+                this.photos = [];
+
+                this.dropZone = document.getElementById('dropZone');
+                this.photoContainer = document.getElementById('photoContainer');
+                this.photoGrid = document.getElementById('photoGrid');
+                this.zoomIndicator = document.getElementById('zoomIndicator');
+                this.loading = document.getElementById('loading');
+
+                this.initEventListeners();
+                this.initPerformanceOptimizations();
+            }
+
+            initEventListeners() {
+                // 拖拽上传
+                this.dropZone.addEventListener('dragover', this.handleDragOver.bind(this));
+                this.dropZone.addEventListener('dragleave', this.handleDragLeave.bind(this));
+                this.dropZone.addEventListener('drop', this.handleDrop.bind(this));
+                this.dropZone.addEventListener('click', this.selectFolder.bind(this));
+
+
+                // 防止右键菜单
+                document.addEventListener('contextmenu', e => e.preventDefault());
+
+                // ESC键关闭灯箱
+                document.addEventListener('keydown', this.handleKeydown.bind(this));
+            }
+
+            initPerformanceOptimizations() {
+                // 初始化Intersection Observer用于懒加载
+                if ('IntersectionObserver' in window) {
+                    this.imageObserver = new IntersectionObserver((entries) => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                const img = entry.target;
+                                const photoItem = img.closest('.photo-item');
+                                const photoIndex = parseInt(photoItem.dataset.photoIndex);
+                                const photo = this.photos[photoIndex];
+
+                                if (photo && img.dataset.src) {
+                                    this.loadImage(img, photo, photoItem);
+                                    this.imageObserver.unobserve(img);
+                                }
+                            }
+                        });
+                    }, {
+                        rootMargin: '50px'
+                    });
+                }
+
+                // 为鼠标事件添加节流
+                this.throttle = (func, limit) => {
+                    let inThrottle;
+                    return function() {
+                        const args = arguments;
+                        const context = this;
+                        if (!inThrottle) {
+                            func.apply(context, args);
+                            inThrottle = true;
+                            setTimeout(() => inThrottle = false, limit);
+                        }
+                    }
+                };
+
+                // 去掉节流来测试拖拽问题
+                this.throttledDrag = this.drag.bind(this);
+                this.throttledLightboxDrag = this.lightboxDrag.bind(this);
+                this.throttledHandleWheel = this.throttle(this.handleWheel.bind(this), 8);
+                this.throttledHandleLightboxWheel = this.throttle(this.handleLightboxWheel.bind(this), 8);
+            }
+
+            handleDragOver(e) {
+                e.preventDefault();
+                this.dropZone.classList.add('dragover');
+            }
+
+            handleDragLeave(e) {
+                e.preventDefault();
+                this.dropZone.classList.remove('dragover');
+            }
+
+            handleDrop(e) {
+                e.preventDefault();
+                this.dropZone.classList.remove('dragover');
+
+                const items = e.dataTransfer.items;
+                if (items) {
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i].webkitGetAsEntry();
+                        if (item && item.isDirectory) {
+                            this.processDirectory(item);
+                        } else if (item && item.isFile) {
+                            this.processFile(item);
+                        }
+                    }
+                }
+            }
+
+            selectFolder() {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.webkitdirectory = true;
+                input.multiple = true;
+                input.accept = 'image/*';
+
+                input.onchange = (e) => {
+                    this.loading.classList.add('show');
+                    const files = Array.from(e.target.files);
+                    this.loadPhotos(files);
+                };
+
+                input.click();
+            }
+
+            async processDirectory(directoryEntry) {
+                this.loading.classList.add('show');
+                try {
+                    console.log('开始处理文件夹:', directoryEntry.name);
+                    const files = await this.readDirectory(directoryEntry);
+                    console.log('找到图片文件数量:', files.length);
+
+                    if (files.length > 0) {
+                        await this.loadPhotos(files);
+                        console.log('文件夹处理完成');
+                    } else {
+                        console.log('文件夹中没有找到图片文件');
+                        this.loading.classList.remove('show');
+                        // 显示提示消息
+                        alert('该文件夹中没有找到图片文件');
+                    }
+                } catch (error) {
+                    console.error('处理文件夹时出错:', error);
+                    this.loading.classList.remove('show');
+
+                    // 提供更友好的错误提示
+                    let errorMessage = '处理文件夹时出现错误';
+                    if (error.name === 'EncodingError') {
+                        errorMessage = '文件夹中包含无法处理的文件名或路径过长的文件，请检查文件夹内容';
+                    } else if (error.message && error.message.includes('URI')) {
+                        errorMessage = '文件路径包含特殊字符或过长，无法处理';
+                    }
+
+                    alert(errorMessage + '\n\n建议：\n1. 检查文件夹中是否有文件名过长的文件\n2. 确保文件名不包含特殊字符\n3. 尝试处理较小的文件夹');
+                }
+            }
+
+            processFile(fileEntry) {
+                fileEntry.file(file => {
+                    if (file.type.startsWith('image/')) {
+                        this.loadPhotos([file]);
+                    }
+                });
+            }
+
+            async readDirectory(directoryEntry) {
+                const files = [];
+                const maxFiles = 1000; // 限制最大文件数量，避免处理过多文件
+                const processedEntries = new Set(); // 避免重复处理
+
+                // 改进的目录读取函数，使用更保守的错误处理
+                const readDirectoryContents = async (entry) => {
+                    if (files.length >= maxFiles) {
+                        console.warn('已达到最大文件数量限制:', maxFiles);
+                        return;
+                    }
+
+                    // 避免重复处理相同路径
+                    const entryPath = entry.fullPath || entry.name || 'unknown';
+                    if (processedEntries.has(entryPath)) {
+                        return;
+                    }
+                    processedEntries.add(entryPath);
+
+                    try {
+                        if (entry.isFile) {
+                            // 处理文件
+                            await new Promise((resolve) => {
+                                try {
+                                    entry.file((file) => {
+                                        try {
+                                            // 检查文件名长度
+                                            if (file.name && file.name.length > 255) {
+                                                console.warn('跳过文件名过长的文件:', file.name.substring(0, 50) + '...');
+                                                resolve();
+                                                return;
+                                            }
+
+                                            if (file.type.startsWith('image/') || this.isImageFile(file.name)) {
+                                                files.push(file);
+                                                console.log('找到图片:', file.name);
+                                            }
+                                            resolve();
+                                        } catch (error) {
+                                            console.warn('处理文件对象时出错:', file.name, error);
+                                            resolve();
+                                        }
+                                    }, (error) => {
+                                        console.warn('获取文件对象时出错:', entryPath, error);
+                                        resolve();
+                                    });
+                                } catch (error) {
+                                    console.warn('调用entry.file时出错:', entryPath, error);
+                                    resolve();
+                                }
+                            });
+
+                        } else if (entry.isDirectory) {
+                            // 处理目录 - 使用超时机制防止卡死
+                            console.log('读取子目录:', entryPath);
+
+                            await new Promise((resolve) => {
+                                let resolved = false;
+
+                                // 设置超时，避免无限等待
+                                const timeout = setTimeout(() => {
+                                    if (!resolved) {
+                                        resolved = true;
+                                        console.warn('读取目录超时:', entryPath);
+                                        resolve();
+                                    }
+                                }, 5000); // 5秒超时
+
+                                try {
+                                    const reader = entry.createReader();
+
+                                    // 递归读取子目录内容
+                                    const readBatch = () => {
+                                        try {
+                                            reader.readEntries(async (entries) => {
+                                                if (resolved) return;
+
+                                                try {
+                                                    if (entries.length === 0) {
+                                                        // 没有更多条目
+                                                        clearTimeout(timeout);
+                                                        if (!resolved) {
+                                                            resolved = true;
+                                                            resolve();
+                                                        }
+                                                        return;
+                                                    }
+
+                                                    // 处理当前批次的条目
+                                                    for (const subEntry of entries) {
+                                                        if (resolved || files.length >= maxFiles) break;
+                                                        await readDirectoryContents(subEntry);
+                                                    }
+
+                                                    // 继续读取下一批次
+                                                    if (!resolved) {
+                                                        // 给浏览器一些时间
+                                                        await new Promise(r => setTimeout(r, 1));
+                                                        readBatch();
+                                                    }
+                                                } catch (error) {
+                                                    console.warn('处理目录条目时出错:', entryPath, error);
+                                                    clearTimeout(timeout);
+                                                    if (!resolved) {
+                                                        resolved = true;
+                                                        resolve();
+                                                    }
+                                                }
+                                            }, (error) => {
+                                                console.warn('readEntries失败:', entryPath, error);
+                                                clearTimeout(timeout);
+                                                if (!resolved) {
+                                                    resolved = true;
+                                                    resolve();
+                                                }
+                                            });
+                                        } catch (error) {
+                                            console.warn('调用readEntries时出错:', entryPath, error);
+                                            clearTimeout(timeout);
+                                            if (!resolved) {
+                                                resolved = true;
+                                                resolve();
+                                            }
+                                        }
+                                    };
+
+                                    readBatch();
+
+                                } catch (error) {
+                                    console.warn('创建目录读取器时出错:', entryPath, error);
+                                    clearTimeout(timeout);
+                                    if (!resolved) {
+                                        resolved = true;
+                                        resolve();
+                                    }
+                                }
+                            });
+                        }
+                    } catch (error) {
+                        console.warn('处理条目时出错:', entryPath, error);
+                    }
+                };
+
+                try {
+                    console.log('开始读取目录:', directoryEntry.name);
+                    await readDirectoryContents(directoryEntry);
+                    console.log('目录读取完成，找到文件数:', files.length);
+                } catch (error) {
+                    console.error('读取目录结构时出错:', error);
+                }
+
+                return files;
+            }
+
+            isImageFile(filename) {
+                const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.tiff', '.ico'];
+                const extension = filename.toLowerCase().substring(filename.lastIndexOf('.'));
+                return imageExtensions.includes(extension);
+            }
+
+            async loadPhotos(files) {
+                if (files.length === 0) {
+                    this.loading.classList.remove('show');
+                    return;
+                }
+
+                this.showPhotoContainer();
+
+                // 批量处理文件，避免一次性创建过多URL
+                const batchSize = 50; // 每批处理50个文件
+                for (let i = 0; i < files.length; i += batchSize) {
+                    const batch = files.slice(i, i + batchSize);
+
+                    for (const file of batch) {
+                        try {
+                            const photo = {
+                                file: file, // 保存文件引用而不是立即创建URL
+                                url: null, // URL延迟创建
+                                name: file.name,
+                                size: this.formatFileSize(file.size),
+                                width: 0,
+                                height: 0,
+                                loaded: false,
+                                rendered: false
+                            };
+
+                            this.photos.push(photo);
+                        } catch (error) {
+                            console.warn('处理文件失败:', file.name, error);
+                            continue;
+                        }
+                    }
+
+                    // 给浏览器一些时间处理其他任务
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+
+                this.loading.classList.remove('show');
+
+                // 直接渲染所有照片（简化逻辑）
+                this.renderAllPhotos();
+
+                // 异步加载图片尺寸信息
+                this.loadPhotoSizes();
+            }
+
+            async loadPhotoSizes() {
+                const batchSize = 10; // 每次处理10张图片
+
+                for (let i = 0; i < this.photos.length; i += batchSize) {
+                    const batch = this.photos.slice(i, i + batchSize);
+
+                    await Promise.all(batch.map(photo => {
+                        return new Promise((resolve) => {
+                            if (photo.loaded) {
+                                resolve();
+                                return;
+                            }
+
+                            // 需要时才创建URL
+                            if (!photo.url && photo.file) {
+                                try {
+                                    photo.url = URL.createObjectURL(photo.file);
+                                } catch (error) {
+                                    console.warn('创建URL失败:', photo.name, error);
+                                    resolve();
+                                    return;
+                                }
+                            }
+
+                            const img = new Image();
+                            img.onload = () => {
+                                photo.width = img.naturalWidth;
+                                photo.height = img.naturalHeight;
+                                photo.loaded = true;
+                                resolve();
+                            };
+                            img.onerror = () => {
+                                console.warn('图片加载失败:', photo.name);
+                                resolve();
+                            };
+                            img.src = photo.url;
+                        });
+                    }));
+
+                            // 给浏览器一些时间处理其他任务
+                    await new Promise(resolve => setTimeout(resolve, 5));
+                }
+            }
+
+            renderAllPhotos() {
+                // 渲染所有照片，但使用懒加载减少性能影响
+                for (let i = 0; i < this.photos.length; i++) {
+                    const photo = this.photos[i];
+                    if (!photo.rendered) {
+                        this.renderPhotoPlaceholder(photo, i);
+                        photo.rendered = true;
+                    }
+                }
+            }
+
+            renderPhotoPlaceholder(photo, index) {
+                const photoItem = document.createElement('div');
+                photoItem.className = 'photo-item';
+                photoItem.dataset.photoIndex = index;
+
+                photoItem.innerHTML = `
+                    <img data-src="placeholder" alt="${photo.name}" loading="lazy" style="opacity: 0;">
+                    <div class="photo-overlay">
+                        <div class="photo-name">${photo.name}</div>
+                        <div class="photo-size">${photo.size}</div>
+                    </div>
+                `;
+
+                // 简单的点击事件
+                photoItem.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const photoIndex = parseInt(photoItem.dataset.photoIndex);
+                    this.openLightbox(photoIndex);
+                });
+
+                this.photoGrid.appendChild(photoItem);
+
+                // 延迟加载图片
+                this.lazyLoadImage(photoItem, photo);
+
+                // 添加淡入效果（减少延迟）
+                setTimeout(() => {
+                    photoItem.classList.add('loaded');
+                }, Math.min(index * 10, 500));
+            }
+
+
+            lazyLoadImage(photoItem, photo) {
+                const img = photoItem.querySelector('img');
+
+                // 使用Intersection Observer懒加载
+                if (this.imageObserver) {
+                    this.imageObserver.observe(img);
+                } else {
+                    // 备用方案：直接加载
+                    this.loadImage(img, photo, photoItem);
+                }
+            }
+
+            loadImage(img, photo, photoItem) {
+                // 只有在需要时才创建URL
+                if (!photo.url && photo.file) {
+                    try {
+                        photo.url = URL.createObjectURL(photo.file);
+                    } catch (error) {
+                        console.warn('创建URL失败:', photo.name, error);
+                        photoItem.style.opacity = '0.5';
+                        photoItem.classList.add('loaded');
+                        return;
+                    }
+                }
+
+                img.onload = () => {
+                    img.style.opacity = '1';
+                    img.style.transition = 'opacity 0.3s ease';
+                    photoItem.classList.add('loaded');
+                };
+
+                img.onerror = () => {
+                    photoItem.style.opacity = '0.5';
+                    photoItem.classList.add('loaded');
+                };
+
+                img.src = photo.url;
+            }
+
+            showPhotoContainer() {
+                this.dropZone.classList.add('hidden');
+                this.photoContainer.classList.remove('hidden');
+            }
+
+
+            drag(e) {
+                if (!this.isDragging) return;
+
+                const deltaX = e.clientX - this.lastMouseX;
+                const deltaY = e.clientY - this.lastMouseY;
+
+                // 标记已经发生了拖拽
+                if (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2) {
+                    this.hasDragged = true;
+                }
+
+                // 计算新的位置
+                const newTranslateX = this.translateX + deltaX;
+                const newTranslateY = this.translateY + deltaY;
+
+                // 应用边界限制
+                const constrainedPosition = this.constrainDragBounds(newTranslateX, newTranslateY);
+                this.translateX = constrainedPosition.x;
+                this.translateY = constrainedPosition.y;
+
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+
+                this.updateTransform();
+
+                // 阻止默认行为
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            endDrag(e) {
+                this.isDragging = false;
+                this.photoContainer.classList.remove('dragging');
+                document.body.style.cursor = '';
+
+                // 不立即重置 hasDragged，给 click 事件时间检查
+                // 在 click 事件中才重置
+            }
+
+            handleWheel(e) {
+                // 检查是否在照片容器区域内
+                if (!this.photoContainer.contains(e.target) && !e.target.closest('#photoContainer')) {
+                    return;
+                }
+
+                e.preventDefault();
+
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+
+                // 计算动态最小缩放值
+                const currentMinScale = this.calculateMinScale();
+                const newScale = Math.max(currentMinScale, Math.min(3, this.scale * delta));
+
+                if (newScale !== this.scale) {
+                    const rect = this.photoContainer.getBoundingClientRect();
+                    const centerX = e.clientX - rect.left;
+                    const centerY = e.clientY - rect.top;
+
+                    this.translateX = centerX - (centerX - this.translateX) * (newScale / this.scale);
+                    this.translateY = centerY - (centerY - this.translateY) * (newScale / this.scale);
+
+                    this.scale = newScale;
+                    this.updateTransform();
+                    this.showZoomIndicator();
+                }
+            }
+
+            calculateMinScale() {
+                // 计算最小缩放比例，确保缩小时保留和默认布局一样的左右空间
+                const containerRect = this.photoContainer.getBoundingClientRect();
+                const containerWidth = containerRect.width;
+                const containerHeight = containerRect.height;
+
+                // CSS中设置的网格参数
+                const minPhotoWidth = 200; // minmax(200px, 1fr)中的最小宽度
+                const gap = 20; // 网格间隙
+                const padding = 30; // 单边padding
+
+                // 计算一行能放几张照片（按默认布局）
+                const availableWidth = containerWidth - padding * 2; // 减去左右padding
+                const photosPerRow = Math.floor((availableWidth + gap) / (minPhotoWidth + gap));
+
+                // 确保至少有一张照片
+                const actualPhotosPerRow = Math.max(1, photosPerRow);
+
+                // 计算实际照片区域的总宽度（不包括padding，只是内容宽度）
+                const actualContentWidth = actualPhotosPerRow * minPhotoWidth + (actualPhotosPerRow - 1) * gap;
+
+                // 最小缩放应该确保内容宽度加上padding不超过容器宽度
+                // 但要留出一些缓冲，避免边界问题
+                const maxContentWidth = containerWidth - padding * 2 - 10; // 减去10px作为缓冲
+                const minScaleByWidth = maxContentWidth / actualContentWidth;
+
+                // 计算高度的限制（假设每张照片比例为1:1）
+                const photoHeight = minPhotoWidth; // aspect-ratio: 1
+                const minRows = Math.ceil(this.photos.length / actualPhotosPerRow);
+                const actualContentHeight = minRows * photoHeight + (minRows - 1) * gap;
+                const maxContentHeight = containerHeight - padding * 2 - 10; // 减去10px作为缓冲
+                const minScaleByHeight = maxContentHeight / actualContentHeight;
+
+                // 取两者中较小的值，确保内容完全可见
+                return Math.max(Math.min(minScaleByWidth, minScaleByHeight), 0.1);
+            }
+
+            initializeDefaultScale() {
+                // 设置默认缩放为最小缩放比例
+                if (this.scale === null) {
+                    this.scale = this.calculateMinScale();
+                    this.updateTransform();
+                }
+            }
+
+            constrainDragBounds(translateX, translateY) {
+                const containerRect = this.photoContainer.getBoundingClientRect();
+                const containerWidth = containerRect.width;
+                const containerHeight = containerRect.height;
+
+                // CSS参数
+                const padding = 30; // 默认边界宽度
+                const gap = 20;
+                const minPhotoWidth = 200;
+
+                // 计算网格的实际尺寸（缩放后）
+                const availableWidth = containerWidth - padding * 2;
+                const photosPerRow = Math.max(1, Math.floor((availableWidth + gap) / (minPhotoWidth + gap)));
+
+                // 计算缩放后的内容尺寸（不包含padding）
+                const contentWidth = photosPerRow * minPhotoWidth + (photosPerRow - 1) * gap;
+                const scaledContentWidth = contentWidth * this.scale;
+                const scaledPadding = padding * this.scale;
+
+                const minRows = Math.ceil(this.photos.length / photosPerRow);
+                const contentHeight = minRows * minPhotoWidth + (minRows - 1) * gap;
+                const scaledContentHeight = contentHeight * this.scale;
+
+                // 限制X轴位置
+                let constrainedX = translateX;
+                // 总的网格宽度（内容+padding）
+                const totalGridWidth = scaledContentWidth + scaledPadding * 2;
+
+                if (totalGridWidth <= containerWidth) {
+                    // 如果总宽度小于容器宽度，居中显示
+                    constrainedX = (containerWidth - totalGridWidth) / 2;
+                } else {
+                    // 计算边界限制
+                    // 左边界：网格左边距离容器左边不能超过padding
+                    const maxLeftOffset = padding;
+                    // 右边界：网格右边距离容器右边不能超过padding
+                    const minRightOffset = containerWidth - totalGridWidth + padding;
+
+                    constrainedX = Math.max(minRightOffset, Math.min(maxLeftOffset, translateX));
+                }
+
+                // 限制Y轴位置
+                let constrainedY = translateY;
+                const totalGridHeight = scaledContentHeight + scaledPadding * 2;
+
+                if (totalGridHeight <= containerHeight) {
+                    // 如果总高度小于容器高度，居中显示
+                    constrainedY = (containerHeight - totalGridHeight) / 2;
+                } else {
+                    // 计算边界限制
+                    const maxTopOffset = padding;
+                    const minBottomOffset = containerHeight - totalGridHeight + padding;
+
+                    constrainedY = Math.max(minBottomOffset, Math.min(maxTopOffset, translateY));
+                }
+
+                return { x: constrainedX, y: constrainedY };
+            }
+
+            handleGlobalWheel(e) {
+                // 全局滚轮事件处理器，用于处理照片容器区域外的滚轮事件
+                if (this.photoContainer.classList.contains('hidden')) {
+                    return; // 照片容器隐藏时不处理
+                }
+
+                // 只在照片容器可见时处理滚轮事件
+                if (e.target.closest('.lightbox')) {
+                    return; // 在灯箱中不处理
+                }
+
+                this.handleWheel(e);
+            }
+
+            handleGlobalMouseDown(e) {
+                // 全局鼠标下按事件处理器
+                if (this.photoContainer.classList.contains('hidden')) {
+                    return; // 照片容器隐藏时不处理
+                }
+
+                // 在灯箱中不处理
+                if (e.target.closest('.lightbox')) {
+                    return;
+                }
+
+                // 排除header和拖拽区域
+                if (e.target.closest('.header')) {
+                    return;
+                }
+
+                // 如果是在拖拽区域，不处理
+                if (this.dropZone && !this.dropZone.classList.contains('hidden') && e.target.closest('.drop-zone')) {
+                    return;
+                }
+
+                // 排除按钮点击
+                if (e.target.tagName === 'BUTTON') {
+                    return;
+                }
+
+                // 如果点击的是照片，不开始拖拽（由照片自己的事件处理）
+                if (e.target.tagName === 'IMG' || e.target.closest('.photo-item')) {
+                    return;
+                }
+
+                // 检查是否在照片容器区域内
+                const rect = this.photoContainer.getBoundingClientRect();
+                const inPhotoArea = e.clientY >= rect.top && e.clientY <= rect.bottom &&
+                                  e.clientX >= rect.left && e.clientX <= rect.right;
+
+                if (inPhotoArea) {
+                    this.isDragging = true;
+                    this.hasDragged = false; // 重置拖拽标记
+                    this.dragStartTime = Date.now(); // 记录开始时间
+                    this.lastMouseX = e.clientX;
+                    this.lastMouseY = e.clientY;
+                    this.photoContainer.classList.add('dragging');
+                    document.body.style.cursor = 'grabbing';
+
+
+                    // 阻止默认行为
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }
+
+            updateTransform() {
+                this.photoGrid.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
+            }
+
+            showZoomIndicator() {
+                this.zoomIndicator.textContent = Math.round(this.scale * 100) + '%';
+                this.zoomIndicator.classList.add('show');
+
+                clearTimeout(this.zoomTimeout);
+                this.zoomTimeout = setTimeout(() => {
+                    this.zoomIndicator.classList.remove('show');
+                }, 1000);
+            }
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            }
+
+            openLightbox(photoIndex) {
+                this.currentPhotoIndex = photoIndex;
+                this.lightboxScale = 1;
+                this.lightboxTranslateX = 0;
+                this.lightboxTranslateY = 0;
+                this.isLightboxDragging = false;
+
+                const lightbox = this.createLightbox();
+                document.body.appendChild(lightbox);
+                this.updateLightboxPhoto();
+
+                setTimeout(() => {
+                    lightbox.classList.add('show');
+                }, 10);
+            }
+
+            createLightbox() {
+                const lightbox = document.createElement('div');
+                lightbox.className = 'lightbox';
+                lightbox.id = 'lightbox';
+
+                lightbox.innerHTML = `
+                    <div class="lightbox-header">
+                        <div class="lightbox-counter" id="lightboxCounter"></div>
+                        <button class="lightbox-close" onclick="photoWall.closeLightbox()">&times;</button>
+                    </div>
+
+                    <div class="lightbox-viewport" id="lightboxViewport">
+                        <div class="lightbox-image-wrapper" id="lightboxImageWrapper">
+                            <img class="lightbox-image" id="lightboxImage" src="index.html" alt="">
+                        </div>
+                    </div>
+
+                    <button class="lightbox-nav prev" id="lightboxPrev" onclick="photoWall.previousPhoto()">‹</button>
+                    <button class="lightbox-nav next" id="lightboxNext" onclick="photoWall.nextPhoto()">›</button>
+
+                    <div class="lightbox-footer">
+                        <div class="lightbox-info">
+                            <div class="lightbox-name" id="lightboxName"></div>
+                            <div class="lightbox-details" id="lightboxDetails"></div>
+                        </div>
+                    </div>
+                `;
+
+                // 点击背景关闭
+                lightbox.addEventListener('click', (e) => {
+                    if (e.target === lightbox || e.target.id === 'lightboxViewport') {
+                        this.closeLightbox();
+                    }
+                });
+
+                // 添加图片容器事件监听
+                const imageWrapper = lightbox.querySelector('#lightboxImageWrapper');
+                const viewport = lightbox.querySelector('#lightboxViewport');
+
+                imageWrapper.addEventListener('mousedown', this.startLightboxDrag.bind(this));
+                viewport.addEventListener('wheel', this.throttledHandleLightboxWheel, { passive: false });
+
+                return lightbox;
+            }
+
+            closeLightbox() {
+                const lightbox = document.getElementById('lightbox');
+                if (lightbox) {
+                    lightbox.classList.remove('show');
+                    setTimeout(() => {
+                        document.body.removeChild(lightbox);
+                    }, 300);
+                }
+            }
+
+            handleKeydown(e) {
+                if (e.key === 'Escape') {
+                    this.closeLightbox();
+                } else if (e.key === 'ArrowLeft') {
+                    this.previousPhoto();
+                } else if (e.key === 'ArrowRight') {
+                    this.nextPhoto();
+                }
+            }
+
+            updateLightboxPhoto() {
+                if (this.currentPhotoIndex < 0 || this.currentPhotoIndex >= this.photos.length) return;
+
+                const photo = this.photos[this.currentPhotoIndex];
+                const lightboxImage = document.getElementById('lightboxImage');
+                const lightboxName = document.getElementById('lightboxName');
+                const lightboxDetails = document.getElementById('lightboxDetails');
+                const lightboxCounter = document.getElementById('lightboxCounter');
+                const prevBtn = document.getElementById('lightboxPrev');
+                const nextBtn = document.getElementById('lightboxNext');
+
+                // 更新导航按钮状态
+                if (prevBtn) prevBtn.disabled = this.currentPhotoIndex === 0;
+                if (nextBtn) nextBtn.disabled = this.currentPhotoIndex === this.photos.length - 1;
+
+                // 更新信息显示
+                if (lightboxName) lightboxName.textContent = photo.name;
+                if (lightboxDetails) lightboxDetails.textContent = `${photo.width} × ${photo.height} • ${photo.size}`;
+                if (lightboxCounter) lightboxCounter.textContent = `${this.currentPhotoIndex + 1} / ${this.photos.length}`;
+
+                // 重置变换
+                this.resetLightboxTransform();
+
+                // 确保URL已创建
+                if (!photo.url && photo.file) {
+                    try {
+                        photo.url = URL.createObjectURL(photo.file);
+                    } catch (error) {
+                        console.warn('创建URL失败:', photo.name, error);
+                        return;
+                    }
+                }
+
+                // 加载并调整图片
+                if (lightboxImage && photo.url) {
+                    lightboxImage.onload = () => {
+                        this.fitImageToViewport(lightboxImage, photo);
+                    };
+                    lightboxImage.src = photo.url;
+                }
+            }
+
+            fitImageToViewport(img, photo) {
+                const viewport = document.getElementById('lightboxViewport');
+                if (!viewport) return;
+
+                const viewportRect = viewport.getBoundingClientRect();
+                const viewportWidth = viewportRect.width;
+                const viewportHeight = viewportRect.height;
+
+                // 计算图片适配尺寸
+                const imageAspectRatio = photo.width / photo.height;
+                const viewportAspectRatio = viewportWidth / viewportHeight;
+
+                let finalWidth, finalHeight;
+
+                if (imageAspectRatio > viewportAspectRatio) {
+                    // 图片更宽，按宽度适配
+                    finalWidth = viewportWidth;
+                    finalHeight = viewportWidth / imageAspectRatio;
+                } else {
+                    // 图片更高，按高度适配
+                    finalHeight = viewportHeight;
+                    finalWidth = viewportHeight * imageAspectRatio;
+                }
+
+                img.style.width = finalWidth + 'px';
+                img.style.height = finalHeight + 'px';
+
+                // 存储原始尺寸用于缩放计算
+                this.originalImageWidth = finalWidth;
+                this.originalImageHeight = finalHeight;
+            }
+
+            resetLightboxTransform() {
+                this.lightboxScale = 1;
+                this.lightboxTranslateX = 0;
+                this.lightboxTranslateY = 0;
+                this.updateLightboxTransform();
+            }
+
+            previousPhoto() {
+                if (this.currentPhotoIndex > 0) {
+                    this.currentPhotoIndex--;
+                    this.updateLightboxPhoto();
+                }
+            }
+
+            nextPhoto() {
+                if (this.currentPhotoIndex < this.photos.length - 1) {
+                    this.currentPhotoIndex++;
+                    this.updateLightboxPhoto();
+                }
+            }
+
+            startLightboxDrag(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                this.isLightboxDragging = true;
+                this.lastLightboxMouseX = e.clientX;
+                this.lastLightboxMouseY = e.clientY;
+
+                const imageWrapper = document.getElementById('lightboxImageWrapper');
+                if (imageWrapper) {
+                    imageWrapper.classList.add('dragging');
+                }
+
+                // 使用绑定的函数引用
+                this.boundLightboxDrag = this.throttledLightboxDrag;
+                this.boundEndLightboxDrag = this.endLightboxDrag.bind(this);
+
+                document.addEventListener('mousemove', this.boundLightboxDrag);
+                document.addEventListener('mouseup', this.boundEndLightboxDrag);
+            }
+
+            lightboxDrag(e) {
+                if (!this.isLightboxDragging) return;
+
+                const deltaX = e.clientX - this.lastLightboxMouseX;
+                const deltaY = e.clientY - this.lastLightboxMouseY;
+
+                this.lightboxTranslateX += deltaX;
+                this.lightboxTranslateY += deltaY;
+
+                this.lastLightboxMouseX = e.clientX;
+                this.lastLightboxMouseY = e.clientY;
+
+                this.updateLightboxTransform();
+            }
+
+            endLightboxDrag() {
+                this.isLightboxDragging = false;
+
+                const imageWrapper = document.getElementById('lightboxImageWrapper');
+                if (imageWrapper) {
+                    imageWrapper.classList.remove('dragging');
+                }
+
+                document.removeEventListener('mousemove', this.boundLightboxDrag);
+                document.removeEventListener('mouseup', this.boundEndLightboxDrag);
+            }
+
+            handleLightboxWheel(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                const newScale = Math.max(0.1, Math.min(5, this.lightboxScale * delta));
+
+                if (newScale !== this.lightboxScale) {
+                    const viewport = e.currentTarget;
+                    const viewportRect = viewport.getBoundingClientRect();
+
+                    // 计算鼠标在视口内的位置
+                    const mouseX = e.clientX - viewportRect.left;
+                    const mouseY = e.clientY - viewportRect.top;
+
+                    // 计算视口中心
+                    const centerX = viewportRect.width / 2;
+                    const centerY = viewportRect.height / 2;
+
+                    // 计算鼠标相对于当前变换中心的位置
+                    const offsetX = mouseX - centerX;
+                    const offsetY = mouseY - centerY;
+
+                    // 计算缩放前的图片点
+                    const imagePointX = (offsetX - this.lightboxTranslateX) / this.lightboxScale;
+                    const imagePointY = (offsetY - this.lightboxTranslateY) / this.lightboxScale;
+
+                    // 更新缩放
+                    this.lightboxScale = newScale;
+
+                    // 重新计算变换，保持鼠标指向的图片点不变
+                    this.lightboxTranslateX = offsetX - imagePointX * this.lightboxScale;
+                    this.lightboxTranslateY = offsetY - imagePointY * this.lightboxScale;
+
+                    this.updateLightboxTransform();
+                }
+            }
+
+            updateLightboxTransform() {
+                const imageWrapper = document.getElementById('lightboxImageWrapper');
+                if (imageWrapper) {
+                    imageWrapper.style.transform = `translate(${this.lightboxTranslateX}px, ${this.lightboxTranslateY}px) scale(${this.lightboxScale})`;
+                }
+            }
+        }
+
+        // 全局函数
+        function clearPhotos() {
+            // 清理Intersection Observer
+            if (photoWall.imageObserver) {
+                photoWall.imageObserver.disconnect();
+            }
+
+            // 释放所有URL资源
+            photoWall.photos.forEach(photo => {
+                if (photo.url) {
+                    try {
+                        URL.revokeObjectURL(photo.url);
+                    } catch (e) {
+                        console.warn('释放URL失败:', e);
+                    }
+                }
+            });
+
+            photoWall.photos = [];
+            photoWall.photoGrid.innerHTML = '';
+            photoWall.photoContainer.classList.add('hidden');
+            photoWall.dropZone.classList.remove('hidden');
+            // 重置视图参数
+            photoWall.scale = 1;
+            photoWall.translateX = 0;
+            photoWall.translateY = 0;
+            photoWall.updateTransform();
+            photoWall.showZoomIndicator();
+
+            // 重新初始化Observer
+            photoWall.initPerformanceOptimizations();
+        }
+
+        // 初始化
+        const photoWall = new PhotoWall();
+    </script>
+</body>
+</html>

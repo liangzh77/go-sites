@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家务清单</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', 'Microsoft YaHei', sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .toolbar {
+            max-width: 297mm;
+            margin: 0 auto 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .toolbar button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: #1a73e8;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1557b0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .btn-secondary {
+            background-color: white;
+            color: #1a73e8;
+            border: 1px solid #dadce0 !important;
+        }
+
+        .btn-secondary:hover {
+            background-color: #f1f3f4;
+        }
+
+        .btn-danger {
+            background-color: white;
+            color: #d93025;
+            border: 1px solid #dadce0 !important;
+        }
+
+        .btn-danger:hover {
+            background-color: #fce8e6;
+        }
+
+        .page-container {
+            width: 297mm;
+            height: 210mm;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            display: flex;
+            padding: 10mm;
+        }
+
+        .title-section {
+            width: 15mm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #333;
+            border-right: none;
+            background-color: #e8f0fe;
+        }
+
+        .title-text {
+            writing-mode: vertical-rl;
+            text-orientation: upright;
+            font-size: 24px;
+            font-weight: 500;
+            color: #1a73e8;
+            letter-spacing: 8px;
+        }
+
+        .table-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        table {
+            width: 100%;
+            height: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        th, td {
+            border: 1px solid #333;
+            padding: 4px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        th {
+            background-color: #f1f3f4;
+            font-weight: 500;
+            height: 40px;
+        }
+
+        th.day-header {
+            width: 80px;
+            background-color: #e8f0fe;
+        }
+
+        td {
+            height: calc((190mm - 40px) / 7);
+        }
+
+        td.day-cell {
+            background-color: #fafafa;
+            font-weight: 500;
+        }
+
+        .task-header {
+            position: relative;
+            padding: 4px 24px 4px 4px;
+        }
+
+        .task-header .task-name {
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+            outline: none;
+            word-wrap: break-word;
+            word-break: break-all;
+            line-height: 1.3;
+            min-height: 1.3em;
+        }
+
+        .task-header .task-name:focus {
+            background-color: #e8f0fe;
+            border-radius: 4px;
+        }
+
+        .task-header .task-name:empty::before {
+            content: '任务名称';
+            color: #9aa0a6;
+        }
+
+        .delete-task {
+            position: absolute;
+            right: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: #5f6368;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .delete-task:hover {
+            background-color: #fce8e6;
+            color: #d93025;
+        }
+
+        .day-cell select {
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            cursor: pointer;
+            outline: none;
+            width: 100%;
+        }
+
+        .day-cell.auto-day {
+            color: #5f6368;
+        }
+
+        td input[type="text"] {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: transparent;
+            text-align: center;
+            font-size: 14px;
+            outline: none;
+        }
+
+        td input[type="text"]:focus {
+            background-color: #e8f0fe;
+        }
+
+        /* 打印样式 */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 0;
+            }
+
+            html, body {
+                width: 297mm;
+                height: 210mm;
+                margin: 0;
+                padding: 0;
+                background: white;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .toolbar {
+                display: none !important;
+            }
+
+            .page-container {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 297mm;
+                height: 210mm;
+                box-shadow: none;
+                padding: 8mm;
+                margin: 0;
+            }
+
+            .title-section {
+                width: 12mm;
+            }
+
+            .title-text {
+                font-size: 20px;
+            }
+
+            th, td {
+                border: 1px solid #333 !important;
+            }
+
+            .delete-task {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button class="btn-primary" onclick="addTask()">
+            <span>+</span> 添加任务
+        </button>
+        <button class="btn-danger" onclick="removeLastTask()">
+            <span>-</span> 删除任务
+        </button>
+        <button class="btn-secondary" onclick="window.print()">
+            打印
+        </button>
+        <button class="btn-secondary" onclick="resetData()">
+            重置
+        </button>
+    </div>
+
+    <div class="page-container">
+        <div class="title-section">
+            <div class="title-text">家务清单</div>
+        </div>
+        <div class="table-section">
+            <table id="chore-table">
+                <thead>
+                    <tr id="header-row">
+                        <th class="day-header">星期</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const DAYS = ['一', '二', '三', '四', '五', '六', '日'];
+        const STORAGE_KEY = 'choreListData';
+
+        let data = {
+            startDay: 0, // 0=周一, 1=周二, ...
+            tasks: ['扫地', '拖地', '洗碗', '做饭', '洗衣服'],
+            cells: {}
+        };
+
+        function loadData() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // 确保数据结构完整
+                    data = {
+                        startDay: typeof parsed.startDay === 'number' ? parsed.startDay : 0,
+                        tasks: Array.isArray(parsed.tasks) && parsed.tasks.length > 0 ? parsed.tasks : ['扫地', '拖地', '洗碗', '做饭', '洗衣服'],
+                        cells: parsed.cells && typeof parsed.cells === 'object' ? parsed.cells : {}
+                    };
+                } catch (e) {
+                    console.error('加载数据失败，使用默认值', e);
+                }
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function getDayName(index) {
+            const dayIndex = (data.startDay + index) % 7;
+            return '周' + DAYS[dayIndex];
+        }
+
+        function renderTable() {
+            const headerRow = document.getElementById('header-row');
+            const tbody = document.getElementById('table-body');
+
+            // 清空现有内容
+            headerRow.innerHTML = '<th class="day-header">星期</th>';
+            tbody.innerHTML = '';
+
+            // 渲染表头任务
+            data.tasks.forEach((task, taskIndex) => {
+                const th = document.createElement('th');
+                th.className = 'task-header';
+                th.innerHTML = `
+                    <div class="task-name" contenteditable="true"
+                         onblur="updateTask(${taskIndex}, this.textContent)">${task}</div>
+                    <button class="delete-task" onclick="deleteTask(${taskIndex})" title="删除任务">&times;</button>
+                `;
+                headerRow.appendChild(th);
+            });
+
+            // 渲染7天的行
+            for (let day = 0; day < 7; day++) {
+                const tr = document.createElement('tr');
+
+                // 星期单元格
+                const dayCell = document.createElement('td');
+                dayCell.className = 'day-cell' + (day > 0 ? ' auto-day' : '');
+
+                if (day === 0) {
+                    // 第一天可选择
+                    let select = '<select onchange="updateStartDay(this.value)">';
+                    DAYS.forEach((d, i) => {
+                        select += `<option value="${i}" ${data.startDay === i ? 'selected' : ''}>周${d}</option>`;
+                    });
+                    select += '</select>';
+                    dayCell.innerHTML = select;
+                } else {
+                    dayCell.textContent = getDayName(day);
+                }
+                tr.appendChild(dayCell);
+
+                // 任务单元格
+                data.tasks.forEach((_, taskIndex) => {
+                    const td = document.createElement('td');
+                    const cellKey = `${day}-${taskIndex}`;
+                    const cellValue = data.cells[cellKey] || '';
+                    td.innerHTML = `<input type="text" value="${cellValue}"
+                                          onchange="updateCell('${cellKey}', this.value)"
+                                          placeholder="">`;
+                    tr.appendChild(td);
+                });
+
+                tbody.appendChild(tr);
+            }
+        }
+
+        function updateStartDay(value) {
+            data.startDay = parseInt(value);
+            saveData();
+            renderTable();
+        }
+
+        function updateTask(index, value) {
+            data.tasks[index] = value;
+            saveData();
+        }
+
+        function updateCell(key, value) {
+            data.cells[key] = value;
+            saveData();
+        }
+
+        function addTask() {
+            data.tasks.push('');
+            saveData();
+            renderTable();
+        }
+
+        function deleteTask(index) {
+            if (data.tasks.length <= 1) {
+                alert('至少保留一个任务列');
+                return;
+            }
+            data.tasks.splice(index, 1);
+            // 更新单元格数据的键
+            const newCells = {};
+            Object.keys(data.cells).forEach(key => {
+                const [day, taskIndex] = key.split('-').map(Number);
+                if (taskIndex < index) {
+                    newCells[key] = data.cells[key];
+                } else if (taskIndex > index) {
+                    newCells[`${day}-${taskIndex - 1}`] = data.cells[key];
+                }
+            });
+            data.cells = newCells;
+            saveData();
+            renderTable();
+        }
+
+        function removeLastTask() {
+            if (data.tasks.length <= 1) {
+                alert('至少保留一个任务列');
+                return;
+            }
+            deleteTask(data.tasks.length - 1);
+        }
+
+        function resetData() {
+            if (confirm('确定要重置所有数据吗？')) {
+                localStorage.removeItem(STORAGE_KEY);
+                data = {
+                    startDay: 0,
+                    tasks: ['扫地', '拖地', '洗碗', '做饭', '洗衣服'],
+                    cells: {}
+                };
+                saveData();
+                renderTable();
+            }
+        }
+
+        // 初始化
+        loadData();
+        renderTable();
+    </script>
+</body>
+</html>

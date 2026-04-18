@@ -1064,19 +1064,19 @@ window.WEBPAGES_DATA = {
           "图片工具": [
             {
               "名称": "教师节贺卡",
-              "地址": "https://card910.netlify.app",
+              "地址": "/apps/tools/card910/",
               "备注": "中国 | 直连 | 免费",
               "功能": "在线定制教师节贺卡，简单易用"
             },
             {
               "名称": "图片拼接",
-              "地址": "https://image-stitch.netlify.app",
+              "地址": "/apps/tools/image-stitch/",
               "备注": "中国 | 直连 | 免费",
               "功能": "拖拽式图片拼接工具，自动排版"
             },
             {
               "名称": "照片墙",
-              "地址": "https://pic-wall.netlify.app",
+              "地址": "/apps/tools/pic-wall/",
               "备注": "中国 | 直连 | 免费",
               "功能": "批量图片浏览和放大展示"
             }
@@ -1098,7 +1098,7 @@ window.WEBPAGES_DATA = {
             },
             {
               "名称": "家务清单",
-              "地址": "https://list-chore.netlify.app",
+              "地址": "/apps/tools/list-chore/",
               "备注": "中国 | 直连 | 免费",
               "功能": "打印一周家务清单，家庭管理助手"
             },
@@ -1128,19 +1128,19 @@ window.WEBPAGES_DATA = {
           "游戏-经典": [
             {
               "名称": "贪吃蛇",
-              "地址": "https://snack-snake.netlify.app",
+              "地址": "/apps/fun/snack-snake/",
               "备注": "中国 | 直连 | 免费",
               "功能": "经典贪吃蛇游戏，方向键控制，支持自主移动模式"
             },
             {
               "名称": "数字华容道",
-              "地址": "https://digital-maze.netlify.app",
+              "地址": "/apps/fun/digital-maze/",
               "备注": "中国 | 直连 | 免费",
               "功能": "滑动数字方块，按顺序排列完成游戏，益智挑战"
             },
             {
               "名称": "俄罗斯方块",
-              "地址": "https://tetris888.netlify.app",
+              "地址": "/apps/fun/tetris888/",
               "备注": "中国 | 直连 | 免费",
               "功能": "经典俄罗斯方块，旋转和移动方块消除得分"
             },
@@ -1152,13 +1152,13 @@ window.WEBPAGES_DATA = {
             },
             {
               "名称": "三消游戏",
-              "地址": "https://match-3-game.netlify.app",
+              "地址": "/apps/fun/match-3-game/",
               "备注": "中国 | 直连 | 免费",
               "功能": "连接3个或以上相同元素消除，休闲益智"
             },
             {
               "名称": "是男人就跳100层",
-              "地址": "https://jump100.netlify.app",
+              "地址": "/apps/fun/jump100/",
               "备注": "中国 | 直连 | 免费",
               "功能": "单人或双人向上跳跃闯关，挑战100层"
             }
@@ -1168,7 +1168,7 @@ window.WEBPAGES_DATA = {
           "游戏-策略": [
             {
               "名称": "狼人杀使用手册",
-              "地址": "https://whoswolf.netlify.app",
+              "地址": "/apps/fun/whoswolf/",
               "备注": "中国 | 直连 | 免费",
               "功能": "狼人杀规则讲解、资料查阅、视频链接，桌游助手"
             }
@@ -1178,31 +1178,31 @@ window.WEBPAGES_DATA = {
           "教学演示-几何": [
             {
               "名称": "阿波罗尼斯圆",
-              "地址": "https://apollonius.netlify.app",
+              "地址": "/apps/fun/apollonius/",
               "备注": "中国 | 直连 | 免费",
               "功能": "到两定点距离比为常数的点的轨迹可视化演示"
             },
             {
               "名称": "费马点",
-              "地址": "https://fermat-point.netlify.app",
+              "地址": "/apps/fun/fermat-point/",
               "备注": "中国 | 直连 | 免费",
               "功能": "三角形费马点演示，到三顶点距离之和最小"
             },
             {
               "名称": "抛物线",
-              "地址": "https://parabolic-equation.netlify.app",
+              "地址": "/apps/fun/parabolic-equation/",
               "备注": "中国 | 直连 | 免费",
               "功能": "抛物线参数可视化工具，交互式数学教学"
             },
             {
               "名称": "帕斯卡-布里安雄定理",
-              "地址": "https://pascal-brianchon.netlify.app",
+              "地址": "/apps/fun/pascal-brianchon/",
               "备注": "中国 | 直连 | 免费",
               "功能": "射影几何对偶关系演示，数学之美"
             },
             {
               "名称": "多项式求导",
-              "地址": "https://poly-deriv.netlify.app",
+              "地址": "/apps/fun/poly-deriv/",
               "备注": "中国 | 直连 | 免费",
               "功能": "多项式求导公式推导和可视化演示"
             }
@@ -1226,25 +1226,25 @@ window.WEBPAGES_DATA = {
           "游戏": [
             {
               "名称": "坦克大战-Warriors",
-              "地址": "https://tankbattle-warriors.netlify.app",
+              "地址": "/apps/works/tankbattle-warriors/",
               "备注": "中国 | 直连 | 免费",
               "功能": "双人同屏坦克对战，绿色坦克(WASD移动/V射击)对战红色坦克(方向键移动/空格射击)，经典像素风格"
             },
             {
               "名称": "坦克大战-1v1",
-              "地址": "https://tank-1v1.netlify.app",
+              "地址": "/apps/works/tank-1v1/",
               "备注": "中国 | 直连 | 免费",
               "功能": "PvP分屏枪战竞技场，双人对战(A:WASD+空格/B:IJKL+回车)，每人1000HP，命中扣20HP，击倒2秒重生，先得10分获胜"
             },
             {
               "名称": "星际战舰",
-              "地址": "https://starcruiser.netlify.app",
+              "地址": "/apps/works/starcruiser/",
               "备注": "中国 | 直连 | 免费",
               "功能": "双人太空战舰对战，A舰(WASD移动/空格连射)对战B舰(鼠标移动/左键连射)，含护盾系统和损毁统计，科幻风格"
             },
             {
               "名称": "塔防游戏-冲突之塔",
-              "地址": "https://towerfun.netlify.app",
+              "地址": "/apps/works/towerfun/",
               "备注": "中国 | 直连 | 免费",
               "功能": "1v1对战塔防，3种防御塔(机枪/炮塔溅射/冰霜减速)+3种进攻兵(斥候/重甲/飞行)，含经济系统和升级机制，策略性强"
             },

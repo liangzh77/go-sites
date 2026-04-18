@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星际战舰对战</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Orbitron', 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0a2a 0%, #1a1a3a 25%, #0a0a2a 50%, #1a1a3a 75%, #0a0a2a 100%);
+            background-size: 400% 400%;
+            animation: cosmicBackground 20s ease infinite;
+        }
+
+        @keyframes cosmicBackground {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        #gameContainer {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .playerView {
+            position: relative;
+            width: 50%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #playerA {
+            border-right: 3px solid #ff3366;
+            box-shadow:
+                inset -15px 0 30px rgba(255, 51, 102, 0.4),
+                0 0 50px rgba(255, 51, 102, 0.2);
+            background: linear-gradient(90deg, rgba(255, 51, 102, 0.05) 0%, transparent 20%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #playerA::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 51, 102, 0.1) 100%);
+            pointer-events: none;
+        }
+
+        #playerB {
+            border-left: 3px solid #33ccff;
+            box-shadow:
+                inset 15px 0 30px rgba(51, 204, 255, 0.4),
+                0 0 50px rgba(51, 204, 255, 0.2);
+            background: linear-gradient(270deg, rgba(51, 204, 255, 0.05) 0%, transparent 20%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #playerB::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(270deg, transparent 0%, rgba(51, 204, 255, 0.1) 100%);
+            pointer-events: none;
+        }
+
+        canvas {
+            display: block;
+            background: radial-gradient(circle at 50% 50%, #0a0a2a 0%, #000 70%);
+            position: relative;
+            z-index: 1;
+        }
+
+        canvas::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(0, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(255, 51, 102, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 60%, rgba(51, 204, 255, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        /* 设置面板样式 */
+        #settingsPanel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(10, 20, 40, 0.95), rgba(20, 30, 60, 0.95));
+            border: 2px solid #00ffff;
+            border-radius: 15px;
+            padding: 40px;
+            z-index: 2000;
+            display: none;
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.5), inset 0 0 20px rgba(0, 255, 255, 0.1);
+            min-width: 500px;
+            backdrop-filter: blur(10px);
+        }
+
+        #settingsPanel h2 {
+            color: #00ffff;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 28px;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+            letter-spacing: 3px;
+        }
+
+        .setting-group {
+            margin-bottom: 25px;
+        }
+
+        .setting-group label {
+            display: block;
+            color: #00ccff;
+            margin-bottom: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .setting-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, #003355, #0088cc);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .setting-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00ffff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+        }
+
+        .setting-group input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00ffff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+            border: none;
+        }
+
+        .setting-value {
+            display: inline-block;
+            color: #00ffff;
+            font-weight: bold;
+            margin-left: 10px;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        .setting-hint {
+            color: #0088cc;
+            font-size: 16px;
+            text-align: center;
+            margin-top: 25px;
+            opacity: 0.8;
+        }
+
+        .crosshair {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            pointer-events: none;
+            z-index: 100;
+            filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.8));
+        }
+
+        .crosshair::before,
+        .crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .crosshair::before {
+            width: 2px;
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .crosshair::after {
+            width: 100%;
+            height: 2px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #00ffff;
+            font-size: 16px;
+            text-shadow: 0 0 15px rgba(0, 255, 255, 0.9);
+            z-index: 50;
+            background: linear-gradient(135deg, rgba(0, 20, 40, 0.9), rgba(0, 40, 80, 0.9));
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(15px);
+            min-width: 200px;
+            border: 1px solid rgba(0, 255, 255, 0.5);
+            box-shadow:
+                0 0 30px rgba(0, 255, 255, 0.3),
+                inset 0 0 20px rgba(0, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .info::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+            animation: rotateBorder 4s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes rotateBorder {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .playerName {
+            font-weight: bold;
+            font-size: 20px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .health {
+            color: #00ff88;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-shadow: 0 0 5px rgba(0, 255, 136, 0.6);
+        }
+
+        .health.low {
+            color: #ff4444;
+            animation: pulse 0.5s infinite;
+            text-shadow: 0 0 5px rgba(255, 68, 68, 0.8);
+        }
+
+        .deaths {
+            color: #ffaa44;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(255, 170, 68, 0.6);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        #gameOver {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 20, 40, 0.95));
+            color: white;
+            padding: 50px 80px;
+            border-radius: 20px;
+            text-align: center;
+            font-size: 36px;
+            display: none;
+            z-index: 1000;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+        }
+
+        #winnerText {
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        #scoreBoard {
+            font-size: 20px;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 12px;
+            background: linear-gradient(135deg, rgba(0, 20, 40, 0.9), rgba(0, 40, 80, 0.9));
+            padding: 12px 18px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow:
+                0 0 20px rgba(0, 255, 255, 0.2),
+                inset 0 0 10px rgba(255, 255, 255, 0.1);
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+            letter-spacing: 0.5px;
+        }
+
+        .hitMarker {
+            position: absolute;
+            color: #ff4444;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            animation: hitMarkerAnim 0.8s ease-out forwards;
+            text-shadow: 0 0 10px #ff0000;
+        }
+
+        @keyframes hitMarkerAnim {
+            0% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.5) translateY(-50px);
+            }
+        }
+
+        .damageFlash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 0, 0, 0.3);
+            pointer-events: none;
+            animation: flashAnim 0.2s ease-out;
+            z-index: 200;
+        }
+
+        @keyframes flashAnim {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="playerA" class="playerView">
+            <canvas id="canvasA"></canvas>
+            <div class="crosshair" id="crosshairA"></div>
+            <div class="info">
+                <div class="playerName" style="color: #ff6666;">星际战舰 A</div>
+                <div class="health">护盾: <span id="healthA">100</span></div>
+                <div class="deaths">损毁: <span id="deathsA">0</span></div>
+            </div>
+            <div class="controls">
+                ⌨️ WASD 移动 | 空格 连射 | ESC 设置
+            </div>
+        </div>
+
+        <div id="playerB" class="playerView">
+            <canvas id="canvasB"></canvas>
+            <div class="crosshair" id="crosshairB"></div>
+            <div class="info">
+                <div class="playerName" style="color: #6666ff;">星际战舰 B</div>
+                <div class="health">护盾: <span id="healthB">100</span></div>
+                <div class="deaths">损毁: <span id="deathsB">0</span></div>
+            </div>
+            <div class="controls">
+                🖱️ 鼠标移动 | 左键 连射 | ESC 设置
+            </div>
+        </div>
+    </div>
+
+    <div id="gameOver">
+        <div id="winnerText"></div>
+        <div id="scoreBoard"></div>
+    </div>
+
+    <div id="settingsPanel">
+        <h2>🚀 星际战舰设置</h2>
+        <div class="setting-group">
+            <label>移动速度 <span class="setting-value" id="speedValue">3</span></label>
+            <input type="range" id="speedSlider" min="1" max="10" step="0.5" value="3">
+        </div>
+        <div class="setting-group">
+            <label>子弹速度 <span class="setting-value" id="bulletSpeedValue">8</span></label>
+            <input type="range" id="bulletSpeedSlider" min="3" max="15" step="0.5" value="8">
+        </div>
+        <div class="setting-group">
+            <label>射击间隔 (毫秒) <span class="setting-value" id="fireRateValue">300</span></label>
+            <input type="range" id="fireRateSlider" min="100" max="1000" step="50" value="300">
+        </div>
+        <div class="setting-group">
+            <label>视野范围 <span class="setting-value" id="viewRangeValue">0.6</span></label>
+            <input type="range" id="viewRangeSlider" min="0.3" max="1.0" step="0.05" value="0.6">
+        </div>
+        <div class="setting-group">
+            <label>击退距离 (身位) <span class="setting-value" id="knockbackDistanceValue">2.0</span></label>
+            <input type="range" id="knockbackDistanceSlider" min="0.5" max="5.0" step="0.1" value="2.0">
+        </div>
+        <div class="setting-hint">按 ESC 关闭设置</div>
+    </div>
+
+    <script>
+        // 设置管理系统
+        const SettingsManager = {
+            defaults: {
+                playerSpeed: 3,
+                bulletSpeed: 8,
+                fireRate: 300,
+                viewRange: 0.6,
+                knockbackDistance: 2.0
+            },
+
+            load() {
+                const saved = localStorage.getItem('gameSettings');
+                if (saved) {
+                    try {
+                        return { ...this.defaults, ...JSON.parse(saved) };
+                    } catch (e) {
+                        return { ...this.defaults };
+                    }
+                }
+                return { ...this.defaults };
+            },
+
+            save(settings) {
+                localStorage.setItem('gameSettings', JSON.stringify(settings));
+            }
+        };
+
+        // 游戏配置
+        const CONFIG = {
+            mapWidth: 1200,
+            mapHeight: 800,
+            viewWidth: window.innerWidth / 2,
+            viewHeight: window.innerHeight,
+            playerSize: 30,
+            playerSpeed: 3,
+            bulletSpeed: 8,
+            bulletSize: 5,
+            bulletDamage: 20,
+            wallThickness: 20,
+            respawnDelay: 2000,
+            fireRate: 300,
+            viewRange: 0.6,
+            knockbackDistance: 2.0
+        };
+
+        // 音效系统
+        const AudioSystem = {
+            context: null,
+
+            init() {
+                this.context = new (window.AudioContext || window.webkitAudioContext)();
+            },
+
+            playShoot() {
+                if (!this.context) return;
+                const oscillator = this.context.createOscillator();
+                const gainNode = this.context.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(this.context.destination);
+
+                oscillator.frequency.setValueAtTime(800, this.context.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(200, this.context.currentTime + 0.1);
+
+                gainNode.gain.setValueAtTime(0.3, this.context.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.1);
+
+                oscillator.start(this.context.currentTime);
+                oscillator.stop(this.context.currentTime + 0.1);
+            },
+
+            playHit() {
+                if (!this.context) return;
+                const oscillator = this.context.createOscillator();
+                const gainNode = this.context.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(this.context.destination);
+
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(400, this.context.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(100, this.context.currentTime + 0.15);
+
+                gainNode.gain.setValueAtTime(0.4, this.context.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.15);
+
+                oscillator.start(this.context.currentTime);
+                oscillator.stop(this.context.currentTime + 0.15);
+            },
+
+            playDeath() {
+                if (!this.context) return;
+                const oscillator = this.context.createOscillator();
+                const gainNode = this.context.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(this.context.destination);
+
+                oscillator.frequency.setValueAtTime(600, this.context.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(50, this.context.currentTime + 0.5);
+
+                gainNode.gain.setValueAtTime(0.5, this.context.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + 0.5);
+
+                oscillator.start(this.context.currentTime);
+                oscillator.stop(this.context.currentTime + 0.5);
+            }
+        };
+
+        // 画布设置
+        const canvasA = document.getElementById('canvasA');
+        const canvasB = document.getElementById('canvasB');
+        const ctxA = canvasA.getContext('2d');
+        const ctxB = canvasB.getContext('2d');
+
+        canvasA.width = CONFIG.viewWidth;
+        canvasA.height = CONFIG.viewHeight;
+        canvasB.width = CONFIG.viewWidth;
+        canvasB.height = CONFIG.viewHeight;
+
+        // 星空背景系统
+        class Star {
+            constructor() {
+                this.x = Math.random() * CONFIG.mapWidth;
+                this.y = Math.random() * CONFIG.mapHeight;
+                this.size = Math.random() * 2;
+                this.brightness = Math.random();
+                this.twinkleSpeed = Math.random() * 0.02 + 0.01;
+            }
+
+            update() {
+                this.brightness += this.twinkleSpeed;
+                if (this.brightness > 1 || this.brightness < 0) {
+                    this.twinkleSpeed = -this.twinkleSpeed;
+                }
+            }
+
+            draw(ctx) {
+                ctx.globalAlpha = this.brightness * 0.8;
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // 陨石系统
+        class Asteroid {
+            constructor() {
+                this.x = Math.random() * CONFIG.mapWidth;
+                this.y = Math.random() * CONFIG.mapHeight;
+                this.size = Math.random() * 60 + 40;
+                this.sides = Math.floor(Math.random() * 4) + 5; // 5-8边形
+                this.rotation = 0; // 固定不旋转
+                this.vertices = this.generateVertices(); // 固定顶点
+                this.craters = this.generateCraters();
+                this.glowIntensity = Math.random() * 0.3 + 0.1; // 发光强度
+                this.glowPhase = Math.random() * Math.PI * 2; // 发光相位
+            }
+
+            generateVertices() {
+                const vertices = [];
+                for (let i = 0; i < this.sides; i++) {
+                    const angle = (i / this.sides) * Math.PI * 2;
+                    const variance = Math.random() * 0.3 + 0.7; // 随机形状
+                    const x = Math.cos(angle) * this.size * variance;
+                    const y = Math.sin(angle) * this.size * variance;
+                    vertices.push({ x, y });
+                }
+                return vertices;
+            }
+
+            generateCraters() {
+                const craters = [];
+                const craterCount = Math.floor(Math.random() * 2) + 7; // 7-8个坑，更均匀分布
+
+                // 使用改进的均匀分布算法
+                for (let i = 0; i < craterCount; i++) {
+                    let validPosition = false;
+                    let attempts = 0;
+                    let x, y, size, depth;
+
+                    // 确保陨石坑不会重叠且分布均匀
+                    while (!validPosition && attempts < 20) {
+                        // 使用极坐标均匀分布
+                        const angle = (i / craterCount) * Math.PI * 2 + Math.random() * 0.2;
+                        const distance = (0.2 + (i / craterCount) * 0.5) * this.size * 0.3;
+
+                        x = Math.cos(angle) * distance;
+                        y = Math.sin(angle) * distance;
+                        size = Math.random() * 5 + 6; // 6-11大小
+                        depth = Math.random() * 0.4 + 0.3;
+
+                        // 检查是否与其他陨石坑重叠
+                        let overlapping = false;
+                        for (let existingCrater of craters) {
+                            const dx = x - existingCrater.x;
+                            const dy = y - existingCrater.y;
+                            const distanceBetween = Math.sqrt(dx * dx + dy * dy);
+                            const minDistance = size + existingCrater.size + 5;
+
+                            if (distanceBetween < minDistance) {
+                                overlapping = true;
+                                break;
+                            }
+                        }
+
+                        // 检查是否在陨石边界内
+                        const distanceFromCenter = Math.sqrt(x * x + y * y);
+                        const maxDistance = this.size * 0.8 - size;
+
+                        if (!overlapping && distanceFromCenter < maxDistance) {
+                            validPosition = true;
+                        }
+
+                        attempts++;
+                    }
+
+                    if (validPosition) {
+                        craters.push({
+                            x: x,
+                            y: y,
+                            size: size,
+                            depth: depth,
+                            rimSize: size * 1.3 // 更大的边缘
+                        });
+                    }
+                }
+
+                return craters;
+            }
+
+            update() {
+                // 陨石固定不动，只保留发光动画
+                this.glowPhase += 0.02; // 发光动画
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                // 移除旋转，陨石固定不动
+
+                // 陨石发光效果
+                const glow = Math.sin(this.glowPhase) * this.glowIntensity + this.glowIntensity;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = `rgba(100, 100, 150, ${glow})`;
+
+                // 绘制多边形陨石（使用固定顶点）
+                ctx.beginPath();
+                for (let i = 0; i < this.vertices.length; i++) {
+                    const vertex = this.vertices[i];
+                    if (i === 0) ctx.moveTo(vertex.x, vertex.y);
+                    else ctx.lineTo(vertex.x, vertex.y);
+                }
+                ctx.closePath();
+
+                // 陨石主体 - 使用渐变填充
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.size);
+                gradient.addColorStop(0, '#4a4a6a');
+                gradient.addColorStop(0.7, '#3a3a5a');
+                gradient.addColorStop(1, '#2a2a4a');
+
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+                // 陨石边框
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                // 陨石表面纹理
+                ctx.strokeStyle = '#555';
+                ctx.lineWidth = 1;
+                for (let i = 0; i < this.vertices.length; i++) {
+                    const vertex = this.vertices[i];
+                    const nextVertex = this.vertices[(i + 1) % this.vertices.length];
+                    const midX = (vertex.x + nextVertex.x) / 2;
+                    const midY = (vertex.y + nextVertex.y) / 2;
+
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(midX * 0.8, midY * 0.8);
+                    ctx.stroke();
+                }
+
+                // 绘制陨石坑 - 增强效果
+                for (let crater of this.craters) {
+                    // 陨石坑边缘
+                    ctx.beginPath();
+                    ctx.arc(crater.x, crater.y, crater.rimSize, 0, Math.PI * 2);
+                    ctx.fillStyle = '#3a3a5a';
+                    ctx.fill();
+
+                    // 陨石坑主体
+                    ctx.beginPath();
+                    ctx.arc(crater.x, crater.y, crater.size, 0, Math.PI * 2);
+                    const craterGradient = ctx.createRadialGradient(
+                        crater.x, crater.y, 0,
+                        crater.x, crater.y, crater.size
+                    );
+                    craterGradient.addColorStop(0, `rgba(40, 40, 60, ${crater.depth})`);
+                    craterGradient.addColorStop(1, `rgba(30, 30, 50, ${crater.depth * 0.7})`);
+                    ctx.fillStyle = craterGradient;
+                    ctx.fill();
+
+                    // 陨石坑阴影
+                    ctx.strokeStyle = '#444';
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+
+            // 碰撞检测方法 - 更精确的多边形碰撞检测
+            checkCollision(x, y, radius) {
+                // 将点转换到陨石局部坐标系（陨石不再旋转，直接计算）
+                const localX = x - this.x;
+                const localY = y - this.y;
+
+                // 多边形碰撞检测（射线法）
+                let inside = false;
+                for (let i = 0, j = this.vertices.length - 1; i < this.vertices.length; j = i++) {
+                    const vi = this.vertices[i];
+                    const vj = this.vertices[j];
+
+                    if (((vi.y > localY) !== (vj.y > localY)) &&
+                        (localX < (vj.x - vi.x) * (localY - vi.y) / (vj.y - vi.y) + vi.x)) {
+                        inside = !inside;
+                    }
+                }
+
+                // 如果点在多边形内部，直接返回碰撞
+                if (inside) return true;
+
+                // 检查与多边形边的距离（考虑半径）
+                for (let i = 0, j = this.vertices.length - 1; i < this.vertices.length; j = i++) {
+                    const vi = this.vertices[i];
+                    const vj = this.vertices[j];
+
+                    // 计算点到线段的最短距离
+                    const lineLength = Math.sqrt((vj.x - vi.x) ** 2 + (vj.y - vi.y) ** 2);
+                    const t = Math.max(0, Math.min(1, ((localX - vi.x) * (vj.x - vi.x) + (localY - vi.y) * (vj.y - vi.y)) / (lineLength ** 2)));
+
+                    const closestX = vi.x + t * (vj.x - vi.x);
+                    const closestY = vi.y + t * (vj.y - vi.y);
+
+                    const distance = Math.sqrt((localX - closestX) ** 2 + (localY - closestY) ** 2);
+
+                    if (distance <= radius) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        // 游戏状态
+        let gameState = {
+            running: true,
+            playerA: null,
+            playerB: null,
+            bullets: [],
+            walls: [],
+            particles: [],
+            deathsA: 0,
+            deathsB: 0,
+            stars: [],
+            asteroids: [],
+            settingsOpen: false
+        };
+
+        // 粒子类（用于死亡效果）
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.life = 1;
+                this.color = color;
+                this.size = Math.random() * 4 + 2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.2; // 重力
+                this.life -= 0.02;
+                return this.life > 0;
+            }
+
+            draw(ctx, viewX, viewY) {
+                const screenX = this.x - viewX;
+                const screenY = this.y - viewY;
+
+                ctx.globalAlpha = this.life;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        // 玩家类 (星际战舰)
+        class Player {
+            constructor(x, y, color, name) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.name = name;
+                this.health = 100;
+                this.size = CONFIG.playerSize;
+                this.speed = CONFIG.playerSpeed;
+                this.angle = 0;
+                this.alive = true;
+                this.hitFlash = 0;
+                this.deathAnim = 0;
+                this.engineBreath = 0; // 引擎呼吸效果
+                this.lastShootTime = 0;
+                this.knockbackVelocity = { x: 0, y: 0 }; // 击退速度
+                this.isKnockedBack = false; // 是否正在被击退
+            }
+
+            updateSpeed() {
+                this.speed = CONFIG.playerSpeed;
+            }
+
+            move(dx, dy) {
+                // 确保使用最新的速度设置
+                this.speed = CONFIG.playerSpeed;
+                const newX = this.x + dx * this.speed;
+                const newY = this.y + dy * this.speed;
+
+                // 边界检测 - 圆形碰撞盒
+                if (newX - this.size / 2 >= 0 && newX + this.size / 2 <= CONFIG.mapWidth) {
+                    if (!this.checkWallCollision(newX, this.y) && !this.checkAsteroidCollision(newX, this.y)) {
+                        this.x = newX;
+                    }
+                }
+
+                if (newY - this.size / 2 >= 0 && newY + this.size / 2 <= CONFIG.mapHeight) {
+                    if (!this.checkWallCollision(this.x, newY) && !this.checkAsteroidCollision(this.x, newY)) {
+                        this.y = newY;
+                    }
+                }
+            }
+
+            shoot() {
+                if (!this.alive) return;
+
+                // 检查射击间隔
+                const currentTime = Date.now();
+                if (currentTime - this.lastShootTime < CONFIG.fireRate) {
+                    return;
+                }
+                this.lastShootTime = currentTime;
+
+                const bullet = new Bullet({
+                    x: this.x,
+                    y: this.y,
+                    vx: Math.cos(this.angle) * CONFIG.bulletSpeed,
+                    vy: Math.sin(this.angle) * CONFIG.bulletSpeed,
+                    owner: this,
+                    size: CONFIG.bulletSize
+                });
+
+                gameState.bullets.push(bullet);
+                AudioSystem.playShoot();
+            }
+
+            checkWallCollision(x, y) {
+                for (let wall of gameState.walls) {
+                    // 圆形碰撞检测
+                    const closestX = Math.max(wall.x, Math.min(x, wall.x + wall.width));
+                    const closestY = Math.max(wall.y, Math.min(y, wall.y + wall.height));
+                    const distanceX = x - closestX;
+                    const distanceY = y - closestY;
+                    const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+
+                    if (distance < this.size / 2) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            checkAsteroidCollision(x, y) {
+                for (let asteroid of gameState.asteroids) {
+                    if (asteroid.checkCollision(x, y, this.size / 2)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            shoot() {
+                if (!this.alive) return;
+
+                // 检查射击间隔
+                const currentTime = Date.now();
+                if (currentTime - this.lastShootTime < CONFIG.fireRate) {
+                    return;
+                }
+                this.lastShootTime = currentTime;
+
+                const bullet = new Bullet({
+                    x: this.x,
+                    y: this.y,
+                    vx: Math.cos(this.angle) * CONFIG.bulletSpeed,
+                    vy: Math.sin(this.angle) * CONFIG.bulletSpeed,
+                    owner: this,
+                    size: CONFIG.bulletSize
+                });
+
+                gameState.bullets.push(bullet);
+                AudioSystem.playShoot();
+            }
+
+            takeDamage(damage, bullet) {
+                this.health -= damage;
+                this.hitFlash = 1;
+                AudioSystem.playHit();
+
+                // 显示伤害标记
+                this.showHitMarker(damage);
+
+                // 显示红屏闪烁
+                this.showDamageFlash();
+
+                // 执行击退效果
+                this.knockback(bullet);
+
+                if (this.health <= 0) {
+                    this.health = 0;
+                    this.die();
+                }
+            }
+
+            showHitMarker(damage) {
+                const viewId = this.name === 'A' ? 'playerA' : 'playerB';
+                const view = document.getElementById(viewId);
+                const marker = document.createElement('div');
+                marker.className = 'hitMarker';
+                marker.textContent = `-${damage}`;
+                marker.style.left = (Math.random() * 200 + CONFIG.viewWidth / 2 - 100) + 'px';
+                marker.style.top = (Math.random() * 100 + CONFIG.viewHeight / 2 - 50) + 'px';
+                view.appendChild(marker);
+                setTimeout(() => marker.remove(), 800);
+            }
+
+            showDamageFlash() {
+                const viewId = this.name === 'A' ? 'playerA' : 'playerB';
+                const view = document.getElementById(viewId);
+                const flash = document.createElement('div');
+                flash.className = 'damageFlash';
+                view.appendChild(flash);
+                setTimeout(() => flash.remove(), 200);
+            }
+
+            die() {
+                this.alive = false;
+                this.deathAnim = 1;
+                AudioSystem.playDeath();
+
+                // 增加死亡次数
+                if (this.name === 'A') {
+                    gameState.deathsA++;
+                    document.getElementById('deathsA').textContent = gameState.deathsA;
+                } else {
+                    gameState.deathsB++;
+                    document.getElementById('deathsB').textContent = gameState.deathsB;
+                }
+
+                // 创建死亡粒子效果
+                for (let i = 0; i < 30; i++) {
+                    gameState.particles.push(new Particle(this.x, this.y, this.color));
+                }
+
+                // 当一个玩家死亡时，两个玩家都回到原点并恢复满血
+                setTimeout(() => {
+                    this.respawn();
+                    // 同时复活另一个玩家
+                    const otherPlayer = this.name === 'A' ? gameState.playerB : gameState.playerA;
+                    otherPlayer.respawn();
+                }, CONFIG.respawnDelay);
+            }
+
+            respawn() {
+                this.health = 100;
+                this.alive = true;
+                this.deathAnim = 0;
+                this.hitFlash = 0;
+
+                // 重置位置到默认出生点（原点位置）
+                if (this.name === 'A') {
+                    this.x = 100;
+                    this.y = CONFIG.mapHeight / 2;
+                } else {
+                    this.x = CONFIG.mapWidth - 100;
+                    this.y = CONFIG.mapHeight / 2;
+                }
+
+                // 更新生命值显示
+                if (this.name === 'A') {
+                    document.getElementById('healthA').textContent = '100';
+                } else {
+                    document.getElementById('healthB').textContent = '100';
+                }
+            }
+
+            // 击退方法
+            knockback(bullet) {
+                const knockbackDistance = this.size * CONFIG.knockbackDistance; // 使用配置的击退距离
+
+                // 使用子弹飞行方向作为击退方向
+                const knockbackDirection = {
+                    x: bullet.vx,
+                    y: bullet.vy
+                };
+
+                // 标准化方向向量
+                const length = Math.sqrt(knockbackDirection.x * knockbackDirection.x + knockbackDirection.y * knockbackDirection.y);
+                if (length > 0) {
+                    knockbackDirection.x /= length;
+                    knockbackDirection.y /= length;
+                } else {
+                    // 如果子弹速度为0，使用随机方向
+                    const angle = Math.random() * Math.PI * 2;
+                    knockbackDirection.x = Math.cos(angle);
+                    knockbackDirection.y = Math.sin(angle);
+                }
+
+                // 计算实际可击退的距离
+                const actualDistance = this.calculateKnockbackDistance(knockbackDirection, knockbackDistance);
+
+                // 设置击退速度（快速移动）
+                const knockbackSpeed = 15; // 击退速度
+                this.knockbackVelocity.x = knockbackDirection.x * knockbackSpeed;
+                this.knockbackVelocity.y = knockbackDirection.y * knockbackSpeed;
+                this.knockbackTargetDistance = actualDistance;
+                this.knockbackTraveledDistance = 0;
+                this.isKnockedBack = true;
+
+                // 如果有剩余距离，让另一个玩家后退
+                const remainingDistance = knockbackDistance - actualDistance;
+                if (remainingDistance > 0) {
+                    this.knockbackOtherPlayer(knockbackDirection, remainingDistance);
+                }
+            }
+
+            // 击退另一个玩家
+            knockbackOtherPlayer(direction, distance) {
+                const otherPlayer = this.name === 'A' ? gameState.playerB : gameState.playerA;
+                if (!otherPlayer.alive) return;
+
+                // 计算另一个玩家的击退方向（反方向）
+                const otherDirection = {
+                    x: -direction.x,
+                    y: -direction.y
+                };
+
+                // 计算另一个玩家实际可击退的距离
+                const otherActualDistance = otherPlayer.calculateKnockbackDistance(otherDirection, distance);
+
+                // 设置另一个玩家的击退速度
+                const knockbackSpeed = 15;
+                otherPlayer.knockbackVelocity.x = otherDirection.x * knockbackSpeed;
+                otherPlayer.knockbackVelocity.y = otherDirection.y * knockbackSpeed;
+                otherPlayer.knockbackTargetDistance = otherActualDistance;
+                otherPlayer.knockbackTraveledDistance = 0;
+                otherPlayer.isKnockedBack = true;
+            }
+
+            // 计算实际可击退的距离
+            calculateKnockbackDistance(direction, maxDistance) {
+                let actualDistance = maxDistance;
+
+                // 逐步检查击退路径上的碰撞
+                for (let step = 1; step <= maxDistance; step++) {
+                    const testX = this.x + direction.x * step;
+                    const testY = this.y + direction.y * step;
+
+                    // 检查边界碰撞
+                    if (testX - this.size / 2 < 0 || testX + this.size / 2 > CONFIG.mapWidth ||
+                        testY - this.size / 2 < 0 || testY + this.size / 2 > CONFIG.mapHeight) {
+                        actualDistance = step - 1;
+                        break;
+                    }
+
+                    // 检查陨石碰撞
+                    if (this.checkAsteroidCollision(testX, testY)) {
+                        actualDistance = step - 1;
+                        break;
+                    }
+
+                    // 检查墙体碰撞
+                    if (this.checkWallCollision(testX, testY)) {
+                        actualDistance = step - 1;
+                        break;
+                    }
+                }
+
+                return actualDistance;
+            }
+
+            update() {
+                if (this.hitFlash > 0) {
+                    this.hitFlash -= 0.1;
+                }
+                if (this.deathAnim > 0) {
+                    this.deathAnim -= 0.02;
+                }
+                // 引擎呼吸效果
+                this.engineBreath += 0.05;
+
+                // 确保使用最新的速度设置
+                this.speed = CONFIG.playerSpeed;
+
+                // 更新击退动画
+                if (this.isKnockedBack) {
+                    // 计算本帧移动的距离
+                    const moveDistance = Math.sqrt(
+                        this.knockbackVelocity.x * this.knockbackVelocity.x +
+                        this.knockbackVelocity.y * this.knockbackVelocity.y
+                    );
+
+                    // 检查是否达到目标距离
+                    if (this.knockbackTraveledDistance + moveDistance >= this.knockbackTargetDistance) {
+                        // 到达目标距离，停止击退
+                        const remainingRatio = (this.knockbackTargetDistance - this.knockbackTraveledDistance) / moveDistance;
+                        const newX = this.x + this.knockbackVelocity.x * remainingRatio;
+                        const newY = this.y + this.knockbackVelocity.y * remainingRatio;
+
+                        // 检查碰撞
+                        if (!this.checkWallCollision(newX, newY) && !this.checkAsteroidCollision(newX, newY)) {
+                            this.x = newX;
+                            this.y = newY;
+                        }
+
+                        this.isKnockedBack = false;
+                        this.knockbackVelocity.x = 0;
+                        this.knockbackVelocity.y = 0;
+                    } else {
+                        // 继续击退
+                        const newX = this.x + this.knockbackVelocity.x;
+                        const newY = this.y + this.knockbackVelocity.y;
+
+                        // 检查碰撞
+                        if (!this.checkWallCollision(newX, newY) && !this.checkAsteroidCollision(newX, newY)) {
+                            this.x = newX;
+                            this.y = newY;
+                            this.knockbackTraveledDistance += moveDistance;
+                        } else {
+                            // 碰到障碍物，停止击退
+                            this.isKnockedBack = false;
+                            this.knockbackVelocity.x = 0;
+                            this.knockbackVelocity.y = 0;
+                        }
+                    }
+
+                    // 确保不超出边界
+                    this.x = Math.max(this.size / 2, Math.min(this.x, CONFIG.mapWidth - this.size / 2));
+                    this.y = Math.max(this.size / 2, Math.min(this.y, CONFIG.mapHeight - this.size / 2));
+                }
+            }
+
+            draw(ctx, viewX, viewY) {
+                const screenX = this.x - viewX;
+                const screenY = this.y - viewY;
+
+                if (this.deathAnim > 0) {
+                    // 简化死亡动画：淡出效果
+                    ctx.save();
+                    ctx.translate(screenX, screenY);
+                    ctx.globalAlpha = this.deathAnim;
+
+                    // 简单的爆炸环
+                    ctx.strokeStyle = `rgba(255, 100, 0, ${this.deathAnim})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.size * (1.2 - this.deathAnim * 0.5), 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.restore();
+                    return;
+                }
+
+                if (!this.alive) return;
+
+                ctx.save();
+                ctx.translate(screenX, screenY);
+                ctx.rotate(this.angle);
+
+                // 被击中闪烁效果
+                if (this.hitFlash > 0) {
+                    ctx.shadowBlur = 30;
+                    ctx.shadowColor = '#ff0000';
+                }
+
+                const shipWidth = this.size * 1.6;
+                const shipHeight = this.size * 0.8;
+
+                // 绘制简化战舰主体 - 三角形设计
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(shipWidth / 2, 0); // 前端尖端
+                ctx.lineTo(-shipWidth / 2, -shipHeight / 2); // 左后角
+                ctx.lineTo(-shipWidth / 2, shipHeight / 2); // 右后角
+                ctx.closePath();
+                ctx.fill();
+
+                // 战舰发光轮廓
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#00ffff';
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+
+                // 简化驾驶舱
+                ctx.fillStyle = 'rgba(100, 200, 255, 0.8)';
+                ctx.beginPath();
+                ctx.arc(shipWidth / 4, 0, shipWidth / 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 武器发射口
+                ctx.fillStyle = '#ffff00';
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(shipWidth / 2 - 2, 0, 3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // 引擎呼吸效果
+                const breathIntensity = Math.sin(this.engineBreath) * 0.4 + 0.6;
+
+                // 圆形喷火系统
+                const flameSize = this.size * breathIntensity * 0.8;
+
+                // 火焰核心
+                const flameGradient = ctx.createRadialGradient(
+                    -shipWidth / 2 - flameSize * 0.2, 0, 0,
+                    -shipWidth / 2 - flameSize * 0.2, 0, flameSize
+                );
+                flameGradient.addColorStop(0, `rgba(255, 255, 100, ${breathIntensity})`);
+                flameGradient.addColorStop(0.5, `rgba(255, 150, 0, ${breathIntensity * 0.8})`);
+                flameGradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
+
+                ctx.fillStyle = flameGradient;
+                ctx.beginPath();
+                ctx.arc(-shipWidth / 2 - flameSize * 0.2, 0, flameSize, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 引擎光晕效果
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ff6600';
+                ctx.fillStyle = `rgba(255, 100, 0, ${breathIntensity * 0.2})`;
+                ctx.beginPath();
+                ctx.arc(-shipWidth / 2 - this.size * breathIntensity * 0.5, 0, this.size * breathIntensity * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+
+                // 生命值条
+                const healthBarWidth = shipWidth;
+                const healthBarHeight = 5;
+                const healthPercent = this.health / 100;
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(-healthBarWidth / 2, -shipHeight / 2 - 20, healthBarWidth, healthBarHeight);
+
+                const healthGradient = ctx.createLinearGradient(-healthBarWidth / 2, 0, healthBarWidth / 2, 0);
+                if (healthPercent > 0.5) {
+                    healthGradient.addColorStop(0, '#00ff88');
+                    healthGradient.addColorStop(1, '#00cc66');
+                } else if (healthPercent > 0.25) {
+                    healthGradient.addColorStop(0, '#ffaa00');
+                    healthGradient.addColorStop(1, '#ff8800');
+                } else {
+                    healthGradient.addColorStop(0, '#ff4444');
+                    healthGradient.addColorStop(1, '#ff0000');
+                }
+
+                ctx.fillStyle = healthGradient;
+                ctx.fillRect(-healthBarWidth / 2, -shipHeight / 2 - 20, healthBarWidth * healthPercent, healthBarHeight);
+
+                ctx.restore();
+            }
+        }
+
+        // 子弹类
+        class Bullet {
+            constructor(data) {
+                Object.assign(this, data);
+                this.trail = [];
+            }
+
+            update() {
+                // 保存轨迹
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > 5) this.trail.shift();
+
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 边界检测
+                if (this.x < 0 || this.x > CONFIG.mapWidth ||
+                    this.y < 0 || this.y > CONFIG.mapHeight) {
+                    return false;
+                }
+
+                // 墙体碰撞
+                for (let wall of gameState.walls) {
+                    if (this.x > wall.x && this.x < wall.x + wall.width &&
+                        this.y > wall.y && this.y < wall.y + wall.height) {
+                        // 创建碰撞粒子
+                        for (let i = 0; i < 5; i++) {
+                            gameState.particles.push(new Particle(this.x, this.y, '#ffff00'));
+                        }
+                        return false;
+                    }
+                }
+
+                // 陨石碰撞
+                for (let asteroid of gameState.asteroids) {
+                    if (asteroid.checkCollision(this.x, this.y, this.size)) {
+                        // 创建碰撞粒子
+                        for (let i = 0; i < 8; i++) {
+                            gameState.particles.push(new Particle(this.x, this.y, '#888888'));
+                        }
+                        return false;
+                    }
+                }
+
+                // 玩家碰撞 - 使用圆形碰撞检测
+                const targets = [gameState.playerA, gameState.playerB];
+                for (let target of targets) {
+                    if (target !== this.owner && target.alive) {
+                        const dx = this.x - target.x;
+                        const dy = this.y - target.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < target.size / 2 + this.size) {
+                            target.takeDamage(CONFIG.bulletDamage, this);
+                            // 创建击中粒子
+                            for (let i = 0; i < 8; i++) {
+                                gameState.particles.push(new Particle(this.x, this.y, '#ff4444'));
+                            }
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            draw(ctx, viewX, viewY) {
+                // 绘制轨迹
+                ctx.globalAlpha = 0.3;
+                for (let i = 0; i < this.trail.length; i++) {
+                    const point = this.trail[i];
+                    const screenX = point.x - viewX;
+                    const screenY = point.y - viewY;
+                    const alpha = (i + 1) / this.trail.length;
+
+                    ctx.globalAlpha = alpha * 0.5;
+                    ctx.fillStyle = '#ffff00';
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, this.size * 0.7, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+
+                // 绘制子弹
+                const screenX = this.x - viewX;
+                const screenY = this.y - viewY;
+
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ffff00';
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        // 墙体 - 只保留边界墙
+        function createWalls() {
+            const walls = [];
+            const w = CONFIG.wallThickness;
+
+            // 外围墙壁
+            walls.push({ x: 0, y: 0, width: CONFIG.mapWidth, height: w }); // 上
+            walls.push({ x: 0, y: CONFIG.mapHeight - w, width: CONFIG.mapWidth, height: w }); // 下
+            walls.push({ x: 0, y: 0, width: w, height: CONFIG.mapHeight }); // 左
+            walls.push({ x: CONFIG.mapWidth - w, y: 0, width: w, height: CONFIG.mapHeight }); // 右
+
+            return walls;
+        }
+
+        // 初始化游戏
+        function initGame() {
+            // 加载设置
+            const settings = SettingsManager.load();
+            CONFIG.playerSpeed = settings.playerSpeed;
+            CONFIG.bulletSpeed = settings.bulletSpeed;
+            CONFIG.fireRate = settings.fireRate;
+            CONFIG.viewRange = settings.viewRange;
+
+            // 更新滑块显示
+            document.getElementById('speedSlider').value = settings.playerSpeed;
+            document.getElementById('bulletSpeedSlider').value = settings.bulletSpeed;
+            document.getElementById('fireRateSlider').value = settings.fireRate;
+            document.getElementById('viewRangeSlider').value = settings.viewRange;
+            document.getElementById('knockbackDistanceSlider').value = settings.knockbackDistance;
+            updateSliderValues();
+
+            gameState.playerA = new Player(100, CONFIG.mapHeight / 2, '#ff3366', 'A');
+            gameState.playerB = new Player(CONFIG.mapWidth - 100, CONFIG.mapHeight / 2, '#3366ff', 'B');
+
+            // 确保初始位置安全
+            gameState.playerA.respawn();
+            gameState.playerB.respawn();
+            gameState.bullets = [];
+            gameState.particles = [];
+            gameState.walls = createWalls();
+            gameState.running = true;
+
+            // 生成星空
+            gameState.stars = [];
+            for (let i = 0; i < 200; i++) {
+                gameState.stars.push(new Star());
+            }
+
+            // 生成陨石（均匀分布，避开玩家出生区域）
+            gameState.asteroids = [];
+            const gridSize = 5; // 5x5网格
+            const cellWidth = CONFIG.mapWidth / gridSize;
+            const cellHeight = CONFIG.mapHeight / gridSize;
+            const asteroidsPerCell = Math.ceil(15 / (gridSize * gridSize));
+
+            // 遍历每个网格单元
+            for (let row = 0; row < gridSize; row++) {
+                for (let col = 0; col < gridSize; col++) {
+                    // 跳过玩家出生区域附近的网格
+                    const cellCenterX = col * cellWidth + cellWidth / 2;
+                    const cellCenterY = row * cellHeight + cellHeight / 2;
+
+                    const distanceToPlayerA = Math.sqrt((cellCenterX - 100) ** 2 + (cellCenterY - CONFIG.mapHeight / 2) ** 2);
+                    const distanceToPlayerB = Math.sqrt((cellCenterX - (CONFIG.mapWidth - 100)) ** 2 + (cellCenterY - CONFIG.mapHeight / 2) ** 2);
+
+                    // 如果太靠近玩家出生点，跳过这个网格
+                    if (distanceToPlayerA < 200 || distanceToPlayerB < 200) {
+                        continue;
+                    }
+
+                    // 在当前网格单元内生成陨石
+                    for (let i = 0; i < asteroidsPerCell && gameState.asteroids.length < 15; i++) {
+                        let asteroid;
+                        let attempts = 0;
+                        let validPosition = false;
+
+                        do {
+                            // 在网格单元内随机位置
+                            const x = col * cellWidth + Math.random() * cellWidth;
+                            const y = row * cellHeight + Math.random() * cellHeight;
+
+                            // 创建陨石
+                            asteroid = new Asteroid();
+                            asteroid.x = x;
+                            asteroid.y = y;
+
+                            // 检查是否与其他陨石重叠
+                            let overlapping = false;
+                            for (let existingAsteroid of gameState.asteroids) {
+                                const distance = Math.sqrt((asteroid.x - existingAsteroid.x) ** 2 + (asteroid.y - existingAsteroid.y) ** 2);
+                                const minDistance = asteroid.size + existingAsteroid.size + 50; // 最小间距
+                                if (distance < minDistance) {
+                                    overlapping = true;
+                                    break;
+                                }
+                            }
+
+                            // 检查是否与玩家出生区域重叠
+                            const distanceToPlayerA = Math.sqrt((asteroid.x - 100) ** 2 + (asteroid.y - CONFIG.mapHeight / 2) ** 2);
+                            const distanceToPlayerB = Math.sqrt((asteroid.x - (CONFIG.mapWidth - 100)) ** 2 + (asteroid.y - CONFIG.mapHeight / 2) ** 2);
+                            const safeDistance = asteroid.size + 100;
+
+                            if (!overlapping && distanceToPlayerA > safeDistance && distanceToPlayerB > safeDistance) {
+                                validPosition = true;
+                            }
+
+                            attempts++;
+                        } while (!validPosition && attempts < 10);
+
+                        if (validPosition) {
+                            gameState.asteroids.push(asteroid);
+                        }
+                    }
+                }
+            }
+
+            // 如果生成的陨石数量不足，补充生成
+            while (gameState.asteroids.length < 15) {
+                let asteroid;
+                let attempts = 0;
+                let validPosition = false;
+
+                do {
+                    asteroid = new Asteroid();
+                    attempts++;
+
+                    // 检查是否与其他陨石重叠
+                    let overlapping = false;
+                    for (let existingAsteroid of gameState.asteroids) {
+                        const distance = Math.sqrt((asteroid.x - existingAsteroid.x) ** 2 + (asteroid.y - existingAsteroid.y) ** 2);
+                        const minDistance = asteroid.size + existingAsteroid.size + 50;
+                        if (distance < minDistance) {
+                            overlapping = true;
+                            break;
+                        }
+                    }
+
+                    // 检查是否与玩家出生区域重叠
+                    const distanceToPlayerA = Math.sqrt((asteroid.x - 100) ** 2 + (asteroid.y - CONFIG.mapHeight / 2) ** 2);
+                    const distanceToPlayerB = Math.sqrt((asteroid.x - (CONFIG.mapWidth - 100)) ** 2 + (asteroid.y - CONFIG.mapHeight / 2) ** 2);
+                    const safeDistance = asteroid.size + 100;
+
+                    if (!overlapping && distanceToPlayerA > safeDistance && distanceToPlayerB > safeDistance) {
+                        validPosition = true;
+                    }
+                } while (!validPosition && attempts < 20);
+
+                if (validPosition) {
+                    gameState.asteroids.push(asteroid);
+                } else {
+                    break; // 避免无限循环
+                }
+            }
+
+            document.getElementById('healthA').textContent = '100';
+            document.getElementById('healthB').textContent = '100';
+            document.getElementById('deathsA').textContent = gameState.deathsA;
+            document.getElementById('deathsB').textContent = gameState.deathsB;
+            document.getElementById('gameOver').style.display = 'none';
+
+            // 初始化音效系统
+            if (!AudioSystem.context) {
+                AudioSystem.init();
+            }
+        }
+
+        // 输入控制
+        const keys = {};
+        let mouseX = 0;
+        let mouseY = 0;
+        let mouseDown = false;
+
+        // 设置面板控制
+        function toggleSettings() {
+            gameState.settingsOpen = !gameState.settingsOpen;
+            const panel = document.getElementById('settingsPanel');
+            panel.style.display = gameState.settingsOpen ? 'block' : 'none';
+            gameState.running = !gameState.settingsOpen;
+        }
+
+        // 更新滑块值显示
+        function updateSliderValues() {
+            document.getElementById('speedValue').textContent = document.getElementById('speedSlider').value;
+            document.getElementById('bulletSpeedValue').textContent = document.getElementById('bulletSpeedSlider').value;
+            document.getElementById('fireRateValue').textContent = document.getElementById('fireRateSlider').value;
+            document.getElementById('viewRangeValue').textContent = document.getElementById('viewRangeSlider').value;
+            document.getElementById('knockbackDistanceValue').textContent = document.getElementById('knockbackDistanceSlider').value;
+        }
+
+        // 保存设置
+        function saveSettings() {
+            const settings = {
+                playerSpeed: parseFloat(document.getElementById('speedSlider').value),
+                bulletSpeed: parseFloat(document.getElementById('bulletSpeedSlider').value),
+                fireRate: parseFloat(document.getElementById('fireRateSlider').value),
+                viewRange: parseFloat(document.getElementById('viewRangeSlider').value),
+                knockbackDistance: parseFloat(document.getElementById('knockbackDistanceSlider').value)
+            };
+            SettingsManager.save(settings);
+            CONFIG.playerSpeed = settings.playerSpeed;
+            CONFIG.bulletSpeed = settings.bulletSpeed;
+            CONFIG.fireRate = settings.fireRate;
+            CONFIG.viewRange = settings.viewRange;
+            CONFIG.knockbackDistance = settings.knockbackDistance;
+
+            // 立即更新现有玩家的速度
+            if (gameState.playerA) {
+                gameState.playerA.speed = CONFIG.playerSpeed;
+            }
+            if (gameState.playerB) {
+                gameState.playerB.speed = CONFIG.playerSpeed;
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                toggleSettings();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        canvasB.addEventListener('mousemove', (e) => {
+            mouseX = e.offsetX;
+            mouseY = e.offsetY;
+
+            const crosshairB = document.getElementById('crosshairB');
+            crosshairB.style.left = (e.offsetX - 20) + 'px';
+            crosshairB.style.top = (e.offsetY - 20) + 'px';
+        });
+
+        canvasB.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                mouseDown = true;
+            }
+        });
+
+        canvasB.addEventListener('mouseup', (e) => {
+            if (e.button === 0) {
+                mouseDown = false;
+            }
+        });
+
+        // 设置滑块事件监听
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            updateSliderValues();
+            saveSettings();
+        });
+
+        document.getElementById('bulletSpeedSlider').addEventListener('input', (e) => {
+            updateSliderValues();
+            saveSettings();
+        });
+
+        document.getElementById('fireRateSlider').addEventListener('input', (e) => {
+            updateSliderValues();
+            saveSettings();
+        });
+
+        document.getElementById('viewRangeSlider').addEventListener('input', (e) => {
+            updateSliderValues();
+            saveSettings();
+        });
+
+        document.getElementById('knockbackDistanceSlider').addEventListener('input', (e) => {
+            updateSliderValues();
+            saveSettings();
+        });
+
+        // 更新玩家A准星位置
+        function updateCrosshairA() {
+            const crosshairA = document.getElementById('crosshairA');
+            crosshairA.style.left = (CONFIG.viewWidth / 2 - 20) + 'px';
+            crosshairA.style.top = (CONFIG.viewHeight / 2 - 20) + 'px';
+        }
+
+        // 渲染函数
+        function render() {
+            // 玩家A视角
+            const viewWidthA = CONFIG.viewWidth * CONFIG.viewRange;
+            const viewHeightA = CONFIG.viewHeight * CONFIG.viewRange;
+            const viewXA = Math.max(0, Math.min(gameState.playerA.x - viewWidthA / 2, CONFIG.mapWidth - viewWidthA));
+            const viewYA = Math.max(0, Math.min(gameState.playerA.y - viewHeightA / 2, CONFIG.mapHeight - viewHeightA));
+
+            // 星空背景
+            ctxA.fillStyle = '#000';
+            ctxA.fillRect(0, 0, CONFIG.viewWidth, CONFIG.viewHeight);
+
+            ctxA.save();
+            const scaleA = Math.min(CONFIG.viewWidth / viewWidthA, CONFIG.viewHeight / viewHeightA);
+            ctxA.scale(scaleA, scaleA);
+            ctxA.translate(-viewXA, -viewYA);
+
+            // 绘制网格
+            drawGrid(ctxA);
+
+            // 绘制星空
+            for (let star of gameState.stars) {
+                star.draw(ctxA);
+            }
+
+            // 绘制陨石（按距离排序，近的在后）
+            const sortedAsteroidsA = [...gameState.asteroids].sort((a, b) => {
+                const distA = Math.sqrt((a.x - viewXA) ** 2 + (a.y - viewYA) ** 2);
+                const distB = Math.sqrt((b.x - viewXA) ** 2 + (b.y - viewYA) ** 2);
+                return distA - distB;
+            });
+            for (let asteroid of sortedAsteroidsA) {
+                asteroid.draw(ctxA);
+            }
+
+            // 绘制扫描线
+            drawScanLines(ctxA, 0, 0, CONFIG.mapWidth, CONFIG.mapHeight);
+
+            // 绘制墙体
+            drawWalls(ctxA);
+
+            // 绘制粒子
+            for (let particle of gameState.particles) {
+                particle.draw(ctxA, 0, 0);
+            }
+
+            // 绘制玩家
+            gameState.playerA.draw(ctxA, 0, 0);
+            gameState.playerB.draw(ctxA, 0, 0);
+
+            // 绘制子弹
+            for (let bullet of gameState.bullets) {
+                bullet.draw(ctxA, 0, 0);
+            }
+
+            ctxA.restore();
+
+            // 玩家B视角
+            const viewWidthB = CONFIG.viewWidth * CONFIG.viewRange;
+            const viewHeightB = CONFIG.viewHeight * CONFIG.viewRange;
+            const viewXB = Math.max(0, Math.min(gameState.playerB.x - viewWidthB / 2, CONFIG.mapWidth - viewWidthB));
+            const viewYB = Math.max(0, Math.min(gameState.playerB.y - viewHeightB / 2, CONFIG.mapHeight - viewHeightB));
+
+            // 星空背景
+            ctxB.fillStyle = '#000';
+            ctxB.fillRect(0, 0, CONFIG.viewWidth, CONFIG.viewHeight);
+
+            ctxB.save();
+            const scaleB = Math.min(CONFIG.viewWidth / viewWidthB, CONFIG.viewHeight / viewHeightB);
+            ctxB.scale(scaleB, scaleB);
+            ctxB.translate(-viewXB, -viewYB);
+
+            // 绘制网格
+            drawGrid(ctxB);
+
+            // 绘制星空
+            for (let star of gameState.stars) {
+                star.draw(ctxB);
+            }
+
+            // 绘制陨石（按距离排序，近的在后）
+            const sortedAsteroidsB = [...gameState.asteroids].sort((a, b) => {
+                const distA = Math.sqrt((a.x - viewXB) ** 2 + (a.y - viewYB) ** 2);
+                const distB = Math.sqrt((b.x - viewXB) ** 2 + (b.y - viewYB) ** 2);
+                return distA - distB;
+            });
+            for (let asteroid of sortedAsteroidsB) {
+                asteroid.draw(ctxB);
+            }
+
+            // 绘制扫描线
+            drawScanLines(ctxB, 0, 0, CONFIG.mapWidth, CONFIG.mapHeight);
+
+            // 绘制墙体
+            drawWalls(ctxB);
+
+            // 绘制粒子
+            for (let particle of gameState.particles) {
+                particle.draw(ctxB, 0, 0);
+            }
+
+            // 绘制玩家
+            gameState.playerA.draw(ctxB, 0, 0);
+            gameState.playerB.draw(ctxB, 0, 0);
+
+            // 绘制子弹
+            for (let bullet of gameState.bullets) {
+                bullet.draw(ctxB, 0, 0);
+            }
+
+            ctxB.restore();
+        }
+
+        // 绘制网格
+        function drawGrid(ctx) {
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.08)';
+            ctx.lineWidth = 1;
+            ctx.shadowBlur = 5;
+            ctx.shadowColor = 'rgba(0, 255, 255, 0.3)';
+
+            // 主网格线
+            for (let x = 0; x < CONFIG.mapWidth; x += 100) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, CONFIG.mapHeight);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y < CONFIG.mapHeight; y += 100) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(CONFIG.mapWidth, y);
+                ctx.stroke();
+            }
+
+            // 次网格线
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.03)';
+            for (let x = 50; x < CONFIG.mapWidth; x += 100) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, CONFIG.mapHeight);
+                ctx.stroke();
+            }
+
+            for (let y = 50; y < CONFIG.mapHeight; y += 100) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(CONFIG.mapWidth, y);
+                ctx.stroke();
+            }
+
+            ctx.shadowBlur = 0;
+        }
+
+        // 绘制扫描线效果
+        function drawScanLines(ctx, viewX, viewY, viewWidth, viewHeight) {
+            ctx.save();
+            ctx.globalAlpha = 0.02;
+            ctx.strokeStyle = '#00ffff';
+            ctx.lineWidth = 1;
+
+            for (let y = viewY; y < viewY + viewHeight; y += 4) {
+                ctx.beginPath();
+                ctx.moveTo(viewX, y);
+                ctx.lineTo(viewX + viewWidth, y);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        // 绘制墙体
+        function drawWalls(ctx) {
+            for (let wall of gameState.walls) {
+                // 墙体阴影
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillStyle = '#555';
+                ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+                ctx.shadowBlur = 0;
+
+                // 墙体高光
+                ctx.fillStyle = '#666';
+                ctx.fillRect(wall.x, wall.y, wall.width, 3);
+
+                // 墙体边框
+                ctx.strokeStyle = '#777';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(wall.x, wall.y, wall.width, wall.height);
+            }
+        }
+
+        // 游戏循环
+        function gameLoop() {
+            if (gameState.running) {
+                // 玩家A移动
+                let dx = 0, dy = 0;
+                if (keys['a']) dx -= 1;
+                if (keys['d']) dx += 1;
+                if (keys['w']) dy -= 1;
+                if (keys['s']) dy += 1;
+
+                if (dx !== 0 || dy !== 0) {
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    dx /= length;
+                    dy /= length;
+                    gameState.playerA.move(dx, dy);
+                    gameState.playerA.angle = Math.atan2(dy, dx);
+                }
+
+                // 玩家A连续射击
+                if (keys[' ']) {
+                    gameState.playerA.shoot();
+                }
+
+                // 玩家B移动和瞄准
+                const viewWidthB = CONFIG.viewWidth * CONFIG.viewRange;
+                const viewHeightB = CONFIG.viewHeight * CONFIG.viewRange;
+                const scaleB = Math.min(CONFIG.viewWidth / viewWidthB, CONFIG.viewHeight / viewHeightB);
+
+                // 计算当前视野的偏移量
+                const viewXB = Math.max(0, Math.min(gameState.playerB.x - viewWidthB / 2, CONFIG.mapWidth - viewWidthB));
+                const viewYB = Math.max(0, Math.min(gameState.playerB.y - viewHeightB / 2, CONFIG.mapHeight - viewHeightB));
+
+                // 将鼠标屏幕坐标转换为世界坐标
+                const worldX = (mouseX / scaleB) + viewXB;
+                const worldY = (mouseY / scaleB) + viewYB;
+
+                gameState.playerB.angle = Math.atan2(worldY - gameState.playerB.y, worldX - gameState.playerB.x);
+
+                const distX = worldX - gameState.playerB.x;
+                const distY = worldY - gameState.playerB.y;
+                const distance = Math.sqrt(distX * distX + distY * distY);
+
+                if (distance > 10) {
+                    const moveDx = distX / distance;
+                    const moveDy = distY / distance;
+                    gameState.playerB.move(moveDx, moveDy);
+                }
+
+                // 玩家B连续射击
+                if (mouseDown) {
+                    gameState.playerB.shoot();
+                }
+
+                // 更新星空
+                for (let star of gameState.stars) {
+                    star.update();
+                }
+
+                // 更新陨石
+                for (let asteroid of gameState.asteroids) {
+                    asteroid.update();
+                }
+
+                // 更新玩家状态
+                gameState.playerA.update();
+                gameState.playerB.update();
+
+                // 更新子弹
+                gameState.bullets = gameState.bullets.filter(bullet => bullet.update());
+
+                // 更新粒子
+                gameState.particles = gameState.particles.filter(particle => particle.update());
+
+                // 更新生命值显示和样式
+                const healthAElement = document.getElementById('healthA');
+                const healthBElement = document.getElementById('healthB');
+
+                healthAElement.textContent = Math.max(0, Math.floor(gameState.playerA.health));
+                healthBElement.textContent = Math.max(0, Math.floor(gameState.playerB.health));
+
+                healthAElement.parentElement.className = gameState.playerA.health <= 30 ? 'health low' : 'health';
+                healthBElement.parentElement.className = gameState.playerB.health <= 30 ? 'health low' : 'health';
+            }
+
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 启动游戏
+        updateCrosshairA();
+        initGame();
+        gameLoop();
+    </script>
+</body>
+</html>

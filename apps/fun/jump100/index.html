@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>是男人就跳一百层</title>
+
+  <!-- T004: Forest Focus CSS Styles -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to bottom, #D8F3DC, #95D5B2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #gameContainer {
+      position: relative;
+      box-shadow: 0 8px 32px rgba(45, 106, 79, 0.3);
+      border-radius: 15px;
+      overflow: hidden;
+      height: 90vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* T005: Canvas element */
+    #gameCanvas {
+      display: block;
+      background: #D8F3DC;
+      /* Size controlled by JavaScript - CSS size is display size, resolution is fixed at 800x600 */
+    }
+
+    /* T006 & T062: Settings panel structure with Forest Focus styling */
+    #settingsPanel {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.98);
+      border-radius: 20px;
+      padding: 35px;
+      box-shadow: 0 12px 48px rgba(45, 106, 79, 0.25);
+      z-index: 1000;
+      min-width: 420px;
+      color: #2D6A4F;
+      border: 2px solid rgba(82, 183, 136, 0.2);
+    }
+
+    #settingsPanel h2 {
+      margin-bottom: 20px;
+      color: #2D6A4F;
+      font-size: 24px;
+    }
+
+    .setting-item {
+      margin-bottom: 20px;
+    }
+
+    .setting-item label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #52B788;
+    }
+
+    .setting-item input[type="range"] {
+      width: 100%;
+      height: 6px;
+      background: #95D5B2;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .setting-item input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #52B788;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .setting-item select,
+    .setting-item input[type="checkbox"] {
+      margin-left: 10px;
+    }
+
+    .btn {
+      background: #52B788;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      margin-right: 10px;
+      transition: background 0.3s;
+    }
+
+    .btn:hover {
+      background: #2D6A4F;
+    }
+
+    .btn-secondary {
+      background: #A67C52;
+    }
+
+    .btn-secondary:hover {
+      background: #8B6840;
+    }
+
+    #overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <!-- T005: Canvas element -->
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+  </div>
+
+  <!-- T006: Settings panel DOM structure -->
+  <div id="overlay"></div>
+  <div id="settingsPanel">
+    <h2>游戏设置</h2>
+
+    <div class="setting-item">
+      <label for="platformDensity">平台密度 (1-5): <span id="densityValue">2</span></label>
+      <input type="range" id="platformDensity" min="1" max="5" value="2">
+    </div>
+
+    <div class="setting-item">
+      <label for="platformSpeed">下降速度 (1-5): <span id="speedValue">2</span></label>
+      <input type="range" id="platformSpeed" min="1" max="5" value="2">
+    </div>
+
+    <div class="setting-item">
+      <label for="gameMode">游戏模式:</label>
+      <select id="gameMode">
+        <option value="single">单人模式</option>
+        <option value="coop" selected>双人模式</option>
+      </select>
+    </div>
+
+    <div class="setting-item">
+      <label>
+        <input type="checkbox" id="vanishEnabled"> 启用消失平台
+      </label>
+    </div>
+
+    <div class="setting-item">
+      <label for="teleportCooldown">传送冷却 (5-20秒): <span id="cooldownValue">10</span></label>
+      <input type="range" id="teleportCooldown" min="5" max="20" value="10">
+    </div>
+
+    <div class="setting-item">
+      <button class="btn" id="applySettings">应用设置</button>
+      <button class="btn btn-secondary" id="closeSettings">关闭</button>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    // ============ T002: Forest Focus Color Palette ============
+    const COLORS = {
+      MINT_GREEN: '#8FD9A8',
+      FOREST_GREEN: '#52B788',
+      DARK_GREEN: '#2D6A4F',
+      BROWN: '#A67C52',
+      BG_LIGHT: '#D8F3DC',
+      BG_DARK: '#95D5B2',
+      WHITE: '#FFFFFF',
+      TRANSPARENT_GREEN: 'rgba(143, 217, 168, 0.6)'
+    };
+
+    // ============ T003: Game Configuration Constants ============
+    const CONFIG = {
+      GRAVITY: 0.8,
+      JUMP_FORCE: 15,
+      MOVE_SPEED: 5,
+      MAX_SPEED: 8,
+      PLATFORM_HEIGHT: 15,
+      PLATFORM_MIN_WIDTH: 80,
+      PLATFORM_MAX_WIDTH: 150,
+      PLAYER_WIDTH: 30,
+      PLAYER_HEIGHT: 40,
+      MAX_PLATFORMS: 150,
+      FLOOR_HEIGHT: 80,
+      TARGET_FPS: 60,
+
+      // Virtual player for platform generation
+      VIRTUAL_PLAYER_JUMP_POWER: 15,
+      VIRTUAL_PLAYER_MOVE_SPEED: 5,
+      EDGE_SAFE_MARGIN: 50, // Minimum distance from screen edge for platform generation
+      CAMERA_OFFSET_ABOVE_SCREEN: 100, // Virtual player starts this far above visible area
+      PLATFORM_GENERATION_BUFFER: 400, // Generate platforms this far ahead of camera (more relaxed)
+
+      // Camera modes
+      CAMERA_MODE_FOLLOW: 'follow', // Follow player
+      CAMERA_MODE_CONSTANT: 'constant' // Constant upward speed
+    };
+
+    // ============ PHASE 2: FOUNDATIONAL - TEST-FIRST APPROACH ============
+
+    // T016: Test Framework & AABB Collision Detection (TEST-FIRST)
+    function assert(condition, message) {
+      if (!condition) {
+        throw new Error(`Test failed: ${message}`);
+      }
+    }
+
+    // T016: AABB Collision Detection Function (IMPLEMENTATION)
+    function isColliding(rect1, rect2) {
+      return rect1.x < rect2.x + rect2.w &&
+             rect1.x + rect1.w > rect2.x &&
+             rect1.y < rect2.y + rect2.h &&
+             rect1.y + rect1.h > rect2.y;
+    }
+
+    // T016: AABB Collision Tests
+    function testAABBCollision() {
+      // Test 1: Overlapping rectangles
+      assert(isColliding({x:0,y:0,w:10,h:10}, {x:5,y:5,w:10,h:10}), "Should detect overlap");
+
+      // Test 2: Separate rectangles
+      assert(!isColliding({x:0,y:0,w:10,h:10}, {x:20,y:20,w:10,h:10}), "Should not detect when separate");
+
+      // Test 3: Adjacent rectangles (touching but not overlapping)
+      assert(!isColliding({x:0,y:0,w:10,h:10}, {x:10,y:0,w:10,h:10}), "Should not detect when just touching");
+
+      // Test 4: One inside another
+      assert(isColliding({x:0,y:0,w:100,h:100}, {x:25,y:25,w:10,h:10}), "Should detect when one is inside another");
+
+      console.log('✓ AABB Collision tests passed');
+    }
+
+    // T007: InputManager Class
+    class InputManager {
+      constructor() {
+        this.keys = {};
+        this.keyJustPressed = {};
+        window.addEventListener('keydown', this.onKeyDown.bind(this));
+        window.addEventListener('keyup', this.onKeyUp.bind(this));
+      }
+
+      onKeyDown(e) {
+        const key = e.key.toLowerCase();
+
+        // T046: Handle ESC key for settings panel toggle
+        if (key === 'escape') {
+          toggleSettingsPanel();
+          e.preventDefault();
+          return;
+        }
+
+        // Track "just pressed" state for single-press actions like jump
+        if (!this.keys[key]) {
+          this.keys[key] = true;
+          this.keyJustPressed[key] = true;
+        }
+        // Prevent default for game keys
+        if (['w','a','d','q','e'].includes(key) || /^[4689]$/.test(key)) {
+          e.preventDefault();
+        }
+      }
+
+      onKeyUp(e) {
+        const key = e.key.toLowerCase();
+        this.keys[key] = false;
+        this.keyJustPressed[key] = false;
+      }
+
+      isPressed(key) {
+        return this.keys[key] || false;
+      }
+
+      isJustPressed(key) {
+        const result = this.keyJustPressed[key] || false;
+        if (result) {
+          this.keyJustPressed[key] = false; // Consume the event
+        }
+        return result;
+      }
+    }
+
+    // T008-T010: Player Class
+    class Player {
+      constructor(x, y, playerId, keys) {
+        this.x = x;
+        this.y = y;
+        this.vx = 0;
+        this.vy = 0;
+        this.width = CONFIG.PLAYER_WIDTH;
+        this.height = CONFIG.PLAYER_HEIGHT;
+        this.playerId = playerId;
+        this.keys = keys;
+        this.isGrounded = false; // Standing on platform
+        this.isOnPlayer = false; // Standing on another player (piggyback)
+        this.wasGrounded = false; // Track previous grounded state for landing sound
+        this.standingOnPlatform = null; // Track which platform the player is standing on
+        this.standingOnPlayer = null; // Track which player this player is standing on (for piggyback ride)
+        this.color = playerId === 1 ? COLORS.MINT_GREEN : COLORS.FOREST_GREEN;
+        this.soundSystem = null; // Will be set by GameState
+
+        // T036: Teleport cooldown tracking
+        this.teleportCooldown = 0; // Seconds remaining until can teleport again
+        this.teleportMaxCooldown = 10; // Max cooldown in seconds (default 10s)
+      }
+
+      // T009: Update method with physics
+      update(deltaTime, inputManager) {
+        // Store previous grounded state
+        this.wasGrounded = this.isGrounded;
+
+        // T036: Update teleport cooldown
+        if (this.teleportCooldown > 0) {
+          this.teleportCooldown -= deltaTime / 1000; // Convert ms to seconds
+          if (this.teleportCooldown < 0) {
+            this.teleportCooldown = 0;
+          }
+        }
+
+        // Apply gravity only when not grounded AND not on another player
+        if (!this.isGrounded && !this.isOnPlayer) {
+          this.vy += CONFIG.GRAVITY;
+        } else {
+          // When grounded or on player, prevent downward velocity accumulation
+          if (this.vy > 0) {
+            this.vy = 0;
+          }
+        }
+
+        // Handle movement input - Press to move, release to stop immediately
+        if (inputManager.isPressed(this.keys.LEFT)) {
+          this.vx = -CONFIG.MOVE_SPEED;
+        } else if (inputManager.isPressed(this.keys.RIGHT)) {
+          this.vx = CONFIG.MOVE_SPEED;
+        } else {
+          // No key pressed - stop immediately
+          this.vx = 0;
+        }
+
+        // Walk sound removed per user request
+
+        // Clamp horizontal speed
+        this.vx = Math.max(-CONFIG.MAX_SPEED, Math.min(CONFIG.MAX_SPEED, this.vx));
+
+        // Update position
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // Screen boundary clamping
+        this.x = Math.max(0, Math.min(800 - this.width, this.x));
+      }
+
+      // T021: Jump method
+      // Allow jumping when standing on a platform OR on another player
+      jump() {
+        // Can jump when grounded (on platform) or on another player (piggyback)
+        if (this.isGrounded || this.isOnPlayer) {
+          this.vy = -CONFIG.JUMP_FORCE;
+          this.isGrounded = false;
+          this.isOnPlayer = false;
+
+          // Clear standingOnPlayer when jumping - break piggyback relationship
+          // This allows the top player to jump off the bottom player
+          this.standingOnPlayer = null;
+
+          // Play jump sound
+          if (this.soundSystem) {
+            this.soundSystem.playJump();
+          }
+        }
+      }
+
+      // T032: Check collision with another player
+      checkPlayerCollision(otherPlayer) {
+        const rect1 = {
+          x: this.x,
+          y: this.y,
+          w: this.width,
+          h: this.height
+        };
+        const rect2 = {
+          x: otherPlayer.x,
+          y: otherPlayer.y,
+          w: otherPlayer.width,
+          h: otherPlayer.height
+        };
+        return isColliding(rect1, rect2);
+      }
+
+      // T035: Teleport another player to this player's side
+      teleport(targetPlayer, direction) {
+        // Check cooldown
+        if (this.teleportCooldown > 0) {
+          return false; // Still on cooldown
+        }
+
+        // Calculate teleport position (left or right of this player)
+        const offset = direction === 'left' ? -50 : 50;
+        targetPlayer.x = this.x + offset;
+        targetPlayer.y = this.y;
+        targetPlayer.vy = 0; // Reset vertical velocity
+
+        // Start cooldown
+        this.teleportCooldown = this.teleportMaxCooldown;
+
+        return true; // Teleport successful
+      }
+
+      // T010, T037, T056: Draw method with cooldown progress bar and perfect ellipse shape
+      draw(ctx, cameraY) {
+        // Calculate screen Y position based on camera
+        const screenY = cameraY !== undefined ? this.y - cameraY : this.y;
+
+        // T056: Draw player with perfect ellipse shape and Forest Focus mint green
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.ellipse(
+          this.x + this.width / 2,
+          screenY + this.height / 2,
+          this.width / 2,
+          this.height / 2,
+          0, 0, Math.PI * 2
+        );
+        ctx.fill();
+
+        // Add subtle outline for better definition
+        ctx.strokeStyle = COLORS.FOREST_GREEN;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // T037 & T064: Draw cooldown progress bar above player head with Forest Focus styling
+        if (this.teleportCooldown > 0) {
+          const barWidth = 40;
+          const barHeight = 5;
+          const barX = this.x + this.width / 2 - barWidth / 2;
+          const barY = screenY - 12;
+
+          // Background bar with rounded corners
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+          ctx.beginPath();
+          ctx.roundRect(barX, barY, barWidth, barHeight, 2.5);
+          ctx.fill();
+
+          // Cooldown progress with gradient (Forest Green)
+          const progress = 1 - (this.teleportCooldown / this.teleportMaxCooldown);
+          const gradient = ctx.createLinearGradient(barX, barY, barX + barWidth * progress, barY);
+          gradient.addColorStop(0, COLORS.FOREST_GREEN);
+          gradient.addColorStop(1, COLORS.MINT_GREEN);
+
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.roundRect(barX, barY, barWidth * progress, barHeight, 2.5);
+          ctx.fill();
+        }
+      }
+    }
+
+    // T041-T044: Settings Class
+    class Settings {
+      constructor() {
+        // Default values
+        this.platformDensity = 2;     // 1-5 (affects platform generation frequency)
+        this.platformSpeed = 2;        // 1-5 (affects scrolling speed)
+        this.gameMode = 'coop';        // 'single' or 'coop'
+        this.vanishEnabled = false;    // Enable/disable vanishing platforms
+        this.teleportCooldown = 10;    // 5-20 seconds
+      }
+
+      // T042: Load settings from localStorage
+      load() {
+        try {
+          const saved = localStorage.getItem('jumpGameSettings');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            this.platformDensity = parsed.platformDensity ?? 2;
+            this.platformSpeed = parsed.platformSpeed ?? 2;
+            this.gameMode = parsed.gameMode ?? 'coop';
+            this.vanishEnabled = parsed.vanishEnabled ?? false;
+            this.teleportCooldown = parsed.teleportCooldown ?? 10;
+            console.log('Settings loaded:', this);
+          }
+        } catch (e) {
+          console.warn('Failed to load settings, using defaults:', e);
+        }
+        return this;
+      }
+
+      // T043: Save settings to localStorage
+      save() {
+        try {
+          const data = {
+            platformDensity: this.platformDensity,
+            platformSpeed: this.platformSpeed,
+            gameMode: this.gameMode,
+            vanishEnabled: this.vanishEnabled,
+            teleportCooldown: this.teleportCooldown
+          };
+          localStorage.setItem('jumpGameSettings', JSON.stringify(data));
+          console.log('Settings saved:', data);
+        } catch (e) {
+          console.error('Failed to save settings:', e);
+        }
+      }
+
+      // T044: Apply settings to game state
+      apply(gameState) {
+        gameState.platformSpeed = this.platformSpeed;
+        gameState.platformDensity = this.platformDensity;
+        gameState.gameMode = this.gameMode;
+        gameState.vanishEnabled = this.vanishEnabled;
+
+        // Update player teleport cooldowns
+        gameState.players.forEach(player => {
+          player.teleportMaxCooldown = this.teleportCooldown;
+        });
+
+        // Update difficulty based on platform density (inversely related)
+        // Lower density = harder (fewer platforms), higher density = easier (more platforms)
+        gameState.difficulty = 1 - (this.platformDensity / 5);
+
+        console.log('Settings applied to game state');
+      }
+    }
+
+    // T011-T013: Platform Class
+    class Platform {
+      constructor(x, y, width, type = 'normal') {
+        this.x = x;
+        this.y = y; // World coordinate (fixed position)
+        this.width = width;
+        this.height = CONFIG.PLATFORM_HEIGHT;
+        this.type = type;
+        this.isTouched = false;
+        this.vanishTimer = 0;
+        this.active = true;
+      }
+
+      // T012 & T053: Update method - handle vanishing platforms
+      update(deltaTime) {
+        // T053: Vanishing platform logic
+        if (this.type === 'vanish' && this.isTouched) {
+          // Start vanish timer when touched
+          this.vanishTimer += deltaTime / 1000; // Convert ms to seconds
+
+          // Platform vanishes after 1 second of being touched
+          if (this.vanishTimer >= 1.0) {
+            this.active = false;
+            return false; // Platform should be removed
+          }
+        }
+
+        return true; // Platform is still active
+      }
+
+      // T013 & T054: Draw method with camera offset and vanish platform styling
+      draw(ctx, cameraY) {
+        if (!this.active) return;
+
+        // Calculate screen position based on camera offset
+        const screenY = this.y - cameraY;
+
+        // Only draw if visible on screen
+        if (screenY < -this.height || screenY > 600) return;
+
+        // T054: Different styling for vanish platforms
+        if (this.type === 'vanish') {
+          // Semi-transparent green with dashed border
+          const alpha = this.isTouched ? Math.max(0.2, 1 - this.vanishTimer) : 0.6;
+          ctx.fillStyle = `rgba(143, 217, 168, ${alpha})`; // MINT_GREEN with transparency
+
+          // Draw rounded rectangle
+          const radius = 8;
+          ctx.beginPath();
+          ctx.moveTo(this.x + radius, screenY);
+          ctx.arcTo(this.x + this.width, screenY, this.x + this.width, screenY + this.height, radius);
+          ctx.arcTo(this.x + this.width, screenY + this.height, this.x, screenY + this.height, radius);
+          ctx.arcTo(this.x, screenY + this.height, this.x, screenY, radius);
+          ctx.arcTo(this.x, screenY, this.x + this.width, screenY, radius);
+          ctx.closePath();
+          ctx.fill();
+
+          // Dashed border
+          ctx.strokeStyle = COLORS.FOREST_GREEN;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.stroke();
+          ctx.setLineDash([]); // Reset dash
+        } else {
+          // T057-T058: Normal platform - solid brown with rounded rectangle and subtle shadow
+          // Add shadow first
+          ctx.shadowOffsetY = 2;
+          ctx.shadowBlur = 4;
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+
+          ctx.fillStyle = COLORS.BROWN;
+
+          // Draw rounded rectangle
+          const radius = 8;
+          ctx.beginPath();
+          ctx.moveTo(this.x + radius, screenY);
+          ctx.arcTo(this.x + this.width, screenY, this.x + this.width, screenY + this.height, radius);
+          ctx.arcTo(this.x + this.width, screenY + this.height, this.x, screenY + this.height, radius);
+          ctx.arcTo(this.x, screenY + this.height, this.x, screenY, radius);
+          ctx.arcTo(this.x, screenY, this.x + this.width, screenY, radius);
+          ctx.closePath();
+          ctx.fill();
+
+          // Reset shadow
+          ctx.shadowOffsetY = 0;
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      reset(x, y, width, type) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.type = type;
+        this.isTouched = false;
+        this.vanishTimer = 0;
+        this.active = true;
+      }
+    }
+
+    // T014: PlatformPool Class (TEST-FIRST)
+    class PlatformPool {
+      constructor(size = CONFIG.MAX_PLATFORMS) {
+        this.pool = [];
+        for (let i = 0; i < size; i++) {
+          this.pool.push(new Platform(0, 0, 100));
+        }
+        this.activeIndex = 0;
+      }
+
+      spawn(x, y, width, type = 'normal') {
+        const platform = this.pool[this.activeIndex];
+        platform.reset(x, y, width, type);
+        this.activeIndex = (this.activeIndex + 1) % this.pool.length;
+        return platform;
+      }
+    }
+
+    // T014: PlatformPool Tests
+    function testPlatformPool() {
+      const pool = new PlatformPool(3);
+
+      // Test 1: Spawn returns platform
+      const p1 = pool.spawn(100, 200, 80);
+      assert(p1.x === 100 && p1.y === 200 && p1.width === 80, "Should spawn platform with correct properties");
+
+      // Test 2: Circular reuse
+      const p2 = pool.spawn(150, 250, 90);
+      const p3 = pool.spawn(200, 300, 100);
+      const p4 = pool.spawn(250, 350, 85); // Should reuse first platform
+      assert(p4 === p1, "Should reuse platforms circularly");
+      assert(p4.x === 250, "Reused platform should have new properties");
+
+      console.log('✓ PlatformPool tests passed');
+    }
+
+    // Sound System - Generate simple sounds using Web Audio API
+    class SoundSystem {
+      constructor() {
+        this.audioContext = null;
+        this.enabled = true;
+
+        // Initialize audio context on first user interaction
+        this.initAudioContext();
+      }
+
+      initAudioContext() {
+        try {
+          this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+          console.warn('Web Audio API not supported');
+          this.enabled = false;
+        }
+      }
+
+      // Jump sound - rising pitch
+      playJump() {
+        if (!this.enabled || !this.audioContext) return;
+
+        const oscillator = this.audioContext.createOscillator();
+        const gainNode = this.audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.audioContext.destination);
+
+        oscillator.frequency.setValueAtTime(200, this.audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(400, this.audioContext.currentTime + 0.1);
+        oscillator.type = 'square';
+
+        gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.1);
+
+        oscillator.start(this.audioContext.currentTime);
+        oscillator.stop(this.audioContext.currentTime + 0.1);
+      }
+
+    }
+
+    // Virtual Player for intelligent platform generation
+    class VirtualPlayer {
+      constructor(canvasWidth, difficulty = 0.5) {
+        this.canvasWidth = canvasWidth;
+        this.difficulty = difficulty; // 0 = easy, 1 = hard
+        this.x = canvasWidth / 2;
+        this.y = 0;
+        this.vx = 0;
+        this.vy = 0;
+        this.width = CONFIG.PLAYER_WIDTH;
+        this.height = CONFIG.PLAYER_HEIGHT;
+        this.isGrounded = false;
+        this.currentPlatform = null;
+      }
+
+      // Simulate one jump from current platform
+      simulateJump(platforms, targetY) {
+        if (!this.currentPlatform) return null;
+
+        // Decide horizontal movement based on difficulty
+        // Higher difficulty = more likely to jump toward edges
+        const edgeBias = this.difficulty * 0.7; // 0-0.7 bias toward edges
+        const direction = Math.random() < 0.5 ? -1 : 1;
+
+        // Calculate horizontal distance - CONSERVATIVE to ensure reachability
+        // Easy: stay near center, Hard: move toward edges
+        let horizontalDistance;
+        if (Math.random() < edgeBias) {
+          // Move toward edge (but not too close)
+          const safeMin = CONFIG.EDGE_SAFE_MARGIN;
+          const safeMax = this.canvasWidth - CONFIG.EDGE_SAFE_MARGIN;
+          if (direction < 0) {
+            // Jump left - more conservative
+            horizontalDistance = -Math.random() * Math.min(100, (this.x - safeMin) * 0.6);
+          } else {
+            // Jump right - more conservative
+            horizontalDistance = Math.random() * Math.min(100, (safeMax - this.x) * 0.6);
+          }
+        } else {
+          // Normal jump - moderate distance (20-80 pixels)
+          horizontalDistance = (20 + Math.random() * 60) * direction;
+        }
+
+        // Simulate physics to find landing position
+        const jumpResult = this.simulatePhysics(horizontalDistance);
+
+        return jumpResult;
+      }
+
+      // Simulate physics to calculate jump arc - ACCURATE simulation matching real player
+      simulatePhysics(horizontalDistance) {
+        const startX = this.x;
+        const startY = this.y;
+        const direction = Math.sign(horizontalDistance);
+
+        // Initial state: player just jumped
+        let simX = startX;
+        let simY = startY;
+        let simVY = -CONFIG.VIRTUAL_PLAYER_JUMP_POWER; // Jump velocity
+        let simVX = 0; // Start with zero horizontal velocity
+        let maxHeight = startY;
+        let steps = 0;
+        const maxSteps = 200;
+
+        // Simulate until landing
+        while (steps < maxSteps) {
+          // Simulate player holding direction key (like real player would)
+          // This gives continuous acceleration in air
+          simVX = direction * CONFIG.MOVE_SPEED;
+
+          // Apply friction (same as real player)
+          simVX *= 0.8;
+
+          // Clamp speed (same as real player)
+          simVX = Math.max(-CONFIG.MAX_SPEED, Math.min(CONFIG.MAX_SPEED, simVX));
+
+          // Apply gravity
+          simVY += CONFIG.GRAVITY;
+
+          // Update position
+          simX += simVX;
+          simY += simVY;
+
+          // Track max height
+          if (simY < maxHeight) {
+            maxHeight = simY;
+          }
+
+          // Check if landed (fell back to or below start height)
+          if (simY >= startY && steps > 10) {
+            break;
+          }
+
+          steps++;
+        }
+
+        // Clamp to safe boundaries
+        simX = Math.max(CONFIG.EDGE_SAFE_MARGIN + 40, // Extra margin for platform width
+                       Math.min(this.canvasWidth - CONFIG.EDGE_SAFE_MARGIN - 40, simX));
+
+        // Place platform at a reachable height during the jump
+        // Place lower (65% down from peak) to give player more downward space
+        // This makes jumping feel less pressured, more room to maneuver
+        const platformY = maxHeight + (startY - maxHeight) * 0.65;
+
+        return {
+          x: simX,
+          y: platformY,
+          maxHeight: maxHeight,
+          horizontalDistance: simX - startX,
+          reachable: true
+        };
+      }
+
+      // Place virtual player on a platform
+      placeOnPlatform(platform) {
+        this.currentPlatform = platform;
+        this.x = platform.x + platform.width / 2;
+        this.y = platform.y - this.height;
+        this.vy = 0;
+        this.isGrounded = true;
+      }
+    }
+
+    // T015-T018: GameState Class
+    class GameState {
+      constructor(canvas, ctx) {
+        this.canvas = canvas;
+        this.ctx = ctx;
+        this.players = [];
+        this.platforms = [];
+        this.platformPool = new PlatformPool();
+        this.currentFloor = 1;
+        this.gameOver = false;
+        this.isPaused = false; // For settings panel
+        this.platformSpeed = 2;
+        this.platformDensity = 2;
+        this.spawnTimer = 0;
+        this.bgCanvas = null;
+        this.cameraY = 0; // Camera position in world coordinates
+        this.highestPlatformY = 0; // Track highest platform for spawning new ones
+
+        // Virtual player for intelligent platform generation
+        this.virtualPlayer = new VirtualPlayer(canvas.width, 0.5);
+        this.difficulty = 0.5; // 0 = easy, 1 = hard
+
+        // Camera settings
+        this.cameraMode = CONFIG.CAMERA_MODE_FOLLOW;
+        this.constantCameraSpeed = 1; // pixels per frame for constant mode
+
+        // Sound system
+        this.soundSystem = new SoundSystem();
+
+        // T031: Game mode (single/coop)
+        this.gameMode = 'coop'; // Default to coop mode
+
+        // T053-T055: Vanishing platforms feature
+        this.vanishEnabled = false; // Default disabled
+      }
+
+      // T015: Init method
+      init() {
+        // T019 & T059: Render background to offscreen canvas with decorative forest elements
+        this.bgCanvas = document.createElement('canvas');
+        this.bgCanvas.width = this.canvas.width;
+        this.bgCanvas.height = this.canvas.height;
+        const bgCtx = this.bgCanvas.getContext('2d');
+
+        // Gradient background
+        const gradient = bgCtx.createLinearGradient(0, 0, 0, this.canvas.height);
+        gradient.addColorStop(0, COLORS.BG_LIGHT);
+        gradient.addColorStop(1, COLORS.BG_DARK);
+        bgCtx.fillStyle = gradient;
+        bgCtx.fillRect(0, 0, this.bgCanvas.width, this.bgCanvas.height);
+
+        // T059: Add decorative forest elements (simple tree silhouettes)
+        bgCtx.globalAlpha = 0.15; // Very subtle
+
+        // Draw simple geometric trees in background
+        for (let i = 0; i < 8; i++) {
+          const x = (i + 0.5) * (this.bgCanvas.width / 8);
+          const baseY = this.bgCanvas.height - 50;
+          const height = 80 + Math.random() * 40;
+
+          // Tree trunk (rectangle)
+          bgCtx.fillStyle = COLORS.DARK_GREEN;
+          bgCtx.fillRect(x - 8, baseY - height * 0.3, 16, height * 0.3);
+
+          // Tree crown (triangle/polygon)
+          bgCtx.beginPath();
+          bgCtx.moveTo(x, baseY - height); // top
+          bgCtx.lineTo(x - 40, baseY - height * 0.3); // bottom left
+          bgCtx.lineTo(x + 40, baseY - height * 0.3); // bottom right
+          bgCtx.closePath();
+          bgCtx.fill();
+        }
+
+        bgCtx.globalAlpha = 1.0; // Reset
+
+        // T024: Create starting platform in center - LARGE and safe
+        const startY = 500;
+        const startX = this.canvas.width / 2 - 80;
+        const startPlatform = this.platformPool.spawn(startX, startY, 160); // Wider starting platform
+        this.platforms.push(startPlatform);
+        this.highestPlatformY = startY;
+
+        // Initialize camera position first (so generation knows where to create platforms)
+        this.cameraY = startY + 100; // Start camera just below player
+
+        // Update virtual player difficulty
+        this.virtualPlayer.difficulty = this.difficulty;
+
+        // Place virtual player on starting platform
+        this.virtualPlayer.placeOnPlatform(startPlatform);
+
+        // Generate initial platforms using virtual player from the very first platform
+        // This ensures all platforms are reachable
+        this.spawnPlatformsAbove();
+
+        // T020: Create single player on the starting platform
+        const player1 = new Player(
+          startPlatform.x + startPlatform.width / 2 - CONFIG.PLAYER_WIDTH / 2,
+          startPlatform.y - CONFIG.PLAYER_HEIGHT,
+          1,
+          { JUMP: 'w', LEFT: 'a', RIGHT: 'd', TELEPORT_LEFT: 'q', TELEPORT_RIGHT: 'e' }
+        );
+
+        // Connect sound system to player
+        player1.soundSystem = this.soundSystem;
+
+        this.players = [player1];
+
+        // T031: Add second player in coop mode
+        if (this.gameMode === 'coop') {
+          const player2 = new Player(
+            startPlatform.x + startPlatform.width * 0.7,
+            startPlatform.y - CONFIG.PLAYER_HEIGHT,
+            2,
+            { JUMP: '8', LEFT: '4', RIGHT: '6', TELEPORT_LEFT: '7', TELEPORT_RIGHT: '9' }
+          );
+          player2.soundSystem = this.soundSystem;
+          this.players.push(player2);
+        }
+      }
+
+      // T015: Update method
+      update(deltaTime, inputManager) {
+        if (this.gameOver || this.isPaused) return; // Skip update when paused or game over
+
+        // Step 1: Reset grounded state for all players
+        // NOTE: Don't reset standingOnPlayer here - it needs to persist during jumps
+        this.players.forEach(player => {
+          player.isGrounded = false;
+          player.isOnPlayer = false; // Reset piggyback grounded state
+          player.standingOnPlatform = null;
+          // standingOnPlayer will be updated in checkPlayerCollisions()
+        });
+
+        // Step 2: Update player physics and position (in world coordinates)
+        this.players.forEach(player => {
+          player.update(deltaTime, inputManager);
+        });
+
+        // Step 3: Check collisions and update isGrounded
+        this.checkCollisions();
+
+        // T033 & T034: Check player-player collisions (踩头 and side collision)
+        if (this.players.length === 2) {
+          this.checkPlayerCollisions();
+        }
+
+        // Step 3.5: Synchronize positions for piggyback rides
+        // If one player is standing on another, move them together
+        if (this.players.length === 2) {
+          const player1 = this.players[0];
+          const player2 = this.players[1];
+
+          // If player1 is standing on player2, sync player1's Y position
+          if (player1.standingOnPlayer === player2) {
+            player1.y = player2.y - player1.height;
+          }
+          // If player2 is standing on player1, sync player2's Y position
+          else if (player2.standingOnPlayer === player1) {
+            player2.y = player1.y - player2.height;
+          }
+        }
+
+        // Step 4: Handle jump input (now that isGrounded is accurate)
+        this.players.forEach(player => {
+          if (inputManager.isJustPressed(player.keys.JUMP)) {
+            player.jump();
+          }
+        });
+
+        // T038: Handle teleport input (双人模式only)
+        if (this.players.length === 2) {
+          const player1 = this.players[0];
+          const player2 = this.players[1];
+
+          // Player1 teleport keys (Q/E)
+          if (inputManager.isJustPressed(player1.keys.TELEPORT_LEFT)) {
+            player1.teleport(player2, 'left');
+          } else if (inputManager.isJustPressed(player1.keys.TELEPORT_RIGHT)) {
+            player1.teleport(player2, 'right');
+          }
+
+          // Player2 teleport keys (7/9)
+          if (inputManager.isJustPressed(player2.keys.TELEPORT_LEFT)) {
+            player2.teleport(player1, 'left');
+          } else if (inputManager.isJustPressed(player2.keys.TELEPORT_RIGHT)) {
+            player2.teleport(player1, 'right');
+          }
+        }
+
+        // Step 5: Update platforms (for vanishing platform logic)
+        this.platforms.forEach(platform => {
+          platform.update(deltaTime);
+        });
+
+        // Step 6: Update camera to follow player
+        this.updateCamera();
+
+        // Step 7: Spawn new platforms as player climbs
+        this.spawnPlatformsAbove();
+
+        // Step 7: Cull platforms that are far below camera
+        this.cullPlatforms();
+
+        // Step 8: Update floor level
+        this.updateFloor();
+
+        // Step 9: Check game over
+        this.checkGameOver();
+      }
+
+      // Update camera based on mode
+      updateCamera() {
+        if (this.cameraMode === CONFIG.CAMERA_MODE_CONSTANT) {
+          // Constant upward movement
+          this.cameraY -= this.constantCameraSpeed;
+        } else {
+          // Follow mode - follow the LOWEST player (for co-op support)
+          const lowestPlayerY = Math.max(...this.players.map(p => p.y));
+
+          // Keep player in upper half of screen as they climb
+          const targetCameraY = lowestPlayerY - this.canvas.height * 0.6;
+
+          // Camera only moves up, never down (like in classic platform climbers)
+          if (targetCameraY < this.cameraY) {
+            this.cameraY = targetCameraY;
+          }
+        }
+      }
+
+      // Spawn new platforms above as player climbs using virtual player simulation
+      spawnPlatformsAbove() {
+        // Generate platforms well ahead of camera for a relaxed experience
+        // Players will see platforms appearing naturally, not feel pressured
+        const targetGenerationY = this.cameraY - CONFIG.PLATFORM_GENERATION_BUFFER;
+
+        // Generate platforms until we have enough buffer above camera
+        while (this.highestPlatformY > targetGenerationY) {
+          // Find the highest platform for virtual player to start from
+          const highestPlatform = this.platforms.reduce((highest, platform) => {
+            return (!highest || platform.y < highest.y) ? platform : highest;
+          }, null);
+
+          if (!highestPlatform) break;
+
+          // Place virtual player on highest platform
+          this.virtualPlayer.placeOnPlatform(highestPlatform);
+
+          // Simulate jump to find next platform position (guaranteed reachable)
+          const jumpResult = this.virtualPlayer.simulateJump(this.platforms, targetGenerationY);
+
+          if (!jumpResult) break;
+
+          // T055: Create guaranteed reachable platform (randomly choose type if vanish enabled)
+          const guaranteedWidth = CONFIG.PLATFORM_MIN_WIDTH + Math.random() * (CONFIG.PLATFORM_MAX_WIDTH - CONFIG.PLATFORM_MIN_WIDTH);
+          const platformType = (this.vanishEnabled && Math.random() < 0.3) ? 'vanish' : 'normal';
+          const guaranteedPlatform = this.platformPool.spawn(
+            jumpResult.x - guaranteedWidth / 2,
+            jumpResult.y,
+            guaranteedWidth,
+            platformType
+          );
+          this.platforms.push(guaranteedPlatform);
+
+          // Generate additional random platforms based on difficulty
+          // Lower difficulty = more platforms (easier)
+          const extraPlatformCount = Math.floor((1 - this.difficulty) * 3 + 1); // 1-4 extra platforms
+
+          for (let i = 0; i < extraPlatformCount; i++) {
+            const randomX = CONFIG.EDGE_SAFE_MARGIN + Math.random() * (this.canvas.width - CONFIG.EDGE_SAFE_MARGIN * 2);
+            // Random Y between current highest and jump result
+            const randomY = jumpResult.y - Math.random() * 40;
+            const randomWidth = CONFIG.PLATFORM_MIN_WIDTH + Math.random() * (CONFIG.PLATFORM_MAX_WIDTH - CONFIG.PLATFORM_MIN_WIDTH);
+
+            // T055: Random type for extra platforms (30% chance of vanish if enabled)
+            const extraPlatformType = (this.vanishEnabled && Math.random() < 0.3) ? 'vanish' : 'normal';
+
+            // Don't overlap with guaranteed platform
+            if (Math.abs(randomX - guaranteedPlatform.x) > guaranteedWidth + 20) {
+              this.platforms.push(this.platformPool.spawn(randomX, randomY, randomWidth, extraPlatformType));
+            }
+          }
+
+          // Update highest platform Y
+          this.highestPlatformY = Math.min(this.highestPlatformY, jumpResult.y - 10);
+        }
+      }
+
+      // Remove platforms that are far below the camera
+      cullPlatforms() {
+        this.platforms = this.platforms.filter(platform => {
+          return platform.y < this.cameraY + this.canvas.height + 200;
+        });
+      }
+
+      // T025: Collision detection
+      checkCollisions() {
+        this.players.forEach(player => {
+          let groundedOnPlatform = false;
+          let currentPlatform = null;
+
+          this.platforms.forEach(platform => {
+            if (!platform.active) return;
+
+            const playerRect = {
+              x: player.x,
+              y: player.y,
+              w: player.width,
+              h: player.height
+            };
+            const platformRect = {
+              x: platform.x,
+              y: platform.y,
+              w: platform.width,
+              h: platform.height
+            };
+
+            if (isColliding(playerRect, platformRect)) {
+              const playerBottom = player.y + player.height;
+              const platformTop = platform.y;
+
+              // Check if player is on top of platform
+              // Player bottom should be at or near platform top
+              // and player should be moving downward or stationary (vy >= 0)
+              const verticalOverlap = playerBottom - platformTop;
+
+              // Use a larger tolerance for detecting platform contact
+              if (player.vy >= 0 && verticalOverlap > 0 && verticalOverlap <= 25) {
+                // Snap player to platform top
+                player.y = platformTop - player.height;
+                player.vy = 0;
+                groundedOnPlatform = true;
+                currentPlatform = platform;
+
+                // T053: Mark platform as touched (for vanishing platforms)
+                if (platform.type === 'vanish') {
+                  platform.isTouched = true;
+                }
+
+                // Landing sound removed per user request
+              }
+            }
+          });
+
+          player.isGrounded = groundedOnPlatform;
+          player.standingOnPlatform = currentPlatform;
+        });
+      }
+
+      // T033 & T034: Player-player collision resolution (踩头 and side collision)
+      checkPlayerCollisions() {
+        const player1 = this.players[0];
+        const player2 = this.players[1];
+
+        // First, check if current piggyback relationships are still valid
+        // A piggyback relationship is valid if: top player is roughly above bottom player
+        // and has enough horizontal overlap
+        const checkPiggybackValid = (topPlayer, bottomPlayer) => {
+          const horizontalOverlap = Math.min(topPlayer.x + topPlayer.width, bottomPlayer.x + bottomPlayer.width) -
+                                    Math.max(topPlayer.x, bottomPlayer.x);
+          const minOverlapRequired = topPlayer.width * 0.3;
+
+          // Check if top player is still roughly above bottom player (within reasonable Y distance)
+          const topPlayerBottom = topPlayer.y + topPlayer.height;
+          const bottomPlayerTop = bottomPlayer.y;
+          const yDistance = Math.abs(topPlayerBottom - bottomPlayerTop);
+
+          return horizontalOverlap >= minOverlapRequired && yDistance < 50;
+        };
+
+        // Clear piggyback relationships if they're no longer valid
+        if (player1.standingOnPlayer === player2 && !checkPiggybackValid(player1, player2)) {
+          player1.standingOnPlayer = null;
+        } else if (player1.standingOnPlayer === player2) {
+          // Piggyback relationship is still valid - player1 is on player2
+          player1.isOnPlayer = true;
+        }
+
+        if (player2.standingOnPlayer === player1 && !checkPiggybackValid(player2, player1)) {
+          player2.standingOnPlayer = null;
+        } else if (player2.standingOnPlayer === player1) {
+          // Piggyback relationship is still valid - player2 is on player1
+          player2.isOnPlayer = true;
+        }
+
+        if (!player1.checkPlayerCollision(player2)) {
+          return; // No collision
+        }
+
+        // Collision detected - determine type
+        const player1Bottom = player1.y + player1.height;
+        const player2Top = player2.y;
+        const player2Bottom = player2.y + player2.height;
+        const player1Top = player1.y;
+
+        // T033: 踩头机制 (Head-stomp mechanic) - relaxed horizontal alignment
+        // Check if there's enough horizontal overlap (at least 30% of player width)
+        const horizontalOverlap = Math.min(player1.x + player1.width, player2.x + player2.width) -
+                                  Math.max(player1.x, player2.x);
+        const minOverlapRequired = player1.width * 0.3; // At least 30% overlap
+
+        // Player1 on top of Player2
+        // More tolerant detection: allow landing from above with larger vertical tolerance
+        if (player1.vy >= 0 && player1Bottom >= player2Top && player1Bottom <= player2Top + 25 &&
+            horizontalOverlap >= minOverlapRequired) {
+          // Player1 is landing on Player2's head
+          player1.y = player2Top - player1.height;
+          player1.vy = 0;
+          player1.isOnPlayer = true; // Player1 is on another player (can jump in air)
+          player1.standingOnPlayer = player2; // Track piggyback relationship
+        }
+        // Player2 on top of Player1
+        else if (player2.vy >= 0 && player2Bottom >= player1Top && player2Bottom <= player1Top + 25 &&
+                 horizontalOverlap >= minOverlapRequired) {
+          // Player2 is landing on Player1's head
+          player2.y = player1Top - player2.height;
+          player2.vy = 0;
+          player2.isOnPlayer = true; // Player2 is on another player (can jump in air)
+          player2.standingOnPlayer = player1; // Track piggyback relationship
+        }
+        // T034: 侧面碰撞 (Side collision) - swap horizontal velocities
+        else {
+          // Side-to-side collision - swap horizontal velocities
+          const tempVx = player1.vx;
+          player1.vx = player2.vx;
+          player2.vx = tempVx;
+
+          // Push players apart slightly to prevent sticking
+          const overlapX = (player1.x + player1.width) - player2.x;
+          if (overlapX > 0 && player1.x < player2.x) {
+            player1.x -= overlapX / 2;
+            player2.x += overlapX / 2;
+          } else if (overlapX < 0 && player1.x > player2.x) {
+            player1.x += Math.abs(overlapX) / 2;
+            player2.x -= Math.abs(overlapX) / 2;
+          }
+        }
+      }
+
+      // T026: Update floor level
+      updateFloor() {
+        const lowestPlayerY = Math.max(...this.players.map(p => p.y));
+        const newFloor = Math.max(1, Math.ceil((600 - lowestPlayerY) / CONFIG.FLOOR_HEIGHT));
+        if (newFloor > this.currentFloor) {
+          this.currentFloor = newFloor;
+        }
+      }
+
+      // T028: Check game over
+      checkGameOver() {
+        this.players.forEach(player => {
+          // Player falls below the camera view (bottom of screen)
+          if (player.y > this.cameraY + this.canvas.height) {
+            this.gameOver = true;
+          }
+        });
+      }
+
+      // T015 & T027 & T029: Render method
+      render() {
+        // Draw background from offscreen canvas
+        this.ctx.drawImage(this.bgCanvas, 0, 0);
+
+        // Draw platforms with camera offset
+        this.platforms.forEach(platform => platform.draw(this.ctx, this.cameraY));
+
+        // Draw players with camera offset (using Player.draw() method which includes cooldown bar)
+        this.players.forEach(player => {
+          player.draw(this.ctx, this.cameraY);
+        });
+
+        // T027, T060, T061: Draw floor number with Forest Focus styling
+        // Add rounded rect background with shadow
+        const floorText = `第 ${this.currentFloor} 层`;
+        this.ctx.font = 'bold 32px Segoe UI, Tahoma';
+        const textWidth = this.ctx.measureText(floorText).width;
+
+        // Background rounded rect with shadow
+        this.ctx.shadowOffsetY = 2;
+        this.ctx.shadowBlur = 6;
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        const padding = 15;
+        const bgX = 20 - padding;
+        const bgY = 20;
+        const bgWidth = textWidth + padding * 2;
+        const bgHeight = 50;
+        const radius = 10;
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(bgX + radius, bgY);
+        this.ctx.arcTo(bgX + bgWidth, bgY, bgX + bgWidth, bgY + bgHeight, radius);
+        this.ctx.arcTo(bgX + bgWidth, bgY + bgHeight, bgX, bgY + bgHeight, radius);
+        this.ctx.arcTo(bgX, bgY + bgHeight, bgX, bgY, radius);
+        this.ctx.arcTo(bgX, bgY, bgX + bgWidth, bgY, radius);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Reset shadow
+        this.ctx.shadowOffsetY = 0;
+        this.ctx.shadowBlur = 0;
+
+        // Draw text
+        this.ctx.fillStyle = COLORS.DARK_GREEN;
+        this.ctx.textAlign = 'left';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(floorText, 20, bgY + bgHeight / 2);
+
+        // T029: Draw game over screen
+        if (this.gameOver) {
+          this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+          this.ctx.fillStyle = COLORS.WHITE;
+          this.ctx.font = 'bold 48px Segoe UI';
+          this.ctx.textAlign = 'center';
+          this.ctx.fillText('游戏结束', this.canvas.width / 2, this.canvas.height / 2 - 40);
+
+          this.ctx.font = 'bold 32px Segoe UI';
+          this.ctx.fillText(`最终层数: ${this.currentFloor}`, this.canvas.width / 2, this.canvas.height / 2 + 20);
+
+          this.ctx.font = '24px Segoe UI';
+          this.ctx.fillText('按 R 键重新开始', this.canvas.width / 2, this.canvas.height / 2 + 80);
+        }
+      }
+
+      // T030: Reset game
+      reset() {
+        this.platforms = [];
+        this.currentFloor = 1;
+        this.gameOver = false;
+        this.spawnTimer = 0;
+        this.init();
+      }
+    }
+
+    // T046-T047: Settings Panel Toggle
+    let settingsPanelOpen = false;
+
+    function toggleSettingsPanel() {
+      const panel = document.getElementById('settingsPanel');
+      const overlay = document.getElementById('overlay');
+
+      settingsPanelOpen = !settingsPanelOpen;
+
+      if (settingsPanelOpen) {
+        panel.style.display = 'block';
+        overlay.style.display = 'block';
+        if (gameState) {
+          gameState.isPaused = true;
+        }
+      } else {
+        panel.style.display = 'none';
+        overlay.style.display = 'none';
+        if (gameState) {
+          gameState.isPaused = false;
+        }
+      }
+    }
+
+    // T017-T018: Game Loop
+    let canvas, ctx, gameState, inputManager, settings;
+    let lastTime = 0;
+
+    function gameLoop(timestamp) {
+      const deltaTime = timestamp - lastTime;
+      lastTime = timestamp;
+
+      gameState.update(deltaTime, inputManager);
+      gameState.render();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function resizeCanvas() {
+      // Keep canvas resolution FIXED at 800x600 (logical coordinates)
+      // Only change CSS display size to fit 90vh container
+      const container = document.getElementById('gameContainer');
+      const containerHeight = container.clientHeight;
+      const aspectRatio = 800 / 600; // Fixed aspect ratio
+
+      // Calculate CSS display dimensions to fit within 90vh container
+      let displayHeight = containerHeight;
+      let displayWidth = displayHeight * aspectRatio;
+
+      // Set CSS display size (visual scaling)
+      canvas.style.width = displayWidth + 'px';
+      canvas.style.height = displayHeight + 'px';
+
+      console.log(`Canvas display size: ${displayWidth}x${displayHeight} (resolution stays 800x600)`);
+    }
+
+    // T048-T050: Bind settings panel DOM inputs
+    function bindSettingsUI() {
+      // Get DOM elements
+      const platformDensitySlider = document.getElementById('platformDensity');
+      const platformSpeedSlider = document.getElementById('platformSpeed');
+      const gameModeSelect = document.getElementById('gameMode');
+      const vanishEnabledCheckbox = document.getElementById('vanishEnabled');
+      const teleportCooldownSlider = document.getElementById('teleportCooldown');
+
+      const densityValue = document.getElementById('densityValue');
+      const speedValue = document.getElementById('speedValue');
+      const cooldownValue = document.getElementById('cooldownValue');
+
+      const applyButton = document.getElementById('applySettings');
+      const closeButton = document.getElementById('closeSettings');
+
+      // Update value displays
+      platformDensitySlider.addEventListener('input', (e) => {
+        densityValue.textContent = e.target.value;
+      });
+      platformSpeedSlider.addEventListener('input', (e) => {
+        speedValue.textContent = e.target.value;
+      });
+      teleportCooldownSlider.addEventListener('input', (e) => {
+        cooldownValue.textContent = e.target.value;
+      });
+
+      // T049: Apply button - save settings and restart game
+      applyButton.addEventListener('click', () => {
+        // Read values from UI
+        settings.platformDensity = parseInt(platformDensitySlider.value);
+        settings.platformSpeed = parseInt(platformSpeedSlider.value);
+        settings.gameMode = gameModeSelect.value;
+        settings.vanishEnabled = vanishEnabledCheckbox.checked;
+        settings.teleportCooldown = parseInt(teleportCooldownSlider.value);
+
+        // Save to localStorage
+        settings.save();
+
+        // Restart game with new settings
+        gameState.reset();
+        settings.apply(gameState);
+
+        // Close panel
+        toggleSettingsPanel();
+
+        console.log('Settings applied and game restarted');
+      });
+
+      // Close button - just close panel without applying
+      closeButton.addEventListener('click', () => {
+        toggleSettingsPanel();
+      });
+
+      // Load settings into UI
+      function updateUI() {
+        platformDensitySlider.value = settings.platformDensity;
+        platformSpeedSlider.value = settings.platformSpeed;
+        gameModeSelect.value = settings.gameMode;
+        vanishEnabledCheckbox.checked = settings.vanishEnabled;
+        teleportCooldownSlider.value = settings.teleportCooldown;
+
+        densityValue.textContent = settings.platformDensity;
+        speedValue.textContent = settings.platformSpeed;
+        cooldownValue.textContent = settings.teleportCooldown;
+      }
+
+      updateUI();
+    }
+
+    function init() {
+      // Run tests (TEST-FIRST validation)
+      console.log('Running unit tests...');
+      testAABBCollision();
+      testPlatformPool();
+      console.log('✓ All unit tests passed!\n');
+
+      canvas = document.getElementById('gameCanvas');
+      ctx = canvas.getContext('2d');
+
+      // Set FIXED canvas resolution (logical coordinates never change)
+      canvas.width = 800;
+      canvas.height = 600;
+
+      // Resize canvas DISPLAY to fit 90vh (only CSS size changes)
+      resizeCanvas();
+
+      // Listen for window resize events (only CSS size changes, no game reset needed)
+      window.addEventListener('resize', () => {
+        resizeCanvas();
+        // NO game reset needed - logical coordinates stay the same!
+      });
+
+      // T050: Load settings from localStorage
+      settings = new Settings();
+      settings.load();
+
+      inputManager = new InputManager();
+      gameState = new GameState(canvas, ctx);
+
+      // Apply settings before init
+      settings.apply(gameState);
+      gameState.init();
+
+      // T048: Bind settings UI
+      bindSettingsUI();
+
+      // T030: Bind restart key
+      window.addEventListener('keydown', (e) => {
+        if (e.key.toLowerCase() === 'r' && gameState.gameOver) {
+          gameState.reset();
+        }
+      });
+
+      console.log('游戏已启动! 按 W 键跳跃, A/D 键移动, ESC 打开设置');
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Start game when page loads
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>阿波罗尼斯圆的探索</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            color: #333;
+        }
+        .container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0;
+        }
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(to right, #f8f9fa, #ffffff);
+            border-bottom: 1px solid #eee;
+        }
+        h1 {
+            font-size: 2.5em;
+            color: #2196F3;
+            margin: 0;
+            padding: 20px 0;
+        }
+        .visualization-section {
+            background-color: #ffffff;
+            padding: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            width: 100%;
+        }
+        .interactive-area {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        canvas#apollonianCanvas {
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            background-color: #ffffff;
+            max-width: 95vw;
+            max-height: 65vh;
+            width: auto;
+            height: auto;
+        }
+        .controls {
+            width: 90%;
+            max-width: 95vw;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid #e0e0e0;
+            margin-bottom: 40px;
+        }
+        .content-section {
+            max-width: 95vw;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        @media (max-width: 768px) {
+            .content-section {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            canvas#apollonianCanvas {
+                max-height: 50vh;
+            }
+        }
+        .theory, .proof {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid #e0e0e0;
+        }
+        .theory h2, .proof h2 {
+            color: #2196F3;
+            margin-top: 0;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        .slider-container {
+            margin: 20px 0;
+        }
+        .slider-container label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+            color: #2196F3;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            outline: none;
+        }
+        .info {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            font-size: 1.1em;
+            border: 1px solid #e0e0e0;
+        }
+        .math {
+            font-family: "Times New Roman", serif;
+            font-style: italic;
+            color: #1976D2;
+        }
+        .highlight {
+            color: #2196F3;
+            font-weight: 500;
+        }
+        ul, ol {
+            padding-left: 20px;
+            line-height: 1.6;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        .proof-canvas {
+            margin: 20px 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>阿波罗尼斯圆的探索</h1>
+        </div>
+
+        <div class="visualization-section">
+            <div class="interactive-area">
+                <canvas id="apollonianCanvas" width="1600" height="900"></canvas>
+                <div class="controls">
+                    <div class="slider-container">
+                        <label for="ratioSlider">距离比k: <span id="ratioValue">1.0</span></label>
+                        <input type="range" id="ratioSlider" min="0" max="1" step="0.001" value="0.5">
+                    </div>
+                    <div class="info">
+                        <p>交互说明：</p>
+                        <ul>
+                            <li>拖动蓝色点A和红色点B来改变它们的位置</li>
+                            <li>使用滑动条调整距离比k的值（范围：0.1 - 10.0）</li>
+                            <li>观察阿波罗尼斯圆如何随k值变化</li>
+                        </ul>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <div class="theory">
+                <h2>什么是阿波罗尼斯圆？</h2>
+                <p>阿波罗尼斯圆是平面上一组特殊的圆。给定两个固定点A和B，阿波罗尼斯圆是平面上所有点P的轨迹，使得：</p>
+                <p class="highlight">|PA| : |PB| = k （k为常数）</p>
+                <p>其中：</p>
+                <ul>
+                    <li>当k > 1时，圆更接近点A</li>
+                    <li>当k < 1时，圆更接近点B</li>
+                    <li>当k = 1时，轨迹是AB的垂直平分线</li>
+                </ul>
+            </div>
+
+            <div class="proof">
+                <h2>为什么是圆？ - 几何证明</h2>
+                <p>让我们通过几何和代数的方式来理解为什么这个轨迹是圆：</p>
+                
+                <ol>
+                    <li>
+                        <strong>距离比的代数表达</strong>
+                        <p>设平面上任意点P(x,y)到点A和点B的距离比为k，即：</p>
+                        <p class="math">|PA| : |PB| = k</p>
+                        <p>这等价于：</p>
+                        <p class="math">|PA| = k|PB|</p>
+                    </li>
+                    
+                    <li>
+                        <strong>平方关系</strong>
+                        <p>两边平方可得：</p>
+                        <p class="math">(x-x₁)² + (y-y₁)² = k²[(x-x₂)² + (y-y₂)²]</p>
+                        <p>其中(x₁,y₁)是点A的坐标，(x₂,y₂)是点B的坐标</p>
+                    </li>
+                    
+                    <li>
+                        <strong>化简结果</strong>
+                        <p>展开并整理上述方程，我们得到：</p>
+                        <p class="math">(x-h)² + (y-k)² = r²</p>
+                        <p>这正是圆的标准方程！其中：</p>
+                        <ul>
+                            <li>圆心坐标(h,k)由k和两点坐标决定</li>
+                            <li>半径r也由k和两点间距离决定</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <canvas id="proofCanvas" class="proof-canvas" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('apollonianCanvas');
+        const ctx = canvas.getContext('2d');
+        const ratioSlider = document.getElementById('ratioSlider');
+        const ratioValue = document.getElementById('ratioValue');
+
+        let ratio = 1.0;
+        let draggingPoint = null;
+        let pointA, pointB;
+        let backgroundCanvas, backgroundCtx;
+        let animationId = null;
+
+        // 检测并设置画布尺寸
+        function updateCanvasSize() {
+            const maxWidth = Math.min(window.innerWidth * 0.95, 1600);
+            const maxHeight = Math.min(window.innerHeight * 0.7, 900);
+            
+            // 保持16:9的宽高比
+            let canvasWidth = maxWidth;
+            let canvasHeight = canvasWidth * 9 / 16;
+            
+            if (canvasHeight > maxHeight) {
+                canvasHeight = maxHeight;
+                canvasWidth = canvasHeight * 16 / 9;
+            }
+            
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            canvas.style.width = canvasWidth + 'px';
+            canvas.style.height = canvasHeight + 'px';
+            
+            // 根据画布大小调整点的位置
+            pointA = { x: canvasWidth * 0.375, y: canvasHeight * 0.5 };  // 3/8位置
+            pointB = { x: canvasWidth * 0.625, y: canvasHeight * 0.5 };  // 5/8位置
+            
+            drawApollonianCircle();
+        }
+        
+        // 监听窗口大小变化
+        window.addEventListener('resize', updateCanvasSize);
+        
+        // 初始化画布尺寸
+        updateCanvasSize();
+
+        function drawPoint(point, color, label) {
+            const pointRadius = Math.max(4, canvas.width / 250); // 适应画布大小的点半径
+            const fontSize = Math.max(12, canvas.width / 100); // 适应画布大小的字体
+            
+            ctx.beginPath();
+            ctx.arc(point.x, point.y, pointRadius, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            ctx.fillStyle = 'black';
+            ctx.font = fontSize + 'px Arial';
+            ctx.fillText(label, point.x + pointRadius + 5, point.y - pointRadius);
+        }
+
+        function distance(p1, p2) {
+            return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+        }
+
+        // 优化的高性能绘制函数
+        function drawApollonianCircle() {
+            // 清除画布并复制静态背景
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (backgroundCanvas) {
+                ctx.drawImage(backgroundCanvas, 0, 0);
+            }
+
+            // Draw line AB
+            ctx.beginPath();
+            ctx.moveTo(pointA.x, pointA.y);
+            ctx.lineTo(pointB.x, pointB.y);
+            ctx.strokeStyle = '#aaa';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Calculate and draw Apollonian circle - 使用相同的高效算法
+            if (ratio !== 1) {
+                const d = distance(pointA, pointB);
+                const r = (ratio * d) / (ratio * ratio - 1);
+                const h = (ratio * ratio * pointB.x - pointA.x) / (ratio * ratio - 1);
+                const k = (ratio * ratio * pointB.y - pointA.y) / (ratio * ratio - 1);
+                
+                ctx.beginPath();
+                ctx.arc(h, k, Math.abs(r), 0, Math.PI * 2);
+                ctx.strokeStyle = '#2196F3';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else {
+                // Draw perpendicular bisector when k = 1
+                const midX = (pointA.x + pointB.x) / 2;
+                const midY = (pointA.y + pointB.y) / 2;
+                const angle = Math.atan2(pointB.y - pointA.y, pointB.x - pointA.x) + Math.PI/2;
+                
+                ctx.beginPath();
+                ctx.moveTo(midX + Math.cos(angle) * 1000, midY + Math.sin(angle) * 1000);
+                ctx.lineTo(midX - Math.cos(angle) * 1000, midY - Math.sin(angle) * 1000);
+                ctx.strokeStyle = '#2196F3';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Draw points
+            drawPoint(pointA, '#2196F3', 'A');
+            drawPoint(pointB, '#f44336', 'B');
+        }
+
+        // 节流函数，减少高频事件的触发
+        function throttle(func, limit) {
+            let inThrottle;
+            return function() {
+                const args = arguments;
+                const context = this;
+                if (!inThrottle) {
+                    func.apply(context, args);
+                    inThrottle = true;
+                    setTimeout(() => inThrottle = false, limit);
+                }
+            }
+        }
+
+        // 使用requestAnimationFrame优化的绘制函数
+        function scheduleRedraw() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            animationId = requestAnimationFrame(drawApollonianCircle);
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            
+            const clickRadius = Math.max(10, canvas.width / 160); // 适应画布大小的点击范围
+            if (distance({x, y}, pointA) < clickRadius) draggingPoint = 'A';
+            if (distance({x, y}, pointB) < clickRadius) draggingPoint = 'B';
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!draggingPoint) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+            
+            // 限制点在画布范围内
+            const constrainedX = Math.max(20, Math.min(canvas.width - 20, x));
+            const constrainedY = Math.max(20, Math.min(canvas.height - 20, y));
+            
+            if (draggingPoint === 'A') pointA = {x: constrainedX, y: constrainedY};
+            if (draggingPoint === 'B') pointB = {x: constrainedX, y: constrainedY};
+            
+            scheduleRedraw(); // 使用优化的重绘调度
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            draggingPoint = null;
+        });
+
+        // 指数映射：滑动条0~1，k=0.1~10，1在中间
+        function sliderToK(sliderValue) {
+            // sliderValue ∈ [0,1]
+            return 0.1 * Math.pow(100, sliderValue); // 0.1 * (10/0.1)^sliderValue
+        }
+        function kToSlider(k) {
+            // k ∈ [0.1, 10]
+            return Math.log10(k/0.1) / 2; // 100^(progress)=k/0.1 => progress=log10(k/0.1)/2
+        }
+        ratioSlider.addEventListener('input', (e) => {
+            const progress = parseFloat(e.target.value);
+            ratio = sliderToK(progress);
+            ratioValue.textContent = ratio.toFixed(3).replace(/0+$/,"").replace(/\.$/,"");
+            drawApollonianCircle();
+        });
+        // 初始化时同步k值
+        ratio = sliderToK(parseFloat(ratioSlider.value));
+        ratioValue.textContent = ratio.toFixed(3).replace(/0+$/,"").replace(/\.$/,"");
+
+        // 注释掉，因为已经在updateCanvasSize()中调用了
+        // drawApollonianCircle();
+
+        // Add proof visualization
+        const proofCanvas = document.getElementById('proofCanvas');
+        const proofCtx = proofCanvas.getContext('2d');
+
+        function drawProof() {
+            proofCtx.clearRect(0, 0, proofCanvas.width, proofCanvas.height);
+            
+            // Draw coordinate system
+            proofCtx.strokeStyle = '#ddd';
+            proofCtx.beginPath();
+            proofCtx.moveTo(0, proofCanvas.height/2);
+            proofCtx.lineTo(proofCanvas.width, proofCanvas.height/2);
+            proofCtx.moveTo(proofCanvas.width/2, 0);
+            proofCtx.lineTo(proofCanvas.width/2, proofCanvas.height);
+            proofCtx.stroke();
+
+            // Draw points A and B
+            const centerX = proofCanvas.width/2;
+            const centerY = proofCanvas.height/2;
+            
+            proofCtx.fillStyle = '#2196F3';
+            proofCtx.beginPath();
+            proofCtx.arc(centerX - 50, centerY, 4, 0, Math.PI * 2);
+            proofCtx.fill();
+            proofCtx.fillText('A', centerX - 60, centerY - 10);
+
+            proofCtx.fillStyle = '#f44336';
+            proofCtx.beginPath();
+            proofCtx.arc(centerX + 50, centerY, 4, 0, Math.PI * 2);
+            proofCtx.fill();
+            proofCtx.fillText('B', centerX + 60, centerY - 10);
+
+            // Draw Apollonian circle
+            proofCtx.strokeStyle = '#2196F3';
+            proofCtx.beginPath();
+            proofCtx.arc(centerX - 20, centerY, 40, 0, Math.PI * 2);
+            proofCtx.stroke();
+
+            // Draw a point P on the circle
+            proofCtx.fillStyle = '#4CAF50';
+            proofCtx.beginPath();
+            proofCtx.arc(centerX - 20 + 40*Math.cos(Math.PI/4), 
+                        centerY + 40*Math.sin(Math.PI/4), 4, 0, Math.PI * 2);
+            proofCtx.fill();
+            proofCtx.fillText('P', centerX - 10 + 40*Math.cos(Math.PI/4), 
+                            centerY + 10 + 40*Math.sin(Math.PI/4));
+
+            // Draw lines PA and PB
+            proofCtx.strokeStyle = '#aaa';
+            proofCtx.beginPath();
+            proofCtx.moveTo(centerX - 20 + 40*Math.cos(Math.PI/4), centerY + 40*Math.sin(Math.PI/4));
+            proofCtx.lineTo(centerX - 50, centerY);
+            proofCtx.moveTo(centerX - 20 + 40*Math.cos(Math.PI/4), centerY + 40*Math.sin(Math.PI/4));
+            proofCtx.lineTo(centerX + 50, centerY);
+            proofCtx.stroke();
+        }
+
+        // Call drawProof after the page loads
+        window.addEventListener('load', drawProof);
+    </script>
+</body>
+</html>

@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抛物线参数可视化工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        accent: '#8B5CF6',
+                        neutral: '#1F2937',
+                        'neutral-light': '#F3F4F6',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .slider-thumb {
+                @apply appearance-none w-5 h-5 rounded-full bg-primary cursor-pointer hover:bg-primary/80 transition-all duration-200;
+            }
+            .slider-track {
+                @apply h-2 rounded-lg bg-gray-200 appearance-none w-full;
+            }
+            .card-shadow {
+                @apply shadow-lg hover:shadow-xl transition-shadow duration-300;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-neutral">
+    <header class="bg-white shadow-md py-6 px-4 md:px-8">
+        <div class="container mx-auto">
+            <h1 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold text-center text-neutral mb-2">抛物线参数可视化工具</h1>
+            <p class="text-center text-gray-600 max-w-2xl mx-auto">探索抛物线方程 y = ax² + bx + c 中参数 a、b、c 的变化如何影响抛物线形状、顶点位置和根的分布</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto py-8 px-4 md:px-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 参数控制面板 -->
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center"><i class="fa fa-sliders mr-2 text-primary"></i>参数控制</h2>
+                    <div class="space-y-6">
+                        <!-- 参数 a 控制 -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <label for="param-a" class="font-medium">系数 a: <span id="a-value" class="text-primary">1</span></label>
+                                <span class="text-sm text-gray-500">控制开口方向和宽窄</span>
+                            </div>
+                            <input type="range" id="param-a" min="-5" max="5" step="0.1" value="1" class="slider-track" oninput="updateA(this.value)">
+                            <div class="flex justify-between text-xs text-gray-500">
+                                <span>-5</span>
+                                <span>0</span>
+                                <span>5</span>
+                            </div>
+                        </div>
+
+                        <!-- 参数 b 控制 -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <label for="param-b" class="font-medium">系数 b: <span id="b-value" class="text-primary">0</span></label>
+                                <span class="text-sm text-gray-500">控制左右位置</span>
+                            </div>
+                            <input type="range" id="param-b" min="-10" max="10" step="0.5" value="0" class="slider-track" oninput="updateB(this.value)">
+                            <div class="flex justify-between text-xs text-gray-500">
+                                <span>-10</span>
+                                <span>0</span>
+                                <span>10</span>
+                            </div>
+                        </div>
+
+                        <!-- 参数 c 控制 -->
+                        <div class="space-y-2">
+                            <div class="flex justify-between items-center">
+                                <label for="param-c" class="font-medium">系数 c: <span id="c-value" class="text-primary">0</span></label>
+                                <span class="text-sm text-gray-500">控制上下位置</span>
+                            </div>
+                            <input type="range" id="param-c" min="-10" max="10" step="0.5" value="0" class="slider-track" oninput="updateC(this.value)">
+                            <div class="flex justify-between text-xs text-gray-500">
+                                <span>-10</span>
+                                <span>0</span>
+                                <span>10</span>
+                            </div>
+                        </div>
+
+                        <!-- 重置按钮 -->
+                        <button id="reset-btn" class="w-full bg-primary hover:bg-primary/90 text-white py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center mt-4">
+                            <i class="fa fa-refresh mr-2"></i>重置参数
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 抛物线信息卡片 -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center"><i class="fa fa-info-circle mr-2 text-accent"></i>抛物线信息</h2>
+                    <div class="space-y-4">
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <h3 class="font-medium text-gray-700 mb-1">方程形式</h3>
+                            <p id="equation" class="text-lg font-mono text-primary">y = x²</p>
+                        </div>
+
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <h3 class="font-medium text-gray-700 mb-1">顶点坐标</h3>
+                            <p id="vertex" class="text-lg font-mono">(-0.00, -0.00)</p>
+                        </div>
+
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <h3 class="font-medium text-gray-700 mb-1">判别式</h3>
+                            <p id="discriminant" class="text-lg font-mono">Δ = 0.00</p>
+                        </div>
+
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <h3 class="font-medium text-gray-700 mb-1">根的情况</h3>
+                            <div id="roots-container">
+                                <p id="roots" class="text-lg font-mono">x = 0.00</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 绘图区域 -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white rounded-xl p-6 card-shadow min-h-[calc(100vh-300px)]">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-semibold flex items-center"><i class="fa fa-area-chart mr-2 text-secondary"></i>抛物线图形</h2>
+                        <div class="flex space-x-2">
+                            <button id="zoom-in" class="p-2 rounded-lg hover:bg-gray-100 transition-colors"><i class="fa fa-search-plus"></i></button>
+                            <button id="zoom-out" class="p-2 rounded-lg hover:bg-gray-100 transition-colors"><i class="fa fa-search-minus"></i></button>
+                            <button id="center-view" class="p-2 rounded-lg hover:bg-gray-100 transition-colors"><i class="fa fa-compress"></i></button>
+                        </div>
+                    </div>
+                    <div class="relative aspect-[4/3] bg-neutral-light rounded-lg overflow-hidden">
+                        <canvas id="parabola-canvas" class="w-full h-full"></canvas>
+                        <!-- 加载指示器 -->
+                        <div id="loading-indicator" class="absolute inset-0 bg-white/80 flex items-center justify-center hidden">
+                            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-500 text-center">
+                        <p>拖动可平移视图 | 滚轮可缩放 | 点击可显示坐标</p>
+                    </div>
+                </div>
+
+                <!-- 说明区域 -->
+                <div class="bg-white rounded-xl p-6 card-shadow">
+                    <h2 class="text-xl font-semibold mb-4 flex items-center"><i class="fa fa-book mr-2 text-gray-600"></i>抛物线知识</h2>
+                    <div class="space-y-4 text-gray-700">
+                        <div class="p-4 bg-blue-50 rounded-lg border-l-4 border-primary">
+                            <h3 class="font-medium text-primary mb-1">参数 a 的影响</h3>
+                            <p>系数 a 控制抛物线的开口方向和宽窄程度：</p>
+                            <ul class="list-disc list-inside mt-1 ml-2 space-y-1">
+                                <li>当 a > 0 时，抛物线开口向上</li>
+                                <li>当 a < 0 时，抛物线开口向下</li>
+                                <li>|a| 值越大，抛物线开口越窄；|a| 值越小，抛物线开口越宽</li>
+                            </ul>
+                        </div>
+
+                        <div class="p-4 bg-green-50 rounded-lg border-l-4 border-secondary">
+                            <h3 class="font-medium text-secondary mb-1">顶点计算</h3>
+                            <p>抛物线 y = ax² + bx + c 的顶点坐标为：</p>
+                            <p class="font-mono my-2">x = -b/(2a), y = c - b²/(4a)</p>
+                            <p>顶点是抛物线的最高点或最低点，也是抛物线的对称轴与抛物线的交点。</p>
+                        </div>
+
+                        <div class="p-4 bg-purple-50 rounded-lg border-l-4 border-accent">
+                            <h3 class="font-medium text-accent mb-1">根的性质</h3>
+                            <p>判别式 Δ = b² - 4ac 决定了抛物线与 x 轴交点（根）的数量：</p>
+                            <ul class="list-disc list-inside mt-1 ml-2 space-y-1">
+                                <li>当 Δ > 0 时，抛物线与 x 轴有两个不同的交点（两个不相等的实根）</li>
+                                <li>当 Δ = 0 时，抛物线与 x 轴有一个交点（两个相等的实根）</li>
+                                <li>当 Δ < 0 时，抛物线与 x 轴没有交点（没有实根，有两个共轭复根）</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // 获取DOM元素
+        const canvas = document.getElementById('parabola-canvas');
+        const ctx = canvas.getContext('2d');
+        const equationElement = document.getElementById('equation');
+        const vertexElement = document.getElementById('vertex');
+        const discriminantElement = document.getElementById('discriminant');
+        const rootsElement = document.getElementById('roots');
+        const aValueElement = document.getElementById('a-value');
+        const bValueElement = document.getElementById('b-value');
+        const cValueElement = document.getElementById('c-value');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const resetBtn = document.getElementById('reset-btn');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        const centerViewBtn = document.getElementById('center-view');
+
+        // 抛物线参数
+        let a = 1;        // 系数 a
+        let b = 0;        // 系数 b
+        let c = 0;        // 系数 c
+
+        // 画布和视图控制变量
+        let scale = 40;   // 缩放比例 (像素/单位)
+        let offsetX = 0;  // X轴偏移
+        let offsetY = 0;  // Y轴偏移
+        let isDragging = false; // 拖动标志
+        let dragStartX = 0;     // 拖动起始X
+        let dragStartY = 0;     // 拖动起始Y
+
+        // 初始化画布大小
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            // 设置初始偏移使图形居中
+            offsetX = canvas.width / 2;
+            offsetY = canvas.height / 2;
+            draw();
+        }
+
+        // 单位转换: 世界坐标转画布坐标
+        function worldToCanvas(x, y) {
+            return {
+                x: x * scale + offsetX,
+                y: -y * scale + offsetY  // Y轴反转，因为画布Y轴向下
+            };
+        }
+
+        // 单位转换: 画布坐标转世界坐标
+        function canvasToWorld(canvasX, canvasY) {
+            return {
+                x: (canvasX - offsetX) / scale,
+                y: -(canvasY - offsetY) / scale
+            };
+        }
+
+        // 绘制网格
+        function drawGrid() {
+            ctx.save();
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+
+            // 绘制水平线
+            const worldY = canvasToWorld(0, offsetY).y;
+            for (let y = -10; y <= 10; y++) {
+                const pos = worldToCanvas(0, y);
+                ctx.beginPath();
+                ctx.moveTo(0, pos.y);
+                ctx.lineTo(canvas.width, pos.y);
+                ctx.stroke();
+
+                // 绘制Y轴刻度
+                ctx.fillStyle = '#888';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText(y, offsetX - 5, pos.y + 4);
+            }
+
+            // 绘制垂直线
+            for (let x = -10; x <= 10; x++) {
+                const pos = worldToCanvas(x, 0);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, 0);
+                ctx.lineTo(pos.x, canvas.height);
+                ctx.stroke();
+
+                // 绘制X轴刻度
+                ctx.fillStyle = '#888';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(x, pos.x, offsetY + 15);
+            }
+            ctx.restore();
+        }
+
+        // 绘制坐标轴
+        function drawAxes() {
+            ctx.save();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+
+            // X轴
+            ctx.beginPath();
+            ctx.moveTo(0, offsetY);
+            ctx.lineTo(canvas.width, offsetY);
+            ctx.stroke();
+
+            // X轴箭头
+            ctx.beginPath();
+            ctx.moveTo(canvas.width - 10, offsetY - 5);
+            ctx.lineTo(canvas.width, offsetY);
+            ctx.lineTo(canvas.width - 10, offsetY + 5);
+            ctx.fillStyle = '#333';
+            ctx.fill();
+            ctx.fillText('x', canvas.width - 15, offsetY - 10);
+
+            // Y轴
+            ctx.beginPath();
+            ctx.moveTo(offsetX, 0);
+            ctx.lineTo(offsetX, canvas.height);
+            ctx.stroke();
+
+            // Y轴箭头
+            ctx.beginPath();
+            ctx.moveTo(offsetX - 5, 10);
+            ctx.lineTo(offsetX, 0);
+            ctx.lineTo(offsetX + 5, 10);
+            ctx.fill();
+            ctx.fillText('y', offsetX + 10, 15);
+
+            ctx.restore();
+        }
+
+        // 绘制抛物线或直线
+        function drawParabola() {
+            ctx.save();
+            ctx.strokeStyle = '#3B82F6';  // 蓝色抛物线/直线
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            if (a !== 0) {
+                // 抛物线情况
+                // 计算抛物线的绘制范围
+                const vertexX = -b / (2 * a);
+                const viewRange = Math.max(10, Math.abs(vertexX) + 5); // 视图范围
+
+                // 绘制抛物线
+                for (let x = -viewRange; x <= viewRange; x += 0.05) {
+                    const y = a * x * x + b * x + c;
+                    const pos = worldToCanvas(x, y);
+                    if (x === -viewRange) {
+                        ctx.moveTo(pos.x, pos.y);
+                    } else {
+                        ctx.lineTo(pos.x, pos.y);
+                    }
+                }
+            } else if (b !== 0) {
+                // 直线情况 (a=0, b≠0)
+                const viewRange = 10; // 固定视图范围
+                const x1 = -viewRange;
+                const y1 = b * x1 + c;
+                const x2 = viewRange;
+                const y2 = b * x2 + c;
+
+                const pos1 = worldToCanvas(x1, y1);
+                const pos2 = worldToCanvas(x2, y2);
+
+                ctx.moveTo(pos1.x, pos1.y);
+                ctx.lineTo(pos2.x, pos2.y);
+            } else if (c !== 0) {
+                // 水平线情况 (a=0, b=0, c≠0)
+                const y = c;
+                const pos1 = worldToCanvas(-10, y);
+                const pos2 = worldToCanvas(10, y);
+
+                ctx.moveTo(pos1.x, pos1.y);
+                ctx.lineTo(pos2.x, pos2.y);
+            }
+
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // 绘制顶点
+        function drawVertex() {
+            const vertexX = -b / (2 * a);
+            const vertexY = a * vertexX * vertexX + b * vertexX + c;
+            const pos = worldToCanvas(vertexX, vertexY);
+
+            ctx.save();
+            // 绘制顶点
+            ctx.fillStyle = '#EF4444';  // 红色顶点
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 绘制顶点标签
+            ctx.fillStyle = '#EF4444';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`顶点 (${vertexX.toFixed(2)}, ${vertexY.toFixed(2)})`, pos.x, pos.y - 15);
+            ctx.restore();
+        }
+
+        // 绘制根 (与X轴交点)
+        function drawRoots() {
+            const discriminant = b * b - 4 * a * c;
+
+            ctx.save();
+            ctx.fillStyle = '#10B981';  // 绿色根点
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+
+            if (discriminant > 0) {
+                // 两个不同实根
+                const sqrtD = Math.sqrt(discriminant);
+                const x1 = (-b + sqrtD) / (2 * a);
+                const x2 = (-b - sqrtD) / (2 * a);
+
+                // 绘制第一个根
+                const pos1 = worldToCanvas(x1, 0);
+                ctx.beginPath();
+                ctx.arc(pos1.x, pos1.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillText(`x₁=${x1.toFixed(2)}`, pos1.x, pos1.y - 12);
+
+                // 绘制第二个根
+                const pos2 = worldToCanvas(x2, 0);
+                ctx.beginPath();
+                ctx.arc(pos2.x, pos2.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillText(`x₂=${x2.toFixed(2)}`, pos2.x, pos2.y - 12);
+
+            } else if (discriminant === 0) {
+                // 一个实根 (重根)
+                const x = -b / (2 * a);
+                const pos = worldToCanvas(x, 0);
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillText(`x=${x.toFixed(2)} (重根)`, pos.x, pos.y - 12);
+            }
+            // 当 discriminant < 0 时，没有实根，不绘制
+
+            ctx.restore();
+        }
+
+        // 绘制对称轴
+        function drawAxisOfSymmetry() {
+            if (a !== 0) {
+                // 只有抛物线有对称轴
+                const vertexX = -b / (2 * a);
+                const pos = worldToCanvas(vertexX, 0);
+
+                ctx.save();
+                ctx.strokeStyle = '#8B5CF6';  // 紫色对称轴
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);  // 虚线
+
+                ctx.beginPath();
+                ctx.moveTo(pos.x, 0);
+                ctx.lineTo(pos.x, canvas.height);
+                ctx.stroke();
+
+                // 绘制对称轴标签
+                ctx.fillStyle = '#8B5CF6';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`对称轴 x=${vertexX.toFixed(2)}`, pos.x + 5, 20);
+
+                ctx.restore();
+            }
+        }
+
+        // 显示坐标点信息
+        function showCoordinates(canvasX, canvasY) {
+            const worldPos = canvasToWorld(canvasX, canvasY);
+            const x = worldPos.x.toFixed(2);
+            const y = worldPos.y.toFixed(2);
+            const parabolaY = (a * worldPos.x * worldPos.x + b * worldPos.x + c).toFixed(2);
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(canvasX + 10, canvasY - 30, 120, 30);
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`(${x}, ${y})`, canvasX + 15, canvasY - 15);
+            ctx.restore();
+        }
+
+        // 更新抛物线信息显示
+        function updateInfo() {
+            // 更新方程显示
+            let equation = 'y = ';
+            if (a !== 0) equation += `${a === 1 ? '' : a === -1 ? '-' : a.toFixed(1)}x²`;
+            if (b !== 0) {
+                if (equation !== 'y = ') equation += b > 0 ? ' + ' : ' - ';
+                equation += `${Math.abs(b) === 1 && a === 0 ? '' : Math.abs(b).toFixed(1)}x`;
+            }
+            if (c !== 0 || (a === 0 && b === 0)) {
+                if (equation !== 'y = ') equation += c > 0 ? ' + ' : ' - ';
+                equation += Math.abs(c).toFixed(1);
+            }
+            if (equation === 'y = ') equation = 'y = 0';
+            equationElement.textContent = equation;
+
+            // 计算并更新顶点
+            const vertexX = a !== 0 ? -b / (2 * a) : 0;
+            const vertexY = a !== 0 ? a * vertexX * vertexX + b * vertexX + c : b !== 0 ? c : 0;
+            vertexElement.textContent = `(${vertexX.toFixed(2)}, ${vertexY.toFixed(2)})`;
+
+            // 计算并更新判别式
+            const discriminant = a !== 0 ? b * b - 4 * a * c : 0;
+            discriminantElement.textContent = `Δ = ${discriminant.toFixed(2)}`;
+
+            // 计算并更新根信息
+            if (a === 0) {
+                if (b === 0) {
+                    if (c === 0) {
+                        rootsElement.textContent = '无数解';
+                    } else {
+                        rootsElement.textContent = '无解';
+                    }
+                } else {
+                    // 一次方程
+                    const x = -c / b;
+                    rootsElement.textContent = `x = ${x.toFixed(2)}`;
+                }
+            } else {
+                if (discriminant > 0) {
+                    const sqrtD = Math.sqrt(discriminant);
+                    const x1 = (-b + sqrtD) / (2 * a);
+                    const x2 = (-b - sqrtD) / (2 * a);
+                    rootsElement.textContent = `x₁ = ${x1.toFixed(2)}, x₂ = ${x2.toFixed(2)}`;
+                } else if (discriminant === 0) {
+                    const x = -b / (2 * a);
+                    rootsElement.textContent = `x = ${x.toFixed(2)} (重根)`;
+                } else {
+                    rootsElement.textContent = '无实根 (有两个共轭复根)';
+                }
+            }
+        }
+
+        // 绘制所有元素
+        function draw() {
+            // 显示加载指示器
+            loadingIndicator.classList.remove('hidden');
+
+            // 使用requestAnimationFrame确保平滑绘制
+            requestAnimationFrame(() => {
+                // 清空画布
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // 绘制网格
+                drawGrid();
+
+                // 绘制坐标轴
+                drawAxes();
+
+                // 绘制抛物线或直线
+                if (a !== 0 || b !== 0 || c !== 0) {
+                    drawParabola();
+                    if (a !== 0) {
+                        // 只有抛物线有顶点和对称轴
+                        drawVertex();
+                        drawAxisOfSymmetry();
+                    }
+                    drawRoots();
+                }
+
+                // 更新信息显示
+                updateInfo();
+
+                // 隐藏加载指示器
+                loadingIndicator.classList.add('hidden');
+            });
+        }
+
+        // 更新参数 a
+        function updateA(value) {
+            a = parseFloat(value);
+            aValueElement.textContent = a.toFixed(1);
+            draw();
+        }
+
+        // 更新参数 b
+        function updateB(value) {
+            b = parseFloat(value);
+            bValueElement.textContent = b.toFixed(1);
+            draw();
+        }
+
+        // 更新参数 c
+        function updateC(value) {
+            c = parseFloat(value);
+            cValueElement.textContent = c.toFixed(1);
+            draw();
+        }
+
+        // 重置参数
+        function resetParameters() {
+            a = 1;
+            b = 0;
+            c = 0;
+            document.getElementById('param-a').value = a;
+            document.getElementById('param-b').value = b;
+            document.getElementById('param-c').value = c;
+            aValueElement.textContent = a.toFixed(1);
+            bValueElement.textContent = b.toFixed(1);
+            cValueElement.textContent = c.toFixed(1);
+            scale = 40;
+            resizeCanvas(); // 重置视图居中
+        }
+
+        // 事件监听
+        window.addEventListener('resize', resizeCanvas);
+
+        // 鼠标滚轮缩放 - 改进版
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9; // 滚轮向上放大，向下缩小
+            const mouseWorldPos = canvasToWorld(e.offsetX, e.offsetY);
+
+            // 限制缩放范围
+            scale = Math.max(10, Math.min(200, scale * zoomFactor));
+
+            // 保持鼠标指向的点位置不变
+            offsetX = e.offsetX - mouseWorldPos.x * scale;
+            offsetY = e.offsetY + mouseWorldPos.y * scale;
+
+            draw();
+        });
+
+        // 鼠标拖动平移 - 改进版
+        // ... existing code ...
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const dx = e.clientX - lastX;
+                const dy = e.clientY - lastY;
+                
+                offsetX += dx;
+                offsetY += dy;
+                
+                lastX = e.clientX;
+                lastY = e.clientY;
+                
+                draw();
+                e.preventDefault();
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            canvas.style.cursor = 'default';
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+            canvas.style.cursor = 'default';
+        });
+
+        // 阻止默认的拖拽行为
+        canvas.addEventListener('dragstart', (e) => {
+            e.preventDefault();
+        });
+
+        resetBtn.addEventListener('click', resetParameters);
+        zoomInBtn.addEventListener('click', () => {
+            scale *= 1.2;
+            draw();
+        });
+        zoomOutBtn.addEventListener('click', () => {
+            scale /= 1.2;
+            draw();
+        });
+        centerViewBtn.addEventListener('click', resizeCanvas);
+
+        // 初始化
+        window.addEventListener('load', () => {
+            resizeCanvas();
+            draw();
+        });
+    </script>
+</body>
+</html>
