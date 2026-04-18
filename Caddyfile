@@ -1,0 +1,13 @@
+{
+    email admin@liangz77.cn
+}
+
+liangz77.cn {
+    root * /srv/sites/liangz77.cn/current
+    encode zstd gzip
+    file_server
+}
+
+www.liangz77.cn {
+    redir https://liangz77.cn{uri} permanent
+}
