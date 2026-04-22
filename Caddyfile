@@ -15,3 +15,7 @@ https://liangz77.cn {
 https://www.liangz77.cn {
     redir https://liangz77.cn{uri} permanent
 }
+
+media-content-remix.liangz77.cn {
+    reverse_proxy 127.0.0.1:8080
+}
