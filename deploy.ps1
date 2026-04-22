@@ -77,7 +77,8 @@ function Invoke-RemoteScript {
         [string]$Script
     )
 
-    $Script | ssh -p $RemotePort $Target "bash -s"
+    $normalizedScript = $Script -replace "`r`n", "`n"
+    $normalizedScript | ssh -p $RemotePort $Target "bash -s"
     if ($LASTEXITCODE -ne 0) {
         throw "Remote script execution failed."
     }

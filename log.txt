@@ -1,0 +1,35 @@
+在新服务器 43.163.98.43 的控制台里执行下面命令。
+建议用 root 用户执行。
+
+目标：把本机 SSH 公钥加入 root 用户，允许我通过 root@43.163.98.43 登录部署。
+
+执行命令：
+
+mkdir -p /root/.ssh
+chmod 700 /root/.ssh
+cat >> /root/.ssh/authorized_keys <<'EOF'
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDX/9qPcZMoDKUIk1m7vwylW50kOilPKMEKcvkpFN44FRq+yKVQ6tveUTgLofYs01RXvtwvIVJexE/V0ky77lxGdzGwqHNBPXnb/kfNp0J0Q8L1phvXYkcmJrWQ8zgN9jja20WCZyyTW7rJXUO7oni69+c6tsBiS4b60T/EhptX3zFUDxnzEXDvt9sAAG0o0B8nb1nry6irDx51cMtsZpvgxd9MHCPqNW1IcEpiW3b6dsvFSUGN7UjTHghYYxz3X7xqhki8hcznj2ZGFZuSaPdfelFPZ/hCcUk2jXRXDRTJSfOisAsObu2/m7LhL9xOEdbk27aIyBuiqK4g3DI8p+2gvotfWm0NzHUXMGHdYDF8Hqvj+lbG9LmkCWaxSG6wub/dNwbPs7JH/lp+0E3XBb1/TU4ydt/d7b7kGeDIom+6cCdyv0eC/Acrd7e9gwRjl2qNAkgt/oHpT6V0nfoVo3jrb2P/sQSosP5EDMHiF+SFZKtvPRAViXQoSeYu3JeE16rjznIeYdi6UwjTL/Pr+PjnaALx2q8RxMPE7xSg2RVVKkL6Uy38CuA8fBn3hso4IqXzxVwBgNOQj4Wa772QJKHO3cDdTFUwqv6vOJFgNq1CIWXBy+zp4Zhe7SXZZO/lRt+uJkk7Dy3qPhCGR8eI3aBAeASoYHUXiA7VWKJG+djLlQ== zhangliang@chu-jiao.com
+EOF
+chmod 600 /root/.ssh/authorized_keys
+chown -R root:root /root/.ssh
+
+执行完以后，本地应该可以这样登录：
+
+ssh root@43.163.98.43
+
+如果服务器禁止 root SSH 登录，请改为创建 deploy 用户并授权：
+
+adduser --disabled-password --gecos "" deploy
+mkdir -p /home/deploy/.ssh
+chmod 700 /home/deploy/.ssh
+cat >> /home/deploy/.ssh/authorized_keys <<'EOF'
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDX/9qPcZMoDKUIk1m7vwylW50kOilPKMEKcvkpFN44FRq+yKVQ6tveUTgLofYs01RXvtwvIVJexE/V0ky77lxGdzGwqHNBPXnb/kfNp0J0Q8L1phvXYkcmJrWQ8zgN9jja20WCZyyTW7rJXUO7oni69+c6tsBiS4b60T/EhptX3zFUDxnzEXDvt9sAAG0o0B8nb1nry6irDx51cMtsZpvgxd9MHCPqNW1IcEpiW3b6dsvFSUGN7UjTHghYYxz3X7xqhki8hcznj2ZGFZuSaPdfelFPZ/hCcUk2jXRXDRTJSfOisAsObu2/m7LhL9xOEdbk27aIyBuiqK4g3DI8p+2gvotfWm0NzHUXMGHdYDF8Hqvj+lbG9LmkCWaxSG6wub/dNwbPs7JH/lp+0E3XBb1/TU4ydt/d7b7kGeDIom+6cCdyv0eC/Acrd7e9gwRjl2qNAkgt/oHpT6V0nfoVo3jrb2P/sQSosP5EDMHiF+SFZKtvPRAViXQoSeYu3JeE16rjznIeYdi6UwjTL/Pr+PjnaALx2q8RxMPE7xSg2RVVKkL6Uy38CuA8fBn3hso4IqXzxVwBgNOQj4Wa772QJKHO3cDdTFUwqv6vOJFgNq1CIWXBy+zp4Zhe7SXZZO/lRt+uJkk7Dy3qPhCGR8eI3aBAeASoYHUXiA7VWKJG+djLlQ== zhangliang@chu-jiao.com
+EOF
+chmod 600 /home/deploy/.ssh/authorized_keys
+chown -R deploy:deploy /home/deploy/.ssh
+usermod -aG sudo deploy
+
+执行完以后，本地应该可以这样登录：
+
+ssh deploy@43.163.98.43
+
