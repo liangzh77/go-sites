@@ -33,6 +33,8 @@
 | `<APP_PORT>` | 本机监听端口 | `8080` |
 | `<ENV_PREFIX>` | 环境变量前缀 | `MCR` |
 | `<BUILD_TARGET>` | Go 构建入口 | `./cmd/web` |
+| `<SERVER_IP>` | 服务器公网 IP 或 SSH 主机名 | `123.123.123.123` |
+| `<SSH_PORT>` | SSH 端口 | `22` |
 
 线上目录结构：
 
@@ -58,6 +60,127 @@ Caddy 反代示例：
 <APP_DOMAIN> {
     reverse_proxy 127.0.0.1:<APP_PORT>
 }
+```
+
+## 服务器连接与 deploy 账户授权
+
+这台服务器推荐使用专门的 `deploy` SSH 账户让 agent 或开发者部署项目。不要把服务器密码、SSH 私钥、API Key、cookies 等敏感信息写进项目文档或聊天记录。
+
+### 登录模型
+
+服务器上应有一个部署专用账户：
+
+```text
+用户名：deploy
+认证方式：SSH 密码登录；稳定后建议改成 SSH key
+sudo 权限：只能执行固定部署命令
+```
+
+`deploy` 不是通用管理员账户，不能执行任意 root 命令。它只允许执行：
+
+```bash
+sudo -n /usr/local/sbin/deploy-project <APP_NAME>
+```
+
+其中 `-n` 表示非交互 sudo。如果命令未被授权，会直接失败，不会弹出密码输入。
+
+连接方式：
+
+```bash
+ssh -p <SSH_PORT> deploy@<SERVER_IP>
+```
+
+如果已经配置 SSH key，可以使用：
+
+```bash
+ssh -i ~/.ssh/<KEY_FILE> -p <SSH_PORT> deploy@<SERVER_IP>
+```
+
+### 安全边界
+
+这个方案比直接使用 root 密码安全，因为：
+
+- `deploy` 只能通过 SSH 登录。
+- `deploy` 可以把 Git bundle 上传到 `/tmp`。
+- `deploy` 只能 sudo 执行一个固定的 root-owned 部署脚本。
+- 部署脚本会校验项目名。
+- 只有 root 预先登记到白名单里的项目才能部署。
+- 项目白名单配置由 root 拥有，`deploy` 不能修改。
+- `deploy` 不能执行任意 root 命令。
+
+注意：一个账户只要能部署某个项目，就等价于能发布该项目的新代码。所以 deploy 权限本质上是“生产发布权限”，不是普通低风险权限。
+
+### 服务器上的通用部署文件
+
+通用部署脚本：
+
+```bash
+/usr/local/sbin/deploy-project
+```
+
+项目白名单目录：
+
+```bash
+/etc/deploy-projects.d/
+```
+
+sudo 授权文件：
+
+```bash
+/etc/sudoers.d/deploy-projects
+```
+
+sudoers 示例：
+
+```sudoers
+Defaults:deploy !requiretty
+deploy ALL=(root) NOPASSWD: /usr/local/sbin/deploy-project
+```
+
+修改 sudoers 后必须校验：
+
+```bash
+visudo -cf /etc/sudoers.d/deploy-projects
+```
+
+### 项目白名单配置
+
+每个允许部署的项目，都需要一个 root-owned 配置文件：
+
+```bash
+/etc/deploy-projects.d/<APP_NAME>.conf
+```
+
+配置示例：
+
+```bash
+PROJECT_NAME="<APP_NAME>"
+BUNDLE_PATH="/tmp/<APP_NAME>-main.bundle"
+GIT_DIR="/srv/git/<APP_NAME>.git"
+DEPLOY_HOOK="/srv/git/<APP_NAME>.git/hooks/post-receive"
+BRANCH="main"
+```
+
+权限建议：
+
+```bash
+chown root:root /etc/deploy-projects.d/<APP_NAME>.conf
+chmod 640 /etc/deploy-projects.d/<APP_NAME>.conf
+```
+
+用 deploy 身份验证项目是否已登记：
+
+```bash
+sudo -u deploy sudo -n /usr/local/sbin/deploy-project <APP_NAME> --check
+```
+
+预期输出包含：
+
+```text
+deploy project ready: <APP_NAME>
+bundle: /tmp/<APP_NAME>-main.bundle
+git: /srv/git/<APP_NAME>.git
+hook: /srv/git/<APP_NAME>.git/hooks/post-receive
 ```
 
 ## 改造目标
@@ -203,6 +326,42 @@ git push prod main
 
 可以先只写部署文档，再实现完整 hook。不要把数据库迁移、数据导入、素材处理等复杂流程塞进同一个 hook，除非项目确实已经有稳定脚本。
 
+### 当前服务器的受限 deploy 账户部署流程
+
+如果服务器已经采用上文的 `deploy-project` 受限部署脚本，agent 或开发者不需要直接 `git push prod main` 到服务器。推荐流程是：
+
+1. 本地确认工作区干净并测试通过。
+2. 本地生成 main 分支 bundle。
+3. 用 `scp` 或 SFTP 把 bundle 上传到 `/tmp/<APP_NAME>-main.bundle`。
+4. SSH 登录 `deploy` 账户。
+5. 执行 `sudo -n /usr/local/sbin/deploy-project <APP_NAME>`。
+6. 检查 systemd 服务和 `/healthz`。
+
+本地命令示例：
+
+```bash
+git status --short
+go test ./...
+git bundle create ./<APP_NAME>-main.bundle main
+scp -P <SSH_PORT> ./<APP_NAME>-main.bundle deploy@<SERVER_IP>:/tmp/<APP_NAME>-main.bundle
+ssh -p <SSH_PORT> deploy@<SERVER_IP> "sudo -n /usr/local/sbin/deploy-project <APP_NAME>"
+```
+
+部署后检查：
+
+```bash
+ssh -p <SSH_PORT> deploy@<SERVER_IP> "systemctl is-active <APP_NAME>"
+ssh -p <SSH_PORT> deploy@<SERVER_IP> "curl -fsS --max-time 10 http://127.0.0.1:<APP_PORT>/healthz"
+```
+
+如果只想先检查项目是否登记，不执行部署：
+
+```bash
+ssh -p <SSH_PORT> deploy@<SERVER_IP> "sudo -n /usr/local/sbin/deploy-project <APP_NAME> --check"
+```
+
+这个流程依然依赖每个项目自己的 `/srv/git/<APP_NAME>.git/hooks/post-receive`。通用脚本 `/usr/local/sbin/deploy-project` 只负责校验白名单、fetch bundle、触发 hook，不负责理解项目怎么构建。
+
 ## 5. 示例 post-receive hook
 
 在服务器创建裸仓库：
@@ -287,6 +446,14 @@ chmod +x /srv/git/<APP_NAME>.git/hooks/post-receive
 ```text
 deploy ALL=NOPASSWD: /usr/bin/systemctl restart <APP_NAME>, /usr/bin/systemctl status <APP_NAME>
 ```
+
+如果服务器使用 `/usr/local/sbin/deploy-project` 统一部署入口，sudoers 不需要给 `deploy` 单独开放每个项目的 `systemctl restart`。此时应只授权：
+
+```sudoers
+deploy ALL=(root) NOPASSWD: /usr/local/sbin/deploy-project
+```
+
+项目 hook 中仍然可以执行 `systemctl restart <APP_NAME>`，因为 hook 是由 root-owned 通用部署脚本触发的。具体权限边界以服务器上的 `deploy-project` 实现为准。
 
 ## 6. SQLite/WAL 设置
 
@@ -401,6 +568,59 @@ http://127.0.0.1:<APP_PORT>/
 ```
 
 如果项目有登录页或核心页面，也一起检查。
+
+## 10.1 deploy 账户常见排查命令
+
+查看 `deploy` 被允许执行哪些 sudo 命令：
+
+```bash
+sudo -l -U deploy
+```
+
+检查某个项目是否已登记：
+
+```bash
+sudo -u deploy sudo -n /usr/local/sbin/deploy-project <APP_NAME> --check
+```
+
+如果提示项目未登记：
+
+```bash
+ls -l /etc/deploy-projects.d/<APP_NAME>.conf
+```
+
+如果提示 bundle 不存在：
+
+```bash
+ls -l /tmp/<APP_NAME>-main.bundle
+```
+
+如果部署 hook 失败，查看服务日志：
+
+```bash
+journalctl -u <APP_NAME> --since "20 minutes ago" --no-pager -l
+systemctl status <APP_NAME> --no-pager -l
+```
+
+如果 sudoers 配置有问题：
+
+```bash
+visudo -cf /etc/sudoers.d/deploy-projects
+```
+
+## 10.2 后续安全加固建议
+
+密码部署能用以后，建议进一步改成 SSH key：
+
+- 给 `deploy` 添加公钥到 `/home/deploy/.ssh/authorized_keys`。
+- 如果运维条件允许，关闭 `deploy` 的密码登录。
+- 尽量关闭或限制 `root` SSH 密码登录。
+- 如果 `deploy` 密码曾经在聊天记录、日志或文档里出现过，应及时轮换。
+- 每个项目都必须显式登记到 `/etc/deploy-projects.d/`。
+- 不要给 `deploy` 写权限到这些目录：
+  - `/etc/deploy-projects.d/`
+  - `/usr/local/sbin/`
+  - `/srv/git/`
 
 ## 11. 不要做的事
 
