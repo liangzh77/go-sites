@@ -47,7 +47,8 @@ function New-StagingDir {
         ".vscode",
         "deploy.ps1",
         "server-init.sh",
-        "Caddyfile"
+        "Caddyfile",
+        "site-config.js"
     )
 
     Get-ChildItem -LiteralPath $SourceDir -Force | ForEach-Object {
@@ -155,6 +156,13 @@ mkdir -p "$RELEASES_DIR"
 mkdir -p "$NEW_RELEASE"
 tar -xzf "$ARCHIVE" -C "$NEW_RELEASE"
 rm -f "$ARCHIVE"
+
+if [[ ! -f "$SITE_ROOT/shared/site-config.js" ]]; then
+  echo "Missing server config: $SITE_ROOT/shared/site-config.js"
+  rm -rf "$NEW_RELEASE"
+  exit 1
+fi
+ln -sfn "$SITE_ROOT/shared/site-config.js" "$NEW_RELEASE/site-config.js"
 
 if [[ -L "$SITE_ROOT/current" ]]; then
   old_target=$(readlink -f "$SITE_ROOT/current")

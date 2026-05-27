@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI入口</title>
+    <script src="./site-config.js"></script>
     <script src="./data.js"></script>
     <style>
         /* CSS变量定义 */
@@ -63,6 +64,16 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             padding: 1rem;
             margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #tabs {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            flex: 1;
         }
 
         .tab-btn {
@@ -81,6 +92,104 @@
         .tab-btn.tab-active {
             background-color: var(--primary-color) !important;
             color: white !important;
+        }
+
+        .auth-controls {
+            flex-shrink: 0;
+        }
+
+        .auth-btn {
+            height: 2.75rem;
+            padding: 0 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+            color: #4B5563;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        .auth-btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            background: #EFF6FF;
+        }
+
+        .login-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 11000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .login-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.38);
+        }
+
+        .login-dialog {
+            position: relative;
+            z-index: 1;
+            width: min(360px, 100%);
+            padding: 1.25rem;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 20px 48px rgba(15, 23, 42, 0.2);
+        }
+
+        .login-dialog h2 {
+            margin: 0 0 1rem;
+            font-size: 1.1rem;
+        }
+
+        .password-input {
+            display: block;
+            width: 100%;
+            height: 2.75rem;
+            padding: 0 0.75rem;
+            border: 1px solid #D1D5DB;
+            border-radius: 6px;
+            font: inherit;
+        }
+
+        .password-input:focus {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 0;
+            border-color: var(--primary-color);
+        }
+
+        .login-error {
+            min-height: 1.25rem;
+            margin: 0.5rem 0 0;
+            font-size: 0.8rem;
+            color: #DC2626;
+        }
+
+        .login-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .login-action {
+            height: 2.5rem;
+            padding: 0 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: white;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .login-action.primary {
+            border-color: var(--primary-color);
+            color: white;
+            background: var(--primary-color);
         }
 
         /* 内容布局 */
@@ -388,6 +497,8 @@
                 padding: 0.5rem;
                 border-radius: 10px;
                 margin-bottom: 0.5rem;
+                align-items: flex-start;
+                gap: 0.5rem;
             }
 
             .tab-btn {
@@ -395,6 +506,12 @@
                 font-size: 0.85rem;
                 margin-right: 0.25rem;
                 border-radius: 6px;
+            }
+
+            .auth-btn {
+                height: 2.25rem;
+                padding: 0 0.75rem;
+                font-size: 0.85rem;
             }
 
             .content-section {
@@ -498,6 +615,15 @@
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+                gap: 0.5rem;
+            }
+
+            .mobile-card-summary {
+                display: flex;
+                align-items: baseline;
+                gap: 0.5rem;
+                flex: 1;
+                min-width: 0;
             }
 
             .mobile-card-name {
@@ -505,7 +631,8 @@
                 font-size: 1rem;
                 color: var(--primary-color);
                 text-decoration: none;
-                flex: 1;
+                flex-shrink: 0;
+                white-space: nowrap;
             }
 
             .mobile-card-name:hover {
@@ -516,7 +643,6 @@
                 display: flex;
                 gap: 0.5rem;
                 flex-shrink: 0;
-                margin-left: 0.5rem;
             }
 
             .mobile-tag {
@@ -547,7 +673,10 @@
                 font-size: 0.85rem;
                 color: #6B7280;
                 line-height: 1.4;
-                margin-top: 0.35rem;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
 
             .mobile-card-actions {
@@ -645,6 +774,9 @@
                 <ul id="tabs" class="flex flex-wrap">
                     <!-- 标签页将动态生成 -->
                 </ul>
+                <div class="auth-controls">
+                    <button id="authButton" class="auth-btn" type="button">登录</button>
+                </div>
             </div>
         </header>
 
@@ -652,6 +784,19 @@
         <main class="content-section">
             <!-- 页面内容将动态生成 -->
         </main>
+    </div>
+
+    <div id="loginModal" class="login-modal hidden" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+        <div class="login-modal-backdrop" data-close-login></div>
+        <form id="loginForm" class="login-dialog">
+            <h2 id="loginTitle">输入密码</h2>
+            <input id="loginPassword" class="password-input" type="password" autocomplete="current-password" placeholder="请输入密码" required>
+            <p id="loginError" class="login-error" role="alert"></p>
+            <div class="login-actions">
+                <button class="login-action" type="button" data-close-login>取消</button>
+                <button class="login-action primary" type="submit">登录</button>
+            </div>
+        </form>
     </div>
 
     <!-- JavaScript模块 -->
@@ -694,13 +839,32 @@
         class AIWebpagesApp {
             constructor() {
                 this.currentTab = null;
+                this.privatePageName = '我的';
+                this.authSessionKey = 'go-sites:private-visible';
+                this.isAuthenticated = sessionStorage.getItem(this.authSessionKey) === 'true';
                 this.init();
             }
 
             init() {
+                this.renderVisiblePages();
+                this.bindAuthEvents();
+                this.updateAuthButton();
+            }
+
+            getVisiblePages() {
+                return Object.fromEntries(
+                    Object.entries(WEBPAGES_DATA.pages).filter(([pageName]) =>
+                        pageName !== this.privatePageName || this.isAuthenticated
+                    )
+                );
+            }
+
+            renderVisiblePages() {
                 this.generateTabs();
-                this.bindEvents();
+                this.bindTabEvents();
                 this.initializeTables();
+                this.checkFunctionCellTruncation();
+                this.bindTableScrollEvents();
             }
 
             // 从数据中生成标签页
@@ -713,7 +877,11 @@
                     return;
                 }
 
-                const pageNames = Object.keys(WEBPAGES_DATA.pages);
+                tabsContainer.replaceChildren();
+                contentSection.replaceChildren();
+
+                const visiblePages = this.getVisiblePages();
+                const pageNames = Object.keys(visiblePages);
                 
                 // 生成标签页按钮
                 pageNames.forEach((pageName, index) => {
@@ -724,7 +892,7 @@
 
                 // 生成内容区域
                 pageNames.forEach((pageName, index) => {
-                    const pageData = WEBPAGES_DATA.pages[pageName];
+                    const pageData = visiblePages[pageName];
                     const tabContent = this.createTabContent(pageName, index === 0, pageData);
                     contentSection.appendChild(tabContent);
                 });
@@ -786,8 +954,8 @@
                 return div;
             }
 
-            // 绑定事件
-            bindEvents() {
+            // 绑定标签切换事件
+            bindTabEvents() {
                 // 标签切换
                 document.querySelectorAll('.tab-btn').forEach(btn => {
                     btn.addEventListener('click', (e) => this.switchTab(e.target));
@@ -834,13 +1002,15 @@
                     return;
                 }
 
-                // 为每个页面生成表格
-                Object.keys(WEBPAGES_DATA.pages).forEach(pageName => {
+                const visiblePages = this.getVisiblePages();
+
+                // 为每个可见页面生成表格
+                Object.keys(visiblePages).forEach(pageName => {
                     const tabId = this.getTabId(pageName);
                     const tableBodyId = `${tabId}TableBody`;
                     const navListId = `${tabId}TypeNavList`;
                     
-                    this.generateTable(tableBodyId, navListId, WEBPAGES_DATA.pages[pageName], pageName);
+                    this.generateTable(tableBodyId, navListId, visiblePages[pageName], pageName);
                 });
             }
 
@@ -905,9 +1075,10 @@
                         
                         // 地址列
                         const addressCell = document.createElement('td');
-                        addressCell.textContent = tool['地址'];
+                        const displayAddress = this.getDisplayAddress(tool['地址']);
+                        addressCell.textContent = displayAddress;
                         addressCell.className = 'address-cell';
-                        addressCell.addEventListener('click', () => this.copyToClipboard(tool['地址'], addressCell));
+                        addressCell.addEventListener('click', () => this.copyToClipboard(displayAddress, addressCell));
                         row.appendChild(addressCell);
                         
                         // 备注列
@@ -1001,12 +1172,26 @@
                 const header = document.createElement('div');
                 header.className = 'mobile-card-header';
 
+                const summary = document.createElement('div');
+                summary.className = 'mobile-card-summary';
+
                 const nameLink = document.createElement('a');
                 nameLink.className = 'mobile-card-name';
                 nameLink.href = tool['地址'];
                 nameLink.target = '_blank';
                 nameLink.textContent = tool['名称'];
-                header.appendChild(nameLink);
+                summary.appendChild(nameLink);
+
+                // 功能描述和标题同行展示，移动端空间不足时省略。
+                if (tool['功能']) {
+                    const desc = document.createElement('div');
+                    desc.className = 'mobile-card-desc';
+                    desc.textContent = tool['功能'];
+                    desc.title = tool['功能'];
+                    summary.appendChild(desc);
+                }
+
+                header.appendChild(summary);
 
                 if (tags.length > 0) {
                     const tagsContainer = document.createElement('div');
@@ -1021,14 +1206,6 @@
                 }
 
                 card.appendChild(header);
-
-                // 功能描述
-                if (tool['功能']) {
-                    const desc = document.createElement('div');
-                    desc.className = 'mobile-card-desc';
-                    desc.textContent = tool['功能'];
-                    card.appendChild(desc);
-                }
 
                 return card;
             }
@@ -1106,6 +1283,93 @@
                 navList.querySelectorAll('.type-nav-item').forEach(item => {
                     item.classList.toggle('active', item.textContent === activeType);
                 });
+            }
+
+            bindAuthEvents() {
+                document.getElementById('authButton').addEventListener('click', () => {
+                    if (this.isAuthenticated) {
+                        this.logout();
+                    } else {
+                        this.openLogin();
+                    }
+                });
+
+                document.getElementById('loginForm').addEventListener('submit', (event) => {
+                    this.login(event);
+                });
+
+                document.querySelectorAll('[data-close-login]').forEach(element => {
+                    element.addEventListener('click', () => this.closeLogin());
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') {
+                        this.closeLogin();
+                    }
+                });
+            }
+
+            updateAuthButton() {
+                document.getElementById('authButton').textContent = this.isAuthenticated ? '退出' : '登录';
+            }
+
+            openLogin() {
+                const modal = document.getElementById('loginModal');
+                const passwordInput = document.getElementById('loginPassword');
+                document.getElementById('loginError').textContent = '';
+                passwordInput.value = '';
+                modal.classList.remove('hidden');
+                passwordInput.focus();
+            }
+
+            closeLogin() {
+                document.getElementById('loginModal').classList.add('hidden');
+            }
+
+            login(event) {
+                event.preventDefault();
+                const configuredPassword = window.SITE_CONFIG?.privateArea?.password || '';
+                const errorElement = document.getElementById('loginError');
+
+                if (!configuredPassword) {
+                    errorElement.textContent = '请先在配置文件中设置密码';
+                    return;
+                }
+
+                const passwordInput = document.getElementById('loginPassword');
+                if (passwordInput.value !== configuredPassword) {
+                    errorElement.textContent = '密码错误';
+                    passwordInput.select();
+                    return;
+                }
+
+                this.isAuthenticated = true;
+                sessionStorage.setItem(this.authSessionKey, 'true');
+                this.closeLogin();
+                this.updateAuthButton();
+                this.renderVisiblePages();
+
+                const privateTab = Array.from(document.querySelectorAll('.tab-btn')).find(button =>
+                    button.textContent === this.privatePageName
+                );
+                if (privateTab) {
+                    this.switchTab(privateTab);
+                }
+            }
+
+            logout() {
+                this.isAuthenticated = false;
+                sessionStorage.removeItem(this.authSessionKey);
+                this.updateAuthButton();
+                this.renderVisiblePages();
+            }
+
+            // 站内路径补成线上可直接访问和分享的完整地址。
+            getDisplayAddress(address) {
+                const publicOrigin = window.SITE_CONFIG?.publicOrigin || window.location.origin;
+                return address.startsWith('/')
+                    ? new URL(address, publicOrigin).href
+                    : address;
             }
 
             // 复制到剪贴板功能
@@ -1238,6 +1502,33 @@
                     }
                 });
             }
+
+            bindTableScrollEvents() {
+                document.querySelectorAll('.table-scroll').forEach(tableScroll => {
+                    if (tableScroll.dataset.scrollBound === 'true') return;
+                    tableScroll.dataset.scrollBound = 'true';
+
+                    tableScroll.addEventListener('scroll', () => {
+                        const tableRect = tableScroll.getBoundingClientRect();
+                        let currentVisibleType = null;
+                        let minDistance = Infinity;
+
+                        tableScroll.querySelectorAll('td[data-type]').forEach(typeCell => {
+                            const cellRect = typeCell.getBoundingClientRect();
+                            const distance = Math.abs(cellRect.top - tableRect.top);
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                                currentVisibleType = typeCell.getAttribute('data-type');
+                            }
+                        });
+
+                        if (currentVisibleType) {
+                            const navListId = tableScroll.closest('.tab-content').querySelector('.type-nav-list').id;
+                            this.updateActiveNavItem(currentVisibleType, navListId);
+                        }
+                    });
+                });
+            }
         }
 
         // 页面加载完成后初始化应用
@@ -1255,34 +1546,6 @@
                 window.AIWebpagesApp.checkFunctionCellTruncation();
             });
 
-            // 为所有表格添加滚动事件监听器
-            document.querySelectorAll('.table-scroll').forEach(tableScroll => {
-                tableScroll.addEventListener('scroll', () => {
-                    const tableRect = tableScroll.getBoundingClientRect();
-                    
-                    let currentVisibleType = null;
-                    let minDistance = Infinity;
-                    
-                    // 查找当前可见的类型
-                    tableScroll.querySelectorAll('td[data-type]').forEach(typeCell => {
-                        const cellRect = typeCell.getBoundingClientRect();
-                        const distance = Math.abs(cellRect.top - tableRect.top);
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            currentVisibleType = typeCell.getAttribute('data-type');
-                        }
-                    });
-
-                    if (currentVisibleType) {
-                        // 根据当前表格找到对应的导航列表ID
-                        const navListId = tableScroll.closest('.tab-content').querySelector('.type-nav-list').id;
-                        const app = window.AIWebpagesApp;
-                        if (app) {
-                            app.updateActiveNavItem(currentVisibleType, navListId);
-                        }
-                    }
-                });
-            });
         });
     </script>
 </body>
