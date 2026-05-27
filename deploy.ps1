@@ -4,6 +4,7 @@ param(
     [string]$RemoteHost,
     [string]$User = "deploy",
     [int]$Port = 22,
+    [string]$IdentityFile = "",
     [string]$LocalBuildDir = "",
     [switch]$Rollback
 )
@@ -75,11 +76,17 @@ function Invoke-RemoteScript {
     param(
         [string]$Target,
         [int]$RemotePort,
+        [string]$KeyFile,
         [string]$Script
     )
 
     $normalizedScript = $Script -replace "`r`n", "`n"
-    $normalizedScript | ssh -p $RemotePort $Target "bash -s"
+    $sshArgs = @("-p", "$RemotePort")
+    if ($KeyFile) {
+        $sshArgs += @("-i", $KeyFile, "-o", "IdentitiesOnly=yes")
+    }
+
+    $normalizedScript | & ssh @sshArgs $Target "bash -s"
     if ($LASTEXITCODE -ne 0) {
         throw "Remote script execution failed."
     }
@@ -91,6 +98,11 @@ Require-Command "tar"
 
 if (-not $RemoteHost) {
     throw "RemoteHost is required. Example: .\deploy.ps1 -RemoteHost 1.2.3.4"
+}
+
+$resolvedIdentityFile = ""
+if ($IdentityFile) {
+    $resolvedIdentityFile = (Resolve-Path -LiteralPath $IdentityFile).Path
 }
 
 $target = "$User@$RemoteHost"
@@ -123,7 +135,7 @@ echo "Rollback completed: $previous_target"
 '@
     $rollbackScript = $rollbackScript.Replace("__REMOTE_SITE_ROOT__", $remoteSiteRoot).Replace("__DOMAIN__", $Domain)
 
-    Invoke-RemoteScript -Target $target -RemotePort $Port -Script $rollbackScript
+    Invoke-RemoteScript -Target $target -RemotePort $Port -KeyFile $resolvedIdentityFile -Script $rollbackScript
     exit 0
 }
 
@@ -139,7 +151,12 @@ try {
         throw "Failed to build release archive."
     }
 
-    & scp -P $Port $archivePath "${target}:$remoteArchive"
+    $scpArgs = @("-P", "$Port")
+    if ($resolvedIdentityFile) {
+        $scpArgs += @("-i", $resolvedIdentityFile, "-o", "IdentitiesOnly=yes")
+    }
+
+    & scp @scpArgs $archivePath "${target}:$remoteArchive"
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to upload release archive."
     }
@@ -186,7 +203,7 @@ echo "Release deployed: $NEW_RELEASE"
 '@
     $deployScript = $deployScript.Replace("__DOMAIN__", $Domain).Replace("__REMOTE_SITE_ROOT__", $remoteSiteRoot).Replace("__RELEASE_ID__", $releaseId).Replace("__REMOTE_ARCHIVE__", $remoteArchive)
 
-    Invoke-RemoteScript -Target $target -RemotePort $Port -Script $deployScript
+    Invoke-RemoteScript -Target $target -RemotePort $Port -KeyFile $resolvedIdentityFile -Script $deployScript
 }
 finally {
     if (Test-Path $archivePath) {
