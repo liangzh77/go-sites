@@ -9,13 +9,19 @@
     <style>
         /* CSS变量定义 */
         :root {
-            --primary-color: #3B82F6;
-            --hover-color: #2563EB;
-            --bg-color: #F3F4F6;
-            --card-bg: #FFFFFF;
-            --border-color: #E5E7EB;
-            --text-color: #1F2937;
-            --secondary-bg: #F9FAFB;
+            --primary-color: #586B5C;
+            --hover-color: #405246;
+            --bg-color: #F1EDE5;
+            --card-bg: #FFFDF8;
+            --border-color: #DDD5C8;
+            --text-color: #2D342E;
+            --secondary-bg: #F6F1E8;
+            --ink-soft: #756E64;
+            --sage-pale: #E4E7D9;
+            --sage-wash: #F7F2E9;
+            --clay-color: #A55F49;
+            --clay-pale: #F0E0D7;
+            --shadow-tint: rgba(77, 63, 48, 0.12);
         }
         
         /* 基础样式 */
@@ -764,6 +770,456 @@
                 padding: 0 1.5rem 1.5rem;
             }
         }
+
+        /* Organic modern theme */
+        body {
+            font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: var(--bg-color);
+        }
+
+        .main-container {
+            position: relative;
+            padding: 1.25rem 1.5rem 1.5rem;
+        }
+
+        .header-section {
+            padding: 0;
+        }
+
+        .tabs-container {
+            position: relative;
+            display: block;
+            overflow: hidden;
+            padding: 1.25rem 1.5rem 1rem;
+            margin-bottom: 1rem;
+            background: rgba(255, 253, 248, 0.96);
+            border: 1px solid var(--border-color);
+            border-radius: 20px 26px 20px 22px;
+            box-shadow: 0 1px 0 rgba(255, 255, 251, 0.92) inset, 0 12px 30px -22px var(--shadow-tint);
+        }
+
+        .brand-row {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .brand-lockup {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            min-width: 0;
+        }
+
+        .brand-seal {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 55% 45% 58% 42%;
+            background: var(--clay-color);
+            box-shadow: 0 0 0 5px var(--clay-pale);
+            flex-shrink: 0;
+        }
+
+        .brand-title {
+            margin: 0;
+            color: var(--text-color);
+            font-size: 1.125rem;
+            font-weight: 600;
+            letter-spacing: 0;
+        }
+
+        .brand-note {
+            margin: 0.2rem 0 0;
+            color: var(--ink-soft);
+            font-size: 0.78rem;
+            letter-spacing: 0;
+        }
+
+        #tabs {
+            position: relative;
+            z-index: 1;
+            gap: 0.35rem;
+            padding-top: 0.25rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            margin: 0.75rem 0.1rem 0 0;
+            padding: 0.625rem 1rem;
+            border-radius: 13px 16px 13px 15px;
+            color: var(--ink-soft);
+            font-size: 0.9rem;
+            transition: background-color 0.22s ease, color 0.22s ease, transform 0.18s ease;
+        }
+
+        .tab-btn:hover {
+            background-color: var(--sage-pale);
+            color: var(--hover-color);
+        }
+
+        .tab-btn:active,
+        .auth-btn:active,
+        .login-action:active {
+            transform: translateY(1px);
+        }
+
+        .tab-btn.tab-active {
+            background: var(--primary-color) !important;
+            color: #F8F7F2 !important;
+            box-shadow: 0 6px 16px -12px rgba(45, 52, 46, 0.6);
+        }
+
+        .auth-controls {
+            position: relative;
+            z-index: 1;
+        }
+
+        .auth-btn {
+            height: 2.5rem;
+            padding: 0 1.1rem;
+            border-color: var(--border-color);
+            border-radius: 13px 16px 12px 15px;
+            background: var(--sage-wash);
+            color: var(--ink-soft);
+            transition: background-color 0.22s ease, border-color 0.22s ease, transform 0.18s ease;
+        }
+
+        .auth-btn:hover {
+            border-color: var(--primary-color);
+            background: var(--sage-pale);
+            color: var(--hover-color);
+        }
+
+        .content-section {
+            padding: 0;
+        }
+
+        .content-layout {
+            grid-template-columns: 212px 1fr;
+            gap: 1rem;
+        }
+
+        .type-nav,
+        .table-container {
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 0 rgba(255, 255, 251, 0.86) inset, 0 12px 24px -23px var(--shadow-tint);
+        }
+
+        .type-nav {
+            background: var(--card-bg);
+            border-radius: 15px 20px 16px 18px;
+        }
+
+        .type-nav h3 {
+            padding: 1.125rem 1.1rem 0.875rem;
+            background: transparent;
+            border-bottom-color: var(--border-color);
+            color: var(--text-color);
+            font-size: 0.9rem;
+        }
+
+        .type-nav h3::after {
+            content: "慢慢翻找";
+            display: block;
+            margin-top: 0.3rem;
+            color: var(--ink-soft);
+            font-size: 0.72rem;
+            font-weight: 400;
+        }
+
+        .type-nav-list {
+            padding: 0.65rem;
+        }
+
+        .type-nav-item {
+            padding: 0.7rem 0.8rem;
+            margin: 0.15rem 0;
+            color: var(--ink-soft);
+            border-radius: 10px 13px 10px 12px;
+        }
+
+        .type-nav-item:hover {
+            background: var(--secondary-bg);
+            color: var(--hover-color);
+        }
+
+        .type-nav-item.active {
+            background: var(--sage-pale);
+            color: var(--hover-color);
+            font-weight: 600;
+        }
+
+        .table-container {
+            background: var(--card-bg);
+            border-radius: 16px 22px 17px 19px;
+        }
+
+        table,
+        th,
+        td {
+            background: transparent;
+        }
+
+        th {
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            background: var(--sage-wash);
+            color: var(--ink-soft);
+            border-bottom-color: var(--border-color);
+        }
+
+        td {
+            color: var(--text-color);
+            border-bottom-color: rgba(221, 213, 200, 0.76);
+        }
+
+        .type-cell,
+        .type-cell.merged {
+            background: var(--sage-wash);
+            border-right-color: var(--border-color);
+            color: var(--hover-color);
+        }
+
+        tr:hover td {
+            background: #FAF6EE;
+        }
+
+        tr:hover .type-cell {
+            background: var(--sage-pale);
+        }
+
+        a {
+            color: var(--clay-color);
+            font-weight: 500;
+        }
+
+        a:hover {
+            color: #874B38;
+        }
+
+        .address-cell {
+            color: var(--ink-soft);
+        }
+
+        .address-cell:hover {
+            color: var(--hover-color);
+            background: var(--sage-wash);
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #C4B9AA;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #A99D8D;
+        }
+
+        .hover-tooltip,
+        .copy-tooltip {
+            border-radius: 12px 8px 12px 9px;
+            border-color: var(--border-color);
+            background: var(--hover-color);
+            color: #F7F6F1;
+            box-shadow: 0 10px 22px -14px rgba(45, 52, 46, 0.6);
+        }
+
+        .login-modal-backdrop {
+            background: rgba(45, 52, 46, 0.34);
+            backdrop-filter: blur(2px);
+        }
+
+        .login-dialog {
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 18px 22px 18px 20px;
+            background: var(--card-bg);
+            box-shadow: 0 26px 54px -28px rgba(45, 52, 46, 0.43);
+        }
+
+        .login-dialog h2 {
+            margin-bottom: 0.25rem;
+            color: var(--text-color);
+        }
+
+        .login-note {
+            margin: 0 0 1.125rem;
+            color: var(--ink-soft);
+            font-size: 0.83rem;
+        }
+
+        .login-error {
+            color: #9A503F;
+        }
+
+        .password-label {
+            display: block;
+            margin-bottom: 0.4rem;
+            color: var(--ink-soft);
+            font-size: 0.82rem;
+        }
+
+        .password-input {
+            border-color: var(--border-color);
+            border-radius: 12px 8px 12px 9px;
+            background: var(--sage-wash);
+            color: var(--text-color);
+        }
+
+        .password-input:focus {
+            outline-color: var(--primary-color);
+        }
+
+        .login-action {
+            border-color: var(--border-color);
+            border-radius: 12px 8px 12px 9px;
+            color: var(--ink-soft);
+            background: var(--sage-wash);
+        }
+
+        .login-action.primary {
+            border-color: var(--primary-color);
+            background: var(--primary-color);
+            color: #F8F7F2;
+        }
+
+        @media (max-width: 768px) {
+            body::before {
+                top: -4rem;
+                width: 15rem;
+                height: 12rem;
+            }
+
+            .main-container {
+                padding: 0;
+            }
+
+            .header-section {
+                padding: 0.75rem 1rem 0;
+                background: rgba(232, 233, 226, 0.94);
+                backdrop-filter: blur(8px);
+            }
+
+            .tabs-container {
+                display: block;
+                padding: 0.9rem 1rem 0.75rem;
+                margin-bottom: 0.75rem;
+                border-radius: 18px 25px 16px 20px;
+            }
+
+            .tabs-container::after {
+                right: 3rem;
+                width: 7rem;
+            }
+
+            .brand-row {
+                margin-bottom: 0.75rem;
+            }
+
+            .brand-seal {
+                width: 2.1rem;
+                height: 2.1rem;
+            }
+
+            .brand-title {
+                font-size: 1rem;
+            }
+
+            .brand-note {
+                font-size: 0.72rem;
+            }
+
+            .tab-btn {
+                margin-top: 0.55rem;
+                padding: 0.48rem 0.7rem;
+                border-radius: 14px 9px 13px 10px;
+            }
+
+            .auth-btn {
+                height: 2.2rem;
+            }
+
+            .content-section {
+                padding: 0 1rem 1rem;
+            }
+
+            .content-layout {
+                gap: 0.75rem;
+            }
+
+            .type-nav {
+                position: static;
+                margin: 0;
+                border-radius: 16px 22px 13px 17px;
+                box-shadow: 0 1px 0 rgba(255, 255, 251, 0.8) inset;
+            }
+
+            .type-nav-list {
+                padding: 0.65rem;
+            }
+
+            .type-nav-item {
+                border-radius: 17px 11px 17px 12px;
+                background: var(--sage-wash);
+            }
+
+            .table-container {
+                border-radius: 17px 25px 16px 20px;
+                background: transparent;
+                border: 0;
+                box-shadow: none;
+            }
+
+            .mobile-cards {
+                gap: 0.65rem;
+                padding: 0;
+            }
+
+            .mobile-card {
+                background: var(--card-bg);
+                border-color: var(--border-color);
+                border-radius: 14px 20px 13px 17px;
+                box-shadow: 0 10px 19px -19px var(--shadow-tint);
+            }
+
+            .mobile-card-name {
+                color: var(--hover-color);
+            }
+
+            .mobile-card-desc {
+                color: var(--ink-soft);
+            }
+
+            .mobile-tag,
+            .mobile-tag.tag-free,
+            .mobile-tag.tag-paid,
+            .mobile-tag.tag-vpn {
+                border-radius: 10px 7px 10px 8px;
+                background: var(--sage-pale);
+                color: var(--hover-color);
+            }
+
+            .mobile-tag.tag-paid,
+            .mobile-tag.tag-vpn {
+                background: #D1D6CB;
+            }
+
+            .mobile-type-header {
+                color: var(--hover-color);
+                border-top-color: var(--border-color);
+            }
+
+            .copy-tooltip {
+                background: var(--hover-color);
+            }
+        }
     </style>
 </head>
 <body>
@@ -771,12 +1227,21 @@
         <!-- 头部标签栏 -->
         <header class="header-section">
             <div class="tabs-container">
+                <div class="brand-row">
+                    <div class="brand-lockup">
+                        <span class="brand-seal" aria-hidden="true"></span>
+                        <div>
+                            <h1 class="brand-title">灵感书架</h1>
+                            <p class="brand-note">今天也慢慢挑一件顺手的。</p>
+                        </div>
+                    </div>
+                    <div class="auth-controls">
+                        <button id="authButton" class="auth-btn" type="button">登录</button>
+                    </div>
+                </div>
                 <ul id="tabs" class="flex flex-wrap">
                     <!-- 标签页将动态生成 -->
                 </ul>
-                <div class="auth-controls">
-                    <button id="authButton" class="auth-btn" type="button">登录</button>
-                </div>
             </div>
         </header>
 
@@ -790,6 +1255,8 @@
         <div class="login-modal-backdrop" data-close-login></div>
         <form id="loginForm" class="login-dialog">
             <h2 id="loginTitle">输入密码</h2>
+            <p class="login-note">回到只属于你的收藏角落。</p>
+            <label class="password-label" for="loginPassword">访问密码</label>
             <input id="loginPassword" class="password-input" type="password" autocomplete="current-password" placeholder="请输入密码" required>
             <p id="loginError" class="login-error" role="alert"></p>
             <div class="login-actions">
@@ -1397,7 +1864,7 @@
                 // 创建新的提示框
                 const tooltip = document.createElement('div');
                 tooltip.className = 'copy-tooltip';
-                tooltip.textContent = '已复制';
+                tooltip.textContent = '地址已收好';
                 document.body.appendChild(tooltip);
 
                 // 定位提示框
