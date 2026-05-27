@@ -1,10 +1,10 @@
 [CmdletBinding()]
 param(
     [string]$Domain = "liangz77.cn",
-    [string]$RemoteHost,
-    [string]$User = "deploy",
+    [string]$RemoteHost = "43.163.98.43",
+    [string]$User = "root",
     [int]$Port = 22,
-    [string]$IdentityFile = "",
+    [string]$IdentityFile = "C:\Users\liang\.ssh\keychain_deploy_ed25519",
     [string]$LocalBuildDir = "",
     [switch]$Rollback
 )
@@ -95,10 +95,6 @@ function Invoke-RemoteScript {
 Require-Command "ssh"
 Require-Command "scp"
 Require-Command "tar"
-
-if (-not $RemoteHost) {
-    throw "RemoteHost is required. Example: .\deploy.ps1 -RemoteHost 1.2.3.4"
-}
 
 $resolvedIdentityFile = ""
 if ($IdentityFile) {
