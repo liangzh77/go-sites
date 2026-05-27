@@ -354,6 +354,21 @@
             vertical-align: middle;
         }
 
+        .recommendation-editable th:nth-child(2),
+        .recommendation-editable td:nth-child(2) {
+            width: 18%;
+        }
+
+        .recommendation-editable th:nth-child(3),
+        .recommendation-editable td:nth-child(3) {
+            width: 18%;
+        }
+
+        .recommendation-editable th:nth-child(5),
+        .recommendation-editable td:nth-child(5) {
+            width: 37%;
+        }
+
         /* 通用悬浮提示框样式 */
         .hover-tooltip {
             position: fixed;
@@ -450,6 +465,86 @@
         .address-cell:hover {
             color: #374151;
             background-color: #F9FAFB;
+        }
+
+        .name-line {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            min-width: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .name-cell {
+            position: relative;
+        }
+
+        .name-line a {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .recommendation-editable .name-line a {
+            flex: 0 1 72%;
+        }
+
+        .recommendation-mark,
+        .recommendation-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            padding: 0.12rem 0.42rem;
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            background: var(--sage-wash);
+            color: var(--ink-soft);
+            font-size: 0.68rem;
+            line-height: 1.4;
+            white-space: nowrap;
+        }
+
+        .recommendation-mark {
+            position: absolute;
+            left: 0.72rem;
+            bottom: 0.24rem;
+            z-index: 0;
+            padding: 0 0.35rem;
+            border: 0;
+            background: transparent;
+            color: rgba(165, 95, 73, 0.2);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .recommendation-mark.is-active,
+        .recommendation-toggle.is-active {
+            border-color: #D8C7B5;
+            background: var(--clay-pale);
+            color: #874B38;
+        }
+
+        .recommendation-mark.is-active {
+            background: transparent;
+            color: rgba(165, 95, 73, 0.2);
+        }
+
+        .recommendation-toggle {
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.68rem;
+            transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+        }
+
+        .recommendation-toggle:hover {
+            border-color: var(--clay-color);
+            color: var(--clay-color);
         }
 
         /* 复制提示框样式 */
@@ -630,6 +725,7 @@
                 gap: 0.5rem;
                 flex: 1;
                 min-width: 0;
+                position: relative;
             }
 
             .mobile-card-name {
@@ -639,6 +735,14 @@
                 text-decoration: none;
                 flex-shrink: 0;
                 white-space: nowrap;
+                position: relative;
+                z-index: 1;
+            }
+
+            .mobile-card-summary .recommendation-mark {
+                left: 0;
+                bottom: -0.58rem;
+                font-size: 0.72rem;
             }
 
             .mobile-card-name:hover {
@@ -673,6 +777,18 @@
             .mobile-tag.tag-paid {
                 background: #FEF3C7;
                 color: #D97706;
+            }
+
+            .mobile-tag.tag-recommended,
+            .mobile-tag.tag-recommended.is-active {
+                background: var(--clay-pale);
+                color: #874B38;
+            }
+
+            .mobile-card-tags .recommendation-toggle {
+                border: 0;
+                font-size: 0.7rem;
+                padding: 0.2rem 0.5rem;
             }
 
             .mobile-card-desc {
@@ -863,7 +979,8 @@
 
         .tab-btn:active,
         .auth-btn:active,
-        .login-action:active {
+        .login-action:active,
+        .recommendation-toggle:active {
             transform: translateY(1px);
         }
 
@@ -1206,6 +1323,12 @@
                 color: var(--hover-color);
             }
 
+            .mobile-tag.tag-recommended,
+            .mobile-tag.tag-recommended.is-active {
+                background: var(--clay-pale);
+                color: #874B38;
+            }
+
             .mobile-tag.tag-paid,
             .mobile-tag.tag-vpn {
                 background: #D1D6CB;
@@ -1307,8 +1430,11 @@
             constructor() {
                 this.currentTab = null;
                 this.privatePageName = '我的';
+                this.recommendationPageName = '推荐';
                 this.authSessionKey = 'go-sites:private-visible';
+                this.recommendationStorageKey = 'go-sites:recommendations';
                 this.isAuthenticated = sessionStorage.getItem(this.authSessionKey) === 'true';
+                this.recommendationOverrides = this.loadRecommendationOverrides();
                 this.init();
             }
 
@@ -1318,7 +1444,7 @@
                 this.updateAuthButton();
             }
 
-            getVisiblePages() {
+            getVisibleSourcePages() {
                 return Object.fromEntries(
                     Object.entries(WEBPAGES_DATA.pages).filter(([pageName]) =>
                         pageName !== this.privatePageName || this.isAuthenticated
@@ -1326,8 +1452,16 @@
                 );
             }
 
-            renderVisiblePages() {
-                this.generateTabs();
+            getVisiblePages() {
+                const sourcePages = this.getVisibleSourcePages();
+                return {
+                    [this.recommendationPageName]: this.buildRecommendationPage(sourcePages),
+                    ...sourcePages
+                };
+            }
+
+            renderVisiblePages(preferredPageName = this.currentTab) {
+                this.generateTabs(preferredPageName);
                 this.bindTabEvents();
                 this.initializeTables();
                 this.checkFunctionCellTruncation();
@@ -1335,7 +1469,7 @@
             }
 
             // 从数据中生成标签页
-            generateTabs() {
+            generateTabs(preferredPageName = this.currentTab) {
                 const tabsContainer = document.getElementById('tabs');
                 const contentSection = document.querySelector('.content-section');
                 
@@ -1349,23 +1483,23 @@
 
                 const visiblePages = this.getVisiblePages();
                 const pageNames = Object.keys(visiblePages);
+                const activePageName = pageNames.includes(preferredPageName) ? preferredPageName : pageNames[0];
                 
                 // 生成标签页按钮
-                pageNames.forEach((pageName, index) => {
+                pageNames.forEach((pageName) => {
                     const tabButton = document.createElement('li');
-                    tabButton.innerHTML = `<button data-tab="${this.getTabId(pageName)}" class="tab-btn ${index === 0 ? 'tab-active' : ''}">${pageName}</button>`;
+                    tabButton.innerHTML = `<button data-tab="${this.getTabId(pageName)}" class="tab-btn ${pageName === activePageName ? 'tab-active' : ''}">${pageName}</button>`;
                     tabsContainer.appendChild(tabButton);
                 });
 
                 // 生成内容区域
-                pageNames.forEach((pageName, index) => {
+                pageNames.forEach((pageName) => {
                     const pageData = visiblePages[pageName];
-                    const tabContent = this.createTabContent(pageName, index === 0, pageData);
+                    const tabContent = this.createTabContent(pageName, pageName === activePageName, pageData);
                     contentSection.appendChild(tabContent);
                 });
 
-                // 设置第一个标签页为当前标签页
-                this.currentTab = pageNames[0];
+                this.currentTab = activePageName;
             }
 
             // 获取标签页ID
@@ -1509,6 +1643,8 @@
                     } else {
                         table.classList.add('no-function-column');
                     }
+
+                    table.classList.toggle('recommendation-editable', this.isAuthenticated);
                 }
 
                 pageData['类型'].forEach(categoryObj => {
@@ -1533,11 +1669,20 @@
                         // 名称列
                         const nameCell = document.createElement('td');
                         nameCell.className = 'name-cell';
+                        const nameLine = document.createElement('div');
+                        nameLine.className = 'name-line';
                         const nameLink = document.createElement('a');
                         nameLink.href = tool['地址'];
                         nameLink.target = '_blank';
                         nameLink.textContent = tool['名称'];
-                        nameCell.appendChild(nameLink);
+                        nameLine.appendChild(nameLink);
+                        if (this.isAuthenticated) {
+                            this.appendRecommendationControl(nameLine, tool);
+                        }
+                        nameCell.appendChild(nameLine);
+                        if (!this.isAuthenticated) {
+                            this.appendRecommendationControl(nameCell, tool);
+                        }
                         row.appendChild(nameCell);
                         
                         // 地址列
@@ -1648,6 +1793,9 @@
                 nameLink.target = '_blank';
                 nameLink.textContent = tool['名称'];
                 summary.appendChild(nameLink);
+                if (!this.isAuthenticated) {
+                    this.appendRecommendationControl(summary, tool);
+                }
 
                 // 功能描述和标题同行展示，移动端空间不足时省略。
                 if (tool['功能']) {
@@ -1663,6 +1811,9 @@
                 if (tags.length > 0) {
                     const tagsContainer = document.createElement('div');
                     tagsContainer.className = 'mobile-card-tags';
+                    if (this.isAuthenticated) {
+                        this.appendRecommendationControl(tagsContainer, tool, { mobile: true });
+                    }
                     tags.forEach(tag => {
                         const tagEl = document.createElement('span');
                         tagEl.className = `mobile-tag ${tag.class}`;
@@ -1670,11 +1821,127 @@
                         tagsContainer.appendChild(tagEl);
                     });
                     header.appendChild(tagsContainer);
+                } else {
+                    const tagsContainer = document.createElement('div');
+                    tagsContainer.className = 'mobile-card-tags';
+                    if (this.isAuthenticated) {
+                        this.appendRecommendationControl(tagsContainer, tool, { mobile: true });
+                    }
+                    if (tagsContainer.childElementCount > 0) {
+                        header.appendChild(tagsContainer);
+                    }
                 }
 
                 card.appendChild(header);
 
                 return card;
+            }
+
+            buildRecommendationPage(sourcePages) {
+                const groups = [];
+
+                Object.entries(sourcePages).forEach(([pageName, pageData]) => {
+                    const recommendedTools = [];
+
+                    pageData['类型']?.forEach(categoryObj => {
+                        const categoryName = Object.keys(categoryObj)[0];
+                        const tools = categoryObj[categoryName] || [];
+
+                        tools.forEach(tool => {
+                            if (this.isRecommended(tool)) {
+                                recommendedTools.push({
+                                    ...tool,
+                                    "来源": `${pageName} · ${categoryName}`
+                                });
+                            }
+                        });
+                    });
+
+                    if (recommendedTools.length > 0) {
+                        groups.push({ [pageName]: recommendedTools });
+                    }
+                });
+
+                if (groups.length === 0) {
+                    groups.push({
+                        "还没有推荐": [
+                            {
+                                "名称": "登录后给常用链接加推荐",
+                                "地址": "#",
+                                "备注": "本机保存",
+                                "功能": "推荐列表会出现在第一个标签页，未登录也可以浏览。"
+                            }
+                        ]
+                    });
+                }
+
+                return { "类型": groups };
+            }
+
+            loadRecommendationOverrides() {
+                try {
+                    return JSON.parse(localStorage.getItem(this.recommendationStorageKey) || '{}');
+                } catch (error) {
+                    console.error(error);
+                    return {};
+                }
+            }
+
+            saveRecommendationOverrides() {
+                localStorage.setItem(
+                    this.recommendationStorageKey,
+                    JSON.stringify(this.recommendationOverrides)
+                );
+            }
+
+            getToolKey(tool) {
+                return `${tool['名称'] || ''}::${tool['地址'] || ''}`;
+            }
+
+            isRecommended(tool) {
+                const key = this.getToolKey(tool);
+                if (Object.prototype.hasOwnProperty.call(this.recommendationOverrides, key)) {
+                    return this.recommendationOverrides[key] === true;
+                }
+
+                return tool['推荐'] === true;
+            }
+
+            toggleRecommendation(tool) {
+                if (!this.isAuthenticated) return;
+
+                const key = this.getToolKey(tool);
+                this.recommendationOverrides[key] = !this.isRecommended(tool);
+                this.saveRecommendationOverrides();
+                this.renderVisiblePages(this.currentTab);
+            }
+
+            appendRecommendationControl(parent, tool, options = {}) {
+                const isRecommended = this.isRecommended(tool);
+                if (!this.isAuthenticated && !isRecommended) return;
+
+                const tagClass = options.mobile ? 'mobile-tag tag-recommended' : 'recommendation-mark';
+
+                if (!this.isAuthenticated) {
+                    const mark = document.createElement('span');
+                    mark.className = `${tagClass} is-active`;
+                    mark.textContent = '推荐';
+                    parent.appendChild(mark);
+                    return;
+                }
+
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `${options.mobile ? 'mobile-tag tag-recommended ' : ''}recommendation-toggle ${isRecommended ? 'is-active' : ''}`;
+                button.textContent = isRecommended ? '已推荐' : '推荐';
+                button.setAttribute('aria-pressed', String(isRecommended));
+                button.title = isRecommended ? '从推荐列表移除' : '加入推荐列表';
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.toggleRecommendation(tool);
+                });
+                parent.appendChild(button);
             }
 
             // 解析备注字段获取标签
