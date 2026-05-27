@@ -109,7 +109,8 @@
             flex-shrink: 0;
         }
 
-        .auth-btn {
+        .auth-btn,
+        .edit-mode-btn {
             height: 2.75rem;
             padding: 0 1rem;
             border: 1px solid var(--border-color);
@@ -120,10 +121,15 @@
             cursor: pointer;
         }
 
-        .auth-btn:hover {
+        .auth-btn:hover,
+        .edit-mode-btn:hover {
             border-color: var(--primary-color);
             color: var(--primary-color);
             background: #EFF6FF;
+        }
+
+        .edit-mode-btn.hidden {
+            display: none;
         }
 
         .login-modal {
@@ -307,9 +313,13 @@
             position: sticky;
             top: 0;
             background: var(--secondary-bg);
-            z-index: 2;
+            z-index: 4;
             font-weight: 600;
             font-size: 0.9rem;
+        }
+
+        thead .type-cell {
+            z-index: 5;
         }
 
         .type-cell {
@@ -353,10 +363,13 @@
         /* 功能列 - 40% */
         th:nth-child(5), td:nth-child(5) {
             width: 40%;
-            position: relative;
             cursor: default;
             padding: 0.75rem;
             vertical-align: middle;
+        }
+
+        td:nth-child(5) {
+            position: relative;
         }
 
         .recommendation-editable th:nth-child(2),
@@ -578,8 +591,8 @@
             display: none;
         }
 
-        /* ==================== 手机竖版响应式设计 ==================== */
-        @media (max-width: 768px) {
+        /* ==================== 紧凑宽度响应式设计 ==================== */
+        @media (max-width: 860px) {
             body {
                 overflow: auto;
                 height: auto;
@@ -878,7 +891,7 @@
         }
 
         /* 平板设备适配 */
-        @media (min-width: 769px) and (max-width: 1024px) {
+        @media (min-width: 861px) and (max-width: 1024px) {
             .content-layout {
                 grid-template-columns: 180px 1fr;
             }
@@ -1123,9 +1136,13 @@
         .auth-controls {
             position: relative;
             z-index: 1;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
         }
 
-        .auth-btn {
+        .auth-btn,
+        .edit-mode-btn {
             height: 2.5rem;
             padding: 0 1.1rem;
             border-color: var(--border-color);
@@ -1136,10 +1153,18 @@
             transition: background-color 0.22s ease, border-color 0.22s ease, transform 0.18s ease;
         }
 
-        .auth-btn:hover {
+        .auth-btn:hover,
+        .edit-mode-btn:hover {
             border-color: var(--primary-color);
             background: var(--sage-pale);
             color: var(--hover-color);
+        }
+
+        .edit-mode-btn.is-active {
+            border-color: rgba(79, 95, 83, 0.32);
+            background: rgba(213, 220, 209, 0.72);
+            color: var(--hover-color);
+            font-weight: 600;
         }
 
         .content-section {
@@ -1276,12 +1301,20 @@
         th {
             padding-top: 1.05rem;
             padding-bottom: 1.05rem;
-            background: rgba(239, 240, 232, 0.96);
+            background: #F0F0E8;
             color: var(--ink-soft);
             border-bottom-color: var(--border-color);
             font-family: var(--sans-stack);
             font-size: 0.76rem;
             letter-spacing: 0.12em;
+            box-shadow:
+                0 1px 0 rgba(255, 255, 251, 0.72) inset,
+                0 1px 0 var(--border-color),
+                0 10px 18px -18px rgba(45, 52, 46, 0.62);
+        }
+
+        thead .type-cell {
+            background: #F0F0E8;
         }
 
         td {
@@ -1431,7 +1464,7 @@
             color: #F8F7F2;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 860px) {
             body::before {
                 opacity: 0.28;
             }
@@ -1495,6 +1528,11 @@
 
             .auth-btn {
                 height: 2.2rem;
+            }
+
+            .edit-mode-btn {
+                height: 2.2rem;
+                padding: 0 0.75rem;
             }
 
             .content-section {
@@ -1607,6 +1645,7 @@
                         </svg>
                     </div>
                     <div class="auth-controls">
+                        <button id="editModeButton" class="edit-mode-btn hidden" type="button" aria-pressed="false">编辑</button>
                         <button id="authButton" class="auth-btn" type="button">登录</button>
                     </div>
                 </div>
@@ -1682,6 +1721,7 @@
                 this.authSessionKey = 'go-sites:private-visible';
                 this.recommendationStorageKey = 'go-sites:recommendations';
                 this.isAuthenticated = sessionStorage.getItem(this.authSessionKey) === 'true';
+                this.isEditingRecommendations = false;
                 this.recommendationOverrides = this.loadRecommendationOverrides();
                 this.init();
             }
@@ -1892,7 +1932,7 @@
                         table.classList.add('no-function-column');
                     }
 
-                    table.classList.toggle('recommendation-editable', this.isAuthenticated);
+                    table.classList.toggle('recommendation-editable', this.isEditingRecommendations);
                 }
 
                 pageData['类型'].forEach(categoryObj => {
@@ -1924,11 +1964,11 @@
                         nameLink.target = '_blank';
                         nameLink.textContent = tool['名称'];
                         nameLine.appendChild(nameLink);
-                        if (this.isAuthenticated) {
+                        if (this.isEditingRecommendations) {
                             this.appendRecommendationControl(nameLine, tool);
                         }
                         nameCell.appendChild(nameLine);
-                        if (!this.isAuthenticated) {
+                        if (!this.isEditingRecommendations) {
                             this.appendRecommendationControl(nameCell, tool);
                         }
                         row.appendChild(nameCell);
@@ -2041,7 +2081,7 @@
                 nameLink.target = '_blank';
                 nameLink.textContent = tool['名称'];
                 summary.appendChild(nameLink);
-                if (!this.isAuthenticated) {
+                if (!this.isEditingRecommendations) {
                     this.appendRecommendationControl(summary, tool);
                 }
 
@@ -2059,7 +2099,7 @@
                 if (tags.length > 0) {
                     const tagsContainer = document.createElement('div');
                     tagsContainer.className = 'mobile-card-tags';
-                    if (this.isAuthenticated) {
+                    if (this.isEditingRecommendations) {
                         this.appendRecommendationControl(tagsContainer, tool, { mobile: true });
                     }
                     tags.forEach(tag => {
@@ -2072,7 +2112,7 @@
                 } else {
                     const tagsContainer = document.createElement('div');
                     tagsContainer.className = 'mobile-card-tags';
-                    if (this.isAuthenticated) {
+                    if (this.isEditingRecommendations) {
                         this.appendRecommendationControl(tagsContainer, tool, { mobile: true });
                     }
                     if (tagsContainer.childElementCount > 0) {
@@ -2156,21 +2196,60 @@
             }
 
             toggleRecommendation(tool) {
-                if (!this.isAuthenticated) return;
+                if (!this.isAuthenticated || !this.isEditingRecommendations) return;
 
                 const key = this.getToolKey(tool);
-                this.recommendationOverrides[key] = !this.isRecommended(tool);
+                const nextValue = !this.isRecommended(tool);
+                this.recommendationOverrides[key] = nextValue;
                 this.saveRecommendationOverrides();
-                this.renderVisiblePages(this.currentTab);
+                this.syncRecommendationControls(key, nextValue);
+                this.refreshRecommendationPageIfNeeded();
+            }
+
+            syncRecommendationControls(toolKey, isRecommended) {
+                document.querySelectorAll(`.recommendation-toggle[data-tool-key="${CSS.escape(toolKey)}"]`).forEach(button => {
+                    button.classList.toggle('is-active', isRecommended);
+                    button.textContent = isRecommended ? '已推荐' : '推荐';
+                    button.setAttribute('aria-pressed', String(isRecommended));
+                    button.title = isRecommended ? '从推荐列表移除' : '加入推荐列表';
+                });
+            }
+
+            refreshRecommendationPageIfNeeded() {
+                const recommendationTabId = this.getTabId(this.recommendationPageName);
+                const recommendationContent = document.getElementById(recommendationTabId);
+                if (!recommendationContent) return;
+
+                const tableBodyId = `${recommendationTabId}TableBody`;
+                const navListId = `${recommendationTabId}TypeNavList`;
+                const tableScroll = document.getElementById(tableBodyId)?.closest('.table-scroll');
+                const scrollTop = tableScroll?.scrollTop || 0;
+
+                this.generateTable(
+                    tableBodyId,
+                    navListId,
+                    this.buildRecommendationPage(this.getVisibleSourcePages()),
+                    this.recommendationPageName
+                );
+
+                if (tableScroll) {
+                    tableScroll.scrollTop = scrollTop;
+                }
+
+                if (this.currentTab === this.recommendationPageName) {
+                    this.checkFunctionCellTruncation();
+                    this.bindTableScrollEvents();
+                }
             }
 
             appendRecommendationControl(parent, tool, options = {}) {
                 const isRecommended = this.isRecommended(tool);
-                if (!this.isAuthenticated && !isRecommended) return;
 
                 const tagClass = options.mobile ? 'mobile-tag tag-recommended' : 'recommendation-mark';
 
-                if (!this.isAuthenticated) {
+                if (!this.isEditingRecommendations) {
+                    if (!isRecommended) return;
+
                     const mark = document.createElement('span');
                     mark.className = `${tagClass} is-active`;
                     mark.textContent = '推荐';
@@ -2178,10 +2257,13 @@
                     return;
                 }
 
+                if (!this.isAuthenticated) return;
+
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = `${options.mobile ? 'mobile-tag tag-recommended ' : ''}recommendation-toggle ${isRecommended ? 'is-active' : ''}`;
                 button.textContent = isRecommended ? '已推荐' : '推荐';
+                button.dataset.toolKey = this.getToolKey(tool);
                 button.setAttribute('aria-pressed', String(isRecommended));
                 button.title = isRecommended ? '从推荐列表移除' : '加入推荐列表';
                 button.addEventListener('click', (event) => {
@@ -2276,6 +2358,10 @@
                     }
                 });
 
+                document.getElementById('editModeButton').addEventListener('click', () => {
+                    this.toggleEditMode();
+                });
+
                 document.getElementById('loginForm').addEventListener('submit', (event) => {
                     this.login(event);
                 });
@@ -2293,6 +2379,36 @@
 
             updateAuthButton() {
                 document.getElementById('authButton').textContent = this.isAuthenticated ? '退出' : '登录';
+                this.updateEditModeButton();
+            }
+
+            updateEditModeButton() {
+                const editButton = document.getElementById('editModeButton');
+                editButton.classList.toggle('hidden', !this.isAuthenticated);
+                editButton.classList.toggle('is-active', this.isEditingRecommendations);
+                editButton.textContent = this.isEditingRecommendations ? '完成' : '编辑';
+                editButton.setAttribute('aria-pressed', String(this.isEditingRecommendations));
+            }
+
+            toggleEditMode() {
+                if (!this.isAuthenticated) return;
+
+                const tabId = this.getTabId(this.currentTab);
+                const activeContent = document.getElementById(tabId);
+                const tableScrollTop = activeContent?.querySelector('.table-scroll')?.scrollTop || 0;
+                const windowScrollX = window.scrollX;
+                const windowScrollY = window.scrollY;
+
+                this.isEditingRecommendations = !this.isEditingRecommendations;
+                this.updateEditModeButton();
+                this.renderVisiblePages(this.currentTab);
+
+                const restoredContent = document.getElementById(tabId);
+                const restoredTableScroll = restoredContent?.querySelector('.table-scroll');
+                if (restoredTableScroll) {
+                    restoredTableScroll.scrollTop = tableScrollTop;
+                }
+                window.scrollTo(windowScrollX, windowScrollY);
             }
 
             openLogin() {
@@ -2326,6 +2442,7 @@
                 }
 
                 this.isAuthenticated = true;
+                this.isEditingRecommendations = false;
                 sessionStorage.setItem(this.authSessionKey, 'true');
                 this.closeLogin();
                 this.updateAuthButton();
@@ -2341,6 +2458,7 @@
 
             logout() {
                 this.isAuthenticated = false;
+                this.isEditingRecommendations = false;
                 sessionStorage.removeItem(this.authSessionKey);
                 this.updateAuthButton();
                 this.renderVisiblePages();
