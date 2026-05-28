@@ -261,6 +261,19 @@ mkdir -p "$RELEASES_DIR" "$NEW_RELEASE" "$SHARED_DIR/demos"
 mv "$BINARY" "$NEW_RELEASE/go-sites-demo"
 chmod 755 "$NEW_RELEASE/go-sites-demo"
 
+service_user=''
+service_group=''
+if id www-data >/dev/null 2>&1; then
+  service_user='www-data'
+  service_group='www-data'
+elif id caddy >/dev/null 2>&1; then
+  service_user='caddy'
+  service_group='caddy'
+else
+  service_user='root'
+  service_group='root'
+fi
+
 site_password=''
 if [[ -f "$SITE_ROOT/shared/site-config.js" ]]; then
   site_password=$(sed -n 's/.*password: *"\([^"]*\)".*/\1/p' "$SITE_ROOT/shared/site-config.js" | head -n 1)
@@ -284,18 +297,18 @@ else
   fi
 fi
 
-chown -R www-data:www-data "$SHARED_DIR"
+chown -R "$service_user:$service_group" "$SHARED_DIR"
 ln -sfn "$NEW_RELEASE" "$APP_ROOT/current"
 
-cat >/etc/systemd/system/go-sites-demo.service <<'EOF'
+cat >/etc/systemd/system/go-sites-demo.service <<EOF
 [Unit]
 Description=Go Sites Demo Manager
 After=network.target
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
+User=$service_user
+Group=$service_group
 WorkingDirectory=/srv/apps/go-sites-demo/shared
 EnvironmentFile=/srv/apps/go-sites-demo/shared/config.env
 ExecStart=/srv/apps/go-sites-demo/current/go-sites-demo
