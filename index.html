@@ -105,6 +105,22 @@
             color: white !important;
         }
 
+        .tab-btn.search-tab-btn {
+            width: 2.5rem;
+            padding-left: 0;
+            padding-right: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+        }
+
+        .tab-btn.search-tab-btn svg {
+            width: 1rem;
+            height: 1rem;
+            stroke: currentColor;
+        }
+
         .auth-controls {
             flex-shrink: 0;
         }
@@ -455,6 +471,17 @@
 
         /* 工具类 */
         .hidden { display: none; }
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
         .fade-enter { animation: fadeIn 0.3s ease-in; }
 
         @keyframes fadeIn {
@@ -499,6 +526,59 @@
         .address-cell:hover {
             color: #374151;
             background-color: #F9FAFB;
+        }
+
+        .search-panel {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.72);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-input-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .search-input-wrap svg {
+            position: absolute;
+            left: 0.8rem;
+            top: 50%;
+            width: 1rem;
+            height: 1rem;
+            color: var(--ink-soft);
+            stroke: currentColor;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        .search-input {
+            width: 100%;
+            height: 2.55rem;
+            padding: 0 0.85rem 0 2.35rem;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: white;
+            color: var(--text-color);
+            font: inherit;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: rgba(79, 95, 83, 0.42);
+            box-shadow: 0 0 0 3px rgba(213, 220, 209, 0.45);
+        }
+
+        .search-status {
+            flex-shrink: 0;
+            min-width: 6.5rem;
+            color: var(--ink-soft);
+            font-size: 0.85rem;
+            text-align: right;
         }
 
         .name-line {
@@ -645,6 +725,12 @@
                 border-radius: 6px;
             }
 
+            .tab-btn.search-tab-btn {
+                width: 2.25rem;
+                padding-left: 0;
+                padding-right: 0;
+            }
+
             .auth-btn {
                 height: 2.25rem;
                 padding: 0 0.75rem;
@@ -665,6 +751,18 @@
                 flex-direction: column;
                 gap: 0.75rem;
                 height: auto;
+            }
+
+            .search-panel {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+                padding: 0.65rem;
+            }
+
+            .search-status {
+                min-width: 0;
+                text-align: left;
             }
 
             /* 类型导航改为横向滚动，固定显示 */
@@ -1735,11 +1833,13 @@
             constructor() {
                 this.currentTab = null;
                 this.privatePageName = '我的';
+                this.searchPageName = '搜索';
                 this.recommendationPageName = '推荐';
                 this.authSessionKey = 'go-sites:private-visible';
                 this.recommendationStorageKey = 'go-sites:recommendations';
                 this.isAuthenticated = sessionStorage.getItem(this.authSessionKey) === 'true';
                 this.isEditingRecommendations = false;
+                this.searchQuery = '';
                 this.recommendationOverrides = this.loadRecommendationOverrides();
                 this.init();
             }
@@ -1761,6 +1861,7 @@
             getVisiblePages() {
                 const sourcePages = this.getVisibleSourcePages();
                 return {
+                    [this.searchPageName]: this.buildSearchPage(sourcePages, this.searchQuery),
                     [this.recommendationPageName]: this.buildRecommendationPage(sourcePages),
                     ...sourcePages
                 };
@@ -1770,6 +1871,7 @@
                 this.generateTabs(preferredPageName);
                 this.bindTabEvents();
                 this.initializeTables();
+                this.bindSearchEvents();
                 this.checkFunctionCellTruncation();
                 this.bindTableScrollEvents();
             }
@@ -1789,12 +1891,27 @@
 
                 const visiblePages = this.getVisiblePages();
                 const pageNames = Object.keys(visiblePages);
-                const activePageName = pageNames.includes(preferredPageName) ? preferredPageName : pageNames[0];
+                const defaultPageName = pageNames.includes(this.recommendationPageName) ? this.recommendationPageName : pageNames[0];
+                const activePageName = pageNames.includes(preferredPageName) ? preferredPageName : defaultPageName;
                 
                 // 生成标签页按钮
                 pageNames.forEach((pageName) => {
                     const tabButton = document.createElement('li');
-                    tabButton.innerHTML = `<button data-tab="${this.getTabId(pageName)}" class="tab-btn ${pageName === activePageName ? 'tab-active' : ''}">${pageName}</button>`;
+                    const button = document.createElement('button');
+                    button.dataset.tab = this.getTabId(pageName);
+                    button.dataset.pageName = pageName;
+                    button.className = `tab-btn ${pageName === activePageName ? 'tab-active' : ''}`;
+
+                    if (pageName === this.searchPageName) {
+                        button.classList.add('search-tab-btn');
+                        button.setAttribute('aria-label', '搜索');
+                        button.title = '搜索';
+                        button.innerHTML = `${this.getSearchIconSvg()}<span class="sr-only">搜索</span>`;
+                    } else {
+                        button.textContent = pageName;
+                    }
+
+                    tabButton.appendChild(button);
                     tabsContainer.appendChild(tabButton);
                 });
 
@@ -1814,6 +1931,10 @@
                 return pageName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '').toLowerCase();
             }
 
+            getSearchIconSvg() {
+                return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>';
+            }
+
             // 创建标签页内容
             createTabContent(pageName, isActive, pageData) {
                 const tabId = this.getTabId(pageName);
@@ -1822,7 +1943,7 @@
                 div.className = `tab-content ${isActive ? 'fade-enter' : 'hidden'}`;
                 
                 // 动态检查页面数据中是否有非空的功能字段
-                const showFunctionColumn = pageData && pageData['类型'] && pageData['类型'].length > 0 && 
+                const showFunctionColumn = pageName === this.searchPageName || pageData && pageData['类型'] && pageData['类型'].length > 0 &&
                                          pageData['类型'][0] && Object.values(pageData['类型'][0])[0] && 
                                          Object.values(pageData['类型'][0])[0][0] && 
                                          Object.values(pageData['类型'][0])[0][0].hasOwnProperty('功能') &&
@@ -1830,6 +1951,15 @@
                                          Object.values(pageData['类型'][0])[0][0]['功能'].trim() !== '';
                 const functionColumnHtml = showFunctionColumn ? '<th>功能</th>' : '';
                 const tableClass = showFunctionColumn ? '' : 'no-function-column';
+                const searchPanelHtml = pageName === this.searchPageName ? `
+                            <div class="search-panel">
+                                <label class="sr-only" for="${tabId}SearchInput">搜索名称、地址、备注、功能</label>
+                                <div class="search-input-wrap">
+                                    ${this.getSearchIconSvg()}
+                                    <input id="${tabId}SearchInput" class="search-input" type="search" placeholder="搜索名称、地址、备注、功能" autocomplete="off">
+                                </div>
+                                <div id="${tabId}SearchStatus" class="search-status" aria-live="polite"></div>
+                            </div>` : '';
                 
                 div.innerHTML = `
                     <div class="content-layout">
@@ -1838,6 +1968,7 @@
                             <div id="${tabId}TypeNavList" class="type-nav-list"></div>
                         </nav>
                         <div class="table-container">
+                            ${searchPanelHtml}
                             <div class="table-scroll">
                                 <table class="${tableClass}">
                                     <thead>
@@ -1865,7 +1996,7 @@
             bindTabEvents() {
                 // 标签切换
                 document.querySelectorAll('.tab-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => this.switchTab(e.target));
+                    btn.addEventListener('click', (e) => this.switchTab(e.currentTarget));
                 });
             }
 
@@ -1896,7 +2027,12 @@
                 button.classList.add('tab-active');
 
                 // 更新当前标签页
-                this.currentTab = button.textContent;
+                this.currentTab = button.dataset.pageName;
+
+                if (this.currentTab === this.searchPageName) {
+                    const searchInput = targetContent?.querySelector('.search-input');
+                    searchInput?.focus();
+                }
 
                 // 切换标签后重新检测功能列截断
                 this.checkFunctionCellTruncation();
@@ -1933,7 +2069,7 @@
                 this.generateMobileCards(tableBodyId, pageData);
 
                 // 动态检查页面数据中是否有非空的功能字段
-                const hasFunctionColumn = pageData['类型'].length > 0 && 
+                const hasFunctionColumn = pageName === this.searchPageName || pageData['类型'].length > 0 &&
                                        pageData['类型'][0] && 
                                        Object.values(pageData['类型'][0])[0] && 
                                        Object.values(pageData['类型'][0])[0][0] && 
@@ -2152,6 +2288,88 @@
                 card.appendChild(header);
 
                 return card;
+            }
+
+            bindSearchEvents() {
+                const searchTabId = this.getTabId(this.searchPageName);
+                const searchInput = document.getElementById(`${searchTabId}SearchInput`);
+                if (!searchInput) return;
+
+                searchInput.value = this.searchQuery;
+                searchInput.addEventListener('input', () => {
+                    this.searchQuery = searchInput.value;
+                    this.refreshSearchResults();
+                });
+
+                this.updateSearchStatus(this.countTools(this.buildSearchPage(this.getVisibleSourcePages(), this.searchQuery)));
+            }
+
+            refreshSearchResults() {
+                const searchTabId = this.getTabId(this.searchPageName);
+                const tableBodyId = `${searchTabId}TableBody`;
+                const navListId = `${searchTabId}TypeNavList`;
+                const pageData = this.buildSearchPage(this.getVisibleSourcePages(), this.searchQuery);
+
+                this.generateTable(tableBodyId, navListId, pageData, this.searchPageName);
+                this.updateSearchStatus(this.countTools(pageData));
+                this.checkFunctionCellTruncation();
+            }
+
+            updateSearchStatus(resultCount) {
+                const searchTabId = this.getTabId(this.searchPageName);
+                const status = document.getElementById(`${searchTabId}SearchStatus`);
+                if (!status) return;
+
+                const query = this.searchQuery.trim();
+                if (!query) {
+                    status.textContent = '输入关键词开始搜索';
+                    return;
+                }
+
+                status.textContent = resultCount > 0 ? `找到 ${resultCount} 个结果` : '没有匹配结果';
+            }
+
+            buildSearchPage(sourcePages, query = this.searchQuery) {
+                const normalizedQuery = query.trim().toLowerCase();
+                if (!normalizedQuery) {
+                    return { "类型": [] };
+                }
+
+                const groups = [];
+                Object.entries(sourcePages).forEach(([pageName, pageData]) => {
+                    pageData['类型']?.forEach(categoryObj => {
+                        const categoryName = Object.keys(categoryObj)[0];
+                        const tools = categoryObj[categoryName] || [];
+                        const matchedTools = tools.filter(tool => this.doesToolMatchQuery(tool, normalizedQuery));
+
+                        if (matchedTools.length > 0) {
+                            groups.push({
+                                [`${pageName} · ${categoryName}`]: matchedTools
+                            });
+                        }
+                    });
+                });
+
+                return { "类型": groups };
+            }
+
+            doesToolMatchQuery(tool, normalizedQuery) {
+                const searchableText = [
+                    tool['名称'],
+                    tool['地址'],
+                    this.getDisplayAddress(tool['地址'] || ''),
+                    tool['备注'],
+                    tool['功能']
+                ].filter(Boolean).join(' ').toLowerCase();
+
+                return searchableText.includes(normalizedQuery);
+            }
+
+            countTools(pageData) {
+                return pageData['类型']?.reduce((total, categoryObj) => {
+                    const tools = Object.values(categoryObj)[0] || [];
+                    return total + tools.length;
+                }, 0) || 0;
             }
 
             buildRecommendationPage(sourcePages) {
