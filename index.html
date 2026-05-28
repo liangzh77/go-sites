@@ -469,14 +469,30 @@
         ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
 
         /* 地址列样式 */
-        .address-cell {
+        .table-cell-text {
+            display: block;
+            max-width: 100%;
+            min-width: 0;
+            white-space: nowrap;
+            word-break: normal;
+            overflow-wrap: normal;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .type-cell.is-multi-row .type-cell-text {
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            overflow: visible;
+            text-overflow: clip;
+        }
+
+        td.address-cell {
             color: #6B7280;
             cursor: pointer;
             position: relative;
             transition: all 0.2s ease;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
             max-width: 0;
         }
 
@@ -501,6 +517,8 @@
         .name-line a {
             flex: 1 1 auto;
             min-width: 0;
+            display: block;
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
@@ -1946,10 +1964,14 @@
                         // 类型列 - 第一行显示类型并设置rowspan，后续行不创建类型单元格
                         if (index === 0) {
                             const typeCell = document.createElement('td');
-                            typeCell.textContent = categoryName;
+                            const typeText = document.createElement('span');
+                            typeText.className = 'table-cell-text type-cell-text';
+                            typeText.textContent = categoryName;
+                            typeCell.appendChild(typeText);
                             typeCell.setAttribute('data-type', categoryName);
                             typeCell.rowSpan = tools.length; // 设置rowspan为工具数量
-                            typeCell.classList.add('merged'); // 添加合并样式
+                            typeCell.classList.add('type-cell', 'merged'); // 添加合并样式
+                            typeCell.classList.toggle('is-multi-row', tools.length > 1);
                             row.appendChild(typeCell);
                         }
                         // 后续行的类型单元格不创建，因为被第一行的rowspan覆盖
@@ -1960,7 +1982,7 @@
                         const nameLine = document.createElement('div');
                         nameLine.className = 'name-line';
                         const nameLink = document.createElement('a');
-                        nameLink.href = tool['地址'];
+                        nameLink.href = this.getLinkAddress(tool['地址']);
                         nameLink.target = '_blank';
                         nameLink.textContent = tool['名称'];
                         nameLine.appendChild(nameLink);
@@ -1976,14 +1998,21 @@
                         // 地址列
                         const addressCell = document.createElement('td');
                         const displayAddress = this.getDisplayAddress(tool['地址']);
-                        addressCell.textContent = displayAddress;
                         addressCell.className = 'address-cell';
+                        const addressText = document.createElement('span');
+                        addressText.className = 'table-cell-text address-cell-text';
+                        addressText.textContent = displayAddress;
+                        addressCell.appendChild(addressText);
                         addressCell.addEventListener('click', () => this.copyToClipboard(displayAddress, addressCell));
                         row.appendChild(addressCell);
                         
                         // 备注列
                         const noteCell = document.createElement('td');
-                        noteCell.textContent = tool['备注'] || '';
+                        noteCell.className = 'note-cell';
+                        const noteText = document.createElement('span');
+                        noteText.className = 'table-cell-text note-cell-text';
+                        noteText.textContent = tool['备注'] || '';
+                        noteCell.appendChild(noteText);
                         row.appendChild(noteCell);
                         
                         // 功能列（如果存在）
@@ -1993,8 +2022,8 @@
                             const functionText = tool['功能'] || '';
                             // 创建文本包装div，使用内联样式强制单行显示
                             const textWrapper = document.createElement('div');
+                            textWrapper.className = 'table-cell-text function-cell-text';
                             textWrapper.textContent = functionText;
-                            textWrapper.style.cssText = 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; display: block;';
                             functionCell.appendChild(textWrapper);
                             // 添加data-full-text属性，用于tooltip显示完整文本
                             functionCell.setAttribute('data-full-text', functionText);
@@ -2077,7 +2106,7 @@
 
                 const nameLink = document.createElement('a');
                 nameLink.className = 'mobile-card-name';
-                nameLink.href = tool['地址'];
+                nameLink.href = this.getLinkAddress(tool['地址']);
                 nameLink.target = '_blank';
                 nameLink.textContent = tool['名称'];
                 summary.appendChild(nameLink);
@@ -2466,10 +2495,28 @@
 
             // 站内路径补成线上可直接访问和分享的完整地址。
             getDisplayAddress(address) {
+                return this.getAbsoluteAddress(address).replace(/^https:\/\//i, '');
+            }
+
+            getAbsoluteAddress(address) {
                 const publicOrigin = window.SITE_CONFIG?.publicOrigin || window.location.origin;
                 return address.startsWith('/')
                     ? new URL(address, publicOrigin).href
                     : address;
+            }
+
+            // 裸域名地址用于展示，点击访问时补上协议。
+            getLinkAddress(address) {
+                if (!address || address.startsWith('#')) {
+                    return address;
+                }
+
+                const absoluteAddress = this.getAbsoluteAddress(address);
+                if (/^[a-z][a-z0-9+.-]*:/i.test(absoluteAddress)) {
+                    return absoluteAddress;
+                }
+
+                return `https://${absoluteAddress}`;
             }
 
             // 复制到剪贴板功能
@@ -2524,7 +2571,7 @@
             // 检测功能列文本是否被截断并添加truncated类
             checkFunctionCellTruncation() {
                 document.querySelectorAll('.function-cell').forEach(cell => {
-                    const textWrapper = cell.querySelector('div');
+                    const textWrapper = cell.querySelector('.function-cell-text');
                     if (textWrapper && textWrapper.scrollWidth > textWrapper.clientWidth) {
                         cell.classList.add('truncated');
                     } else {
