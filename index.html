@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI入口</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260528">
     <script src="./site-config.js"></script>
     <script src="./data.js"></script>
     <style>
@@ -581,6 +582,145 @@
             text-align: right;
         }
 
+        .demo-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+            padding: 0.75rem;
+            border-top: 1px solid rgba(207, 208, 198, 0.72);
+            background: rgba(251, 250, 244, 0.56);
+        }
+
+        .type-nav.has-demo-panel .type-nav-list {
+            flex: 0 0 auto;
+        }
+
+        .demo-drop-zone {
+            min-height: 4.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem;
+            border: 1px dashed rgba(111, 124, 107, 0.48);
+            border-radius: 10px;
+            background: rgba(239, 240, 232, 0.55);
+            color: var(--ink-soft);
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .demo-drop-zone.is-dragover,
+        .demo-drop-zone:focus {
+            border-color: rgba(79, 95, 83, 0.62);
+            box-shadow: 0 0 0 3px rgba(213, 220, 209, 0.45);
+            outline: none;
+        }
+
+        .demo-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+            min-width: 0;
+        }
+
+        .demo-title-input,
+        .demo-markdown-input {
+            width: 100%;
+            padding: 0 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 9px;
+            background: white;
+            color: var(--text-color);
+            font: inherit;
+            font-size: 0.82rem;
+        }
+
+        .demo-title-input {
+            height: 2.3rem;
+        }
+
+        .demo-markdown-input {
+            min-height: 5.2rem;
+            padding-top: 0.6rem;
+            padding-bottom: 0.6rem;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        .demo-submit-btn {
+            width: 100%;
+            height: 2.3rem;
+            padding: 0 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 9px;
+            background: var(--sage-wash);
+            color: var(--hover-color);
+            font: inherit;
+            font-size: 0.84rem;
+            cursor: pointer;
+        }
+
+        .demo-submit-btn:hover {
+            border-color: rgba(111, 124, 107, 0.3);
+            background: var(--sage-pale);
+        }
+
+        .demo-status {
+            min-height: 1.2rem;
+            color: var(--ink-soft);
+            font-size: 0.76rem;
+        }
+
+        .demo-status:empty {
+            display: none;
+        }
+
+        .demo-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            min-width: 0;
+        }
+
+        .demo-state-label {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .demo-action-btn {
+            flex-shrink: 0;
+            height: 1.85rem;
+            padding: 0 0.55rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.76);
+            color: var(--ink-soft);
+            font: inherit;
+            font-size: 0.76rem;
+            cursor: pointer;
+        }
+
+        .demo-action-btn:hover {
+            color: var(--hover-color);
+            border-color: rgba(111, 124, 107, 0.3);
+        }
+
+        .demo-action-btn.danger {
+            color: #9B3F35;
+        }
+
+        .mobile-demo-actions {
+            flex-shrink: 0;
+            gap: 0.35rem;
+        }
+
+        tr.is-disabled-demo .name-line a {
+            color: var(--ink-soft);
+            pointer-events: none;
+        }
+
         .name-line {
             display: flex;
             align-items: center;
@@ -795,6 +935,10 @@
                 scrollbar-width: none;
             }
 
+            .type-nav.has-demo-panel .type-nav-list {
+                flex: 0 0 auto;
+            }
+
             .type-nav-list::-webkit-scrollbar {
                 display: none;
             }
@@ -812,6 +956,65 @@
             .type-nav-item.active {
                 background: var(--primary-color);
                 color: white;
+            }
+
+            .demo-panel {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                gap: 0.4rem;
+                padding: 0 0.75rem 0.55rem;
+                border-top: 0;
+                background: transparent;
+            }
+
+            .demo-controls {
+                display: contents;
+            }
+
+            .demo-drop-zone,
+            .demo-title-input,
+            .demo-markdown-input,
+            .demo-submit-btn {
+                min-width: 0;
+                min-height: 2.3rem;
+                height: 2.3rem;
+                border-radius: 18px;
+                font-size: 0.78rem;
+            }
+
+            .demo-drop-zone {
+                order: 1;
+                padding: 0 0.85rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .demo-submit-btn {
+                order: 2;
+                padding: 0 0.65rem;
+            }
+
+            .demo-title-input {
+                order: 3;
+                text-align: center;
+            }
+
+            .demo-markdown-input {
+                order: 4;
+                resize: none;
+                line-height: 2.2rem;
+                padding-top: 0;
+                padding-bottom: 0;
+                text-align: center;
+            }
+
+            .demo-status {
+                order: 5;
+                grid-column: 1 / -1;
+                min-height: 0;
+                margin-top: -0.05rem;
+                font-size: 0.72rem;
             }
 
             /* 表格容器改为卡片列表 */
@@ -938,6 +1141,14 @@
             .mobile-card-actions {
                 display: flex;
                 gap: 0.5rem;
+            }
+
+            .mobile-demo-actions .demo-action-btn {
+                height: 1.9rem;
+                padding: 0 0.55rem;
+                border-radius: 9px;
+                background: rgba(255, 255, 255, 0.74);
+                font-size: 0.74rem;
             }
 
             .mobile-btn {
@@ -1747,7 +1958,7 @@
                         <span class="brand-seal" aria-hidden="true"></span>
                         <div>
                             <h1 class="brand-title">灵感书架</h1>
-                            <p class="brand-note">今天也慢慢挑一件顺手的。</p>
+                            <p class="brand-note">今天也慢慢挑一件顺手的</p>
                         </div>
                     </div>
                     <div class="brand-illustration" aria-hidden="true">
@@ -1833,6 +2044,7 @@
             constructor() {
                 this.currentTab = null;
                 this.privatePageName = '我的';
+                this.demoPageName = '演示';
                 this.searchPageName = '搜索';
                 this.recommendationPageName = '推荐';
                 this.authSessionKey = 'go-sites:private-visible';
@@ -1840,6 +2052,7 @@
                 this.isAuthenticated = sessionStorage.getItem(this.authSessionKey) === 'true';
                 this.isEditingRecommendations = false;
                 this.searchQuery = '';
+                this.demoItems = [];
                 this.recommendationOverrides = this.loadRecommendationOverrides();
                 this.init();
             }
@@ -1848,23 +2061,42 @@
                 this.renderVisiblePages();
                 this.bindAuthEvents();
                 this.updateAuthButton();
+                if (this.isAuthenticated) {
+                    this.loadDemos();
+                }
             }
 
             getVisibleSourcePages() {
-                return Object.fromEntries(
-                    Object.entries(WEBPAGES_DATA.pages).filter(([pageName]) =>
-                        pageName !== this.privatePageName || this.isAuthenticated
-                    )
-                );
+                const pages = {};
+                Object.entries(WEBPAGES_DATA.pages).forEach(([pageName, pageData]) => {
+                    if (pageName === this.privatePageName && !this.isAuthenticated) {
+                        return;
+                    }
+
+                    pages[pageName] = pageData;
+                    if (pageName === this.privatePageName && this.isAuthenticated) {
+                        pages[this.demoPageName] = this.buildDemoPage();
+                    }
+                });
+                return pages;
             }
 
             getVisiblePages() {
                 const sourcePages = this.getVisibleSourcePages();
                 return {
-                    [this.searchPageName]: this.buildSearchPage(sourcePages, this.searchQuery),
+                    [this.searchPageName]: this.buildSearchPage(this.getSearchSourcePages(sourcePages), this.searchQuery),
                     [this.recommendationPageName]: this.buildRecommendationPage(sourcePages),
                     ...sourcePages
                 };
+            }
+
+            getSearchSourcePages(sourcePages = this.getVisibleSourcePages()) {
+                const searchPages = { ...sourcePages };
+                delete searchPages[this.demoPageName];
+                if (this.isAuthenticated) {
+                    searchPages[this.demoPageName] = this.buildDemoPage();
+                }
+                return searchPages;
             }
 
             renderVisiblePages(preferredPageName = this.currentTab) {
@@ -1872,6 +2104,7 @@
                 this.bindTabEvents();
                 this.initializeTables();
                 this.bindSearchEvents();
+                this.bindDemoEvents();
                 this.checkFunctionCellTruncation();
                 this.bindTableScrollEvents();
             }
@@ -1943,7 +2176,7 @@
                 div.className = `tab-content ${isActive ? 'fade-enter' : 'hidden'}`;
                 
                 // 动态检查页面数据中是否有非空的功能字段
-                const showFunctionColumn = pageName === this.searchPageName || pageData && pageData['类型'] && pageData['类型'].length > 0 &&
+                const showFunctionColumn = pageName === this.searchPageName || pageName === this.demoPageName || pageData && pageData['类型'] && pageData['类型'].length > 0 &&
                                          pageData['类型'][0] && Object.values(pageData['类型'][0])[0] && 
                                          Object.values(pageData['类型'][0])[0][0] && 
                                          Object.values(pageData['类型'][0])[0][0].hasOwnProperty('功能') &&
@@ -1960,12 +2193,28 @@
                                 </div>
                                 <div id="${tabId}SearchStatus" class="search-status" aria-live="polite"></div>
                             </div>` : '';
+                const demoPanelHtml = pageName === this.demoPageName ? `
+                            <div class="demo-panel">
+                                <input id="${tabId}DemoFileInput" class="hidden" type="file" accept=".html,.htm,.md,.markdown,.zip">
+                                <div id="${tabId}DemoDropZone" class="demo-drop-zone" role="button" tabindex="0">
+                                    添加文件：MD | html | zip
+                                </div>
+                                <div class="demo-controls">
+                                    <label class="sr-only" for="${tabId}DemoTitleInput">演示名称</label>
+                                    <input id="${tabId}DemoTitleInput" class="demo-title-input" type="text" placeholder="演示名称（可选）" autocomplete="off">
+                                    <label class="sr-only" for="${tabId}DemoMarkdownInput">粘贴 MD 内容</label>
+                                    <textarea id="${tabId}DemoMarkdownInput" class="demo-markdown-input" placeholder="粘贴 MD 内容"></textarea>
+                                    <button id="${tabId}DemoMarkdownButton" class="demo-submit-btn" type="button">添加 Markdown</button>
+                                    <div id="${tabId}DemoStatus" class="demo-status" aria-live="polite"></div>
+                                </div>
+                            </div>` : '';
                 
                 div.innerHTML = `
                     <div class="content-layout">
-                        <nav class="type-nav">
+                        <nav class="type-nav ${pageName === this.demoPageName ? 'has-demo-panel' : ''}">
                             <h3>类型导航</h3>
                             <div id="${tabId}TypeNavList" class="type-nav-list"></div>
+                            ${demoPanelHtml}
                         </nav>
                         <div class="table-container">
                             ${searchPanelHtml}
@@ -2038,6 +2287,15 @@
                 this.checkFunctionCellTruncation();
             }
 
+            switchToPage(pageName) {
+                const button = Array.from(document.querySelectorAll('.tab-btn')).find(tabButton =>
+                    tabButton.dataset.pageName === pageName
+                );
+                if (button) {
+                    this.switchTab(button);
+                }
+            }
+
             // 初始化所有表格
             initializeTables() {
                 if (!WEBPAGES_DATA || !WEBPAGES_DATA.pages) {
@@ -2069,7 +2327,7 @@
                 this.generateMobileCards(tableBodyId, pageData);
 
                 // 动态检查页面数据中是否有非空的功能字段
-                const hasFunctionColumn = pageName === this.searchPageName || pageData['类型'].length > 0 &&
+                const hasFunctionColumn = pageName === this.searchPageName || pageName === this.demoPageName || pageData['类型'].length > 0 &&
                                        pageData['类型'][0] && 
                                        Object.values(pageData['类型'][0])[0] && 
                                        Object.values(pageData['类型'][0])[0][0] && 
@@ -2096,6 +2354,9 @@
                     
                     tools.forEach((tool, index) => {
                         const row = document.createElement('tr');
+                        if (pageName === this.demoPageName && tool.disabled) {
+                            row.classList.add('is-disabled-demo');
+                        }
                         
                         // 类型列 - 第一行显示类型并设置rowspan，后续行不创建类型单元格
                         if (index === 0) {
@@ -2117,11 +2378,11 @@
                         nameCell.className = 'name-cell';
                         const nameLine = document.createElement('div');
                         nameLine.className = 'name-line';
-                        const nameLink = document.createElement('a');
-                        nameLink.href = this.getLinkAddress(tool['地址']);
-                        nameLink.target = '_blank';
-                        nameLink.textContent = tool['名称'];
-                        nameLine.appendChild(nameLink);
+                            const nameLink = document.createElement('a');
+                            nameLink.href = tool.disabled ? '#' : this.getLinkAddress(tool['地址']);
+                            nameLink.target = '_blank';
+                            nameLink.textContent = tool['名称'];
+                            nameLine.appendChild(nameLink);
                         if (this.isEditingRecommendations) {
                             this.appendRecommendationControl(nameLine, tool);
                         }
@@ -2156,13 +2417,17 @@
                             const functionCell = document.createElement('td');
                             functionCell.className = 'function-cell';
                             const functionText = tool['功能'] || '';
-                            // 创建文本包装div，使用内联样式强制单行显示
-                            const textWrapper = document.createElement('div');
-                            textWrapper.className = 'table-cell-text function-cell-text';
-                            textWrapper.textContent = functionText;
-                            functionCell.appendChild(textWrapper);
-                            // 添加data-full-text属性，用于tooltip显示完整文本
-                            functionCell.setAttribute('data-full-text', functionText);
+                            if (pageName === this.demoPageName && tool.demoSlug) {
+                                this.appendDemoActions(functionCell, tool);
+                            } else {
+                                // 创建文本包装div，使用内联样式强制单行显示
+                                const textWrapper = document.createElement('div');
+                                textWrapper.className = 'table-cell-text function-cell-text';
+                                textWrapper.textContent = functionText;
+                                functionCell.appendChild(textWrapper);
+                                // 添加data-full-text属性，用于tooltip显示完整文本
+                                functionCell.setAttribute('data-full-text', functionText);
+                            }
                             row.appendChild(functionCell);
                         }
                         
@@ -2285,9 +2550,285 @@
                     }
                 }
 
+                if (tool.demoSlug) {
+                    const actions = document.createElement('div');
+                    actions.className = 'demo-actions mobile-demo-actions';
+                    this.appendDemoActionButtons(actions, tool);
+                    header.appendChild(actions);
+                }
+
                 card.appendChild(header);
 
                 return card;
+            }
+
+            appendDemoActions(functionCell, tool) {
+                const actions = document.createElement('div');
+                actions.className = 'demo-actions';
+
+                const label = document.createElement('span');
+                label.className = 'table-cell-text function-cell-text demo-state-label';
+                label.textContent = tool['功能'] || '';
+                actions.appendChild(label);
+
+                this.appendDemoActionButtons(actions, tool);
+
+                functionCell.appendChild(actions);
+                functionCell.setAttribute('data-full-text', tool['功能'] || '');
+            }
+
+            appendDemoActionButtons(actions, tool) {
+                const toggleButton = document.createElement('button');
+                toggleButton.type = 'button';
+                toggleButton.className = 'demo-action-btn';
+                toggleButton.dataset.demoAction = tool.disabled ? 'enable' : 'disable';
+                toggleButton.dataset.demoSlug = tool.demoSlug;
+                toggleButton.textContent = tool.disabled ? '启用' : '禁用';
+                actions.appendChild(toggleButton);
+
+                const deleteButton = document.createElement('button');
+                deleteButton.type = 'button';
+                deleteButton.className = 'demo-action-btn danger';
+                deleteButton.dataset.demoAction = 'delete';
+                deleteButton.dataset.demoSlug = tool.demoSlug;
+                deleteButton.textContent = '删除';
+                actions.appendChild(deleteButton);
+            }
+
+            bindDemoEvents() {
+                if (!this.isAuthenticated) return;
+
+                const demoTabId = this.getTabId(this.demoPageName);
+                const fileInput = document.getElementById(`${demoTabId}DemoFileInput`);
+                const dropZone = document.getElementById(`${demoTabId}DemoDropZone`);
+                const markdownButton = document.getElementById(`${demoTabId}DemoMarkdownButton`);
+                if (!fileInput || !dropZone) return;
+
+                const chooseFile = () => fileInput.click();
+                dropZone.addEventListener('click', chooseFile);
+                dropZone.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        chooseFile();
+                    }
+                });
+                dropZone.addEventListener('dragover', (event) => {
+                    event.preventDefault();
+                    dropZone.classList.add('is-dragover');
+                });
+                dropZone.addEventListener('dragleave', () => {
+                    dropZone.classList.remove('is-dragover');
+                });
+                dropZone.addEventListener('drop', (event) => {
+                    event.preventDefault();
+                    dropZone.classList.remove('is-dragover');
+                    const file = event.dataTransfer?.files?.[0];
+                    if (file) {
+                        this.uploadDemoFile(file);
+                    }
+                });
+                fileInput.addEventListener('change', () => {
+                    const file = fileInput.files?.[0];
+                    if (file) {
+                        this.uploadDemoFile(file);
+                        fileInput.value = '';
+                    }
+                });
+                markdownButton?.addEventListener('click', () => this.uploadDemoMarkdown());
+
+                document.querySelectorAll('[data-demo-action]').forEach(button => {
+                    button.addEventListener('click', () => this.handleDemoAction(button));
+                });
+            }
+
+            async handleDemoAction(button) {
+                const slug = button.dataset.demoSlug;
+                const action = button.dataset.demoAction;
+                if (!slug || !action) return;
+
+                if (action === 'delete') {
+                    if (!confirm('确定删除这个演示吗？后端文件也会一起删除。')) return;
+                    await this.deleteDemo(slug);
+                    return;
+                }
+
+                await this.setDemoDisabled(slug, action === 'disable');
+            }
+
+            async loadDemos() {
+                if (!this.isAuthenticated) return;
+
+                try {
+                    const response = await fetch('/api/demos', { credentials: 'same-origin' });
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    const payload = await response.json();
+                    this.demoItems = Array.isArray(payload.demos) ? payload.demos : [];
+                    this.renderVisiblePages(this.currentTab || this.privatePageName);
+                } catch (error) {
+                    console.warn('Demo list unavailable', error);
+                    this.demoItems = [];
+                    this.setDemoStatus('演示后台暂时不可用');
+                }
+            }
+
+            async establishDemoSession(password) {
+                try {
+                    const response = await fetch('/api/demo/session', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password })
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                } catch (error) {
+                    console.warn('Demo session unavailable', error);
+                }
+            }
+
+            async uploadDemoFile(file) {
+                const demoTabId = this.getTabId(this.demoPageName);
+                const titleInput = document.getElementById(`${demoTabId}DemoTitleInput`);
+                const title = titleInput?.value.trim() || '';
+                const formData = new FormData();
+                formData.append('file', file);
+                if (title) {
+                    formData.append('title', title);
+                }
+
+                this.setDemoStatus('正在上传...');
+                try {
+                    const response = await fetch('/api/demos', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        body: formData
+                    });
+                    if (!response.ok) {
+                        throw new Error(await this.readErrorMessage(response));
+                    }
+                    if (titleInput) titleInput.value = '';
+                    this.setDemoStatus('已添加演示');
+                    await this.loadDemos();
+                    this.switchToPage(this.demoPageName);
+                } catch (error) {
+                    this.setDemoStatus(error.message || '上传失败');
+                }
+            }
+
+            async uploadDemoMarkdown() {
+                const demoTabId = this.getTabId(this.demoPageName);
+                const titleInput = document.getElementById(`${demoTabId}DemoTitleInput`);
+                const markdownInput = document.getElementById(`${demoTabId}DemoMarkdownInput`);
+                const title = titleInput?.value.trim() || '';
+                const content = markdownInput?.value.trim() || '';
+
+                if (!content) {
+                    this.setDemoStatus('请先粘贴 MD 内容');
+                    markdownInput?.focus();
+                    return;
+                }
+
+                this.setDemoStatus('正在添加 Markdown...');
+                try {
+                    const response = await fetch('/api/demos', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title, content })
+                    });
+                    if (!response.ok) {
+                        throw new Error(await this.readErrorMessage(response));
+                    }
+                    if (titleInput) titleInput.value = '';
+                    if (markdownInput) markdownInput.value = '';
+                    this.setDemoStatus('已添加 Markdown 演示');
+                    await this.loadDemos();
+                    this.switchToPage(this.demoPageName);
+                } catch (error) {
+                    this.setDemoStatus(error.message || '添加失败');
+                }
+            }
+
+            async setDemoDisabled(slug, disabled) {
+                this.setDemoStatus(disabled ? '正在禁用...' : '正在启用...');
+                try {
+                    const response = await fetch(`/api/demos/${encodeURIComponent(slug)}`, {
+                        method: 'PATCH',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ disabled })
+                    });
+                    if (!response.ok) {
+                        throw new Error(await this.readErrorMessage(response));
+                    }
+                    this.setDemoStatus(disabled ? '已禁用' : '已启用');
+                    await this.loadDemos();
+                    this.switchToPage(this.demoPageName);
+                } catch (error) {
+                    this.setDemoStatus(error.message || '操作失败');
+                }
+            }
+
+            async deleteDemo(slug) {
+                this.setDemoStatus('正在删除...');
+                try {
+                    const response = await fetch(`/api/demos/${encodeURIComponent(slug)}`, {
+                        method: 'DELETE',
+                        credentials: 'same-origin'
+                    });
+                    if (!response.ok) {
+                        throw new Error(await this.readErrorMessage(response));
+                    }
+                    this.setDemoStatus('已删除');
+                    await this.loadDemos();
+                    this.switchToPage(this.demoPageName);
+                } catch (error) {
+                    this.setDemoStatus(error.message || '删除失败');
+                }
+            }
+
+            async readErrorMessage(response) {
+                try {
+                    const payload = await response.json();
+                    return payload?.error?.message || `HTTP ${response.status}`;
+                } catch {
+                    return `HTTP ${response.status}`;
+                }
+            }
+
+            setDemoStatus(message) {
+                const demoTabId = this.getTabId(this.demoPageName);
+                const status = document.getElementById(`${demoTabId}DemoStatus`);
+                if (status) {
+                    status.textContent = message;
+                }
+            }
+
+            buildDemoPage() {
+                const tools = this.demoItems.map(item => ({
+                    "名称": item.title,
+                    "地址": item.address,
+                    "备注": item.disabled ? "已禁用" : "已启用",
+                    "功能": `${item.disabled ? '已禁用' : '已启用'} · ${this.getDemoKindLabel(item.kind)}`,
+                    demoSlug: item.slug,
+                    disabled: item.disabled
+                }));
+
+                return {
+                    "类型": tools.length > 0 ? [{ "演示列表": tools }] : []
+                };
+            }
+
+            getDemoKindLabel(kind) {
+                const labels = {
+                    html: 'HTML',
+                    markdown: 'Markdown',
+                    zip: 'ZIP'
+                };
+                return labels[kind] || '演示';
             }
 
             bindSearchEvents() {
@@ -2671,7 +3212,7 @@
                 document.getElementById('loginModal').classList.add('hidden');
             }
 
-            login(event) {
+            async login(event) {
                 event.preventDefault();
                 const configuredPassword = window.SITE_CONFIG?.privateArea?.password || '';
                 const errorElement = document.getElementById('loginError');
@@ -2691,21 +3232,19 @@
                 this.isAuthenticated = true;
                 this.isEditingRecommendations = false;
                 sessionStorage.setItem(this.authSessionKey, 'true');
+                await this.establishDemoSession(passwordInput.value);
+                await this.loadDemos();
                 this.closeLogin();
                 this.updateAuthButton();
                 this.renderVisiblePages();
 
-                const privateTab = Array.from(document.querySelectorAll('.tab-btn')).find(button =>
-                    button.textContent === this.privatePageName
-                );
-                if (privateTab) {
-                    this.switchTab(privateTab);
-                }
+                this.switchToPage(this.privatePageName);
             }
 
             logout() {
                 this.isAuthenticated = false;
                 this.isEditingRecommendations = false;
+                this.demoItems = [];
                 sessionStorage.removeItem(this.authSessionKey);
                 this.updateAuthButton();
                 this.renderVisiblePages();

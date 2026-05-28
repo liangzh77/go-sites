@@ -7,6 +7,18 @@ http://liangz77.cn, http://www.liangz77.cn {
 }
 
 https://liangz77.cn {
+    handle /api/demo/* {
+        reverse_proxy 127.0.0.1:9005
+    }
+
+    handle /api/demos* {
+        reverse_proxy 127.0.0.1:9005
+    }
+
+    handle /demo/* {
+        reverse_proxy 127.0.0.1:9005
+    }
+
     root * /srv/sites/liangz77.cn/current
     encode zstd gzip
     file_server
