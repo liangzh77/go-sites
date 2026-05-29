@@ -711,6 +711,25 @@
             color: #9B3F35;
         }
 
+        .demo-name-input {
+            width: 100%;
+            min-width: 0;
+            height: 1.9rem;
+            padding: 0 0.45rem;
+            border: 1px solid rgba(111, 124, 107, 0.28);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.82);
+            color: var(--hover-color);
+            font: inherit;
+            font-weight: 600;
+        }
+
+        .demo-name-input:focus {
+            border-color: rgba(79, 95, 83, 0.52);
+            box-shadow: 0 0 0 3px rgba(213, 220, 209, 0.42);
+            outline: none;
+        }
+
         .mobile-demo-actions {
             flex-shrink: 0;
             gap: 0.35rem;
@@ -1074,6 +1093,12 @@
                 white-space: nowrap;
                 position: relative;
                 z-index: 1;
+            }
+
+            .mobile-card-summary .demo-name-input {
+                flex: 1 1 auto;
+                height: 2rem;
+                font-size: 1rem;
             }
 
             .mobile-card-summary .recommendation-mark {
@@ -2324,7 +2349,7 @@
                 const types = []; // 收集类型列表
 
                 // 同时生成移动端卡片视图
-                this.generateMobileCards(tableBodyId, pageData);
+                this.generateMobileCards(tableBodyId, pageData, pageName);
 
                 // 动态检查页面数据中是否有非空的功能字段
                 const hasFunctionColumn = pageName === this.searchPageName || pageName === this.demoPageName || pageData['类型'].length > 0 &&
@@ -2378,16 +2403,20 @@
                         nameCell.className = 'name-cell';
                         const nameLine = document.createElement('div');
                         nameLine.className = 'name-line';
+                        if (pageName === this.demoPageName && this.isEditingRecommendations && tool.demoSlug) {
+                            nameLine.appendChild(this.createDemoNameInput(tool));
+                        } else {
                             const nameLink = document.createElement('a');
                             nameLink.href = tool.disabled ? '#' : this.getLinkAddress(tool['地址']);
                             nameLink.target = '_blank';
                             nameLink.textContent = tool['名称'];
                             nameLine.appendChild(nameLink);
-                        if (this.isEditingRecommendations) {
+                        }
+                        if (this.isEditingRecommendations && pageName !== this.demoPageName) {
                             this.appendRecommendationControl(nameLine, tool);
                         }
                         nameCell.appendChild(nameLine);
-                        if (!this.isEditingRecommendations) {
+                        if (!this.isEditingRecommendations && pageName !== this.demoPageName) {
                             this.appendRecommendationControl(nameCell, tool);
                         }
                         row.appendChild(nameCell);
@@ -2455,7 +2484,7 @@
             }
 
             // 生成移动端卡片视图
-            generateMobileCards(tableBodyId, pageData) {
+            generateMobileCards(tableBodyId, pageData, pageName) {
                 const tableScroll = document.getElementById(tableBodyId)?.closest('.table-scroll');
                 if (!tableScroll || !pageData || !pageData['类型']) return;
 
@@ -2482,7 +2511,7 @@
 
                     // 为该类型下的每个工具创建卡片
                     tools.forEach(tool => {
-                        const card = this.createMobileCard(tool);
+                        const card = this.createMobileCard(tool, pageName);
                         mobileContainer.appendChild(card);
                     });
                 });
@@ -2491,7 +2520,7 @@
             }
 
             // 创建单个移动端工具卡片
-            createMobileCard(tool) {
+            createMobileCard(tool, pageName) {
                 const card = document.createElement('div');
                 card.className = 'mobile-card';
 
@@ -2505,13 +2534,17 @@
                 const summary = document.createElement('div');
                 summary.className = 'mobile-card-summary';
 
-                const nameLink = document.createElement('a');
-                nameLink.className = 'mobile-card-name';
-                nameLink.href = this.getLinkAddress(tool['地址']);
-                nameLink.target = '_blank';
-                nameLink.textContent = tool['名称'];
-                summary.appendChild(nameLink);
-                if (!this.isEditingRecommendations) {
+                if (pageName === this.demoPageName && this.isEditingRecommendations && tool.demoSlug) {
+                    summary.appendChild(this.createDemoNameInput(tool));
+                } else {
+                    const nameLink = document.createElement('a');
+                    nameLink.className = 'mobile-card-name';
+                    nameLink.href = tool.disabled ? '#' : this.getLinkAddress(tool['地址']);
+                    nameLink.target = '_blank';
+                    nameLink.textContent = tool['名称'];
+                    summary.appendChild(nameLink);
+                }
+                if (!this.isEditingRecommendations && pageName !== this.demoPageName) {
                     this.appendRecommendationControl(summary, tool);
                 }
 
@@ -2529,7 +2562,7 @@
                 if (tags.length > 0) {
                     const tagsContainer = document.createElement('div');
                     tagsContainer.className = 'mobile-card-tags';
-                    if (this.isEditingRecommendations) {
+                    if (this.isEditingRecommendations && pageName !== this.demoPageName) {
                         this.appendRecommendationControl(tagsContainer, tool, { mobile: true });
                     }
                     tags.forEach(tag => {
@@ -2542,7 +2575,7 @@
                 } else {
                     const tagsContainer = document.createElement('div');
                     tagsContainer.className = 'mobile-card-tags';
-                    if (this.isEditingRecommendations) {
+                    if (this.isEditingRecommendations && pageName !== this.demoPageName) {
                         this.appendRecommendationControl(tagsContainer, tool, { mobile: true });
                     }
                     if (tagsContainer.childElementCount > 0) {
@@ -2560,6 +2593,18 @@
                 card.appendChild(header);
 
                 return card;
+            }
+
+            createDemoNameInput(tool) {
+                const input = document.createElement('input');
+                input.className = 'demo-name-input';
+                input.type = 'text';
+                input.value = tool['名称'] || '';
+                input.dataset.demoTitleInput = 'true';
+                input.dataset.demoSlug = tool.demoSlug;
+                input.dataset.originalTitle = tool['名称'] || '';
+                input.setAttribute('aria-label', '编辑演示名称');
+                return input;
             }
 
             appendDemoActions(functionCell, tool) {
@@ -2639,6 +2684,24 @@
                 document.querySelectorAll('[data-demo-action]').forEach(button => {
                     button.addEventListener('click', () => this.handleDemoAction(button));
                 });
+
+                document.querySelectorAll('[data-demo-title-input]').forEach(input => {
+                    input.addEventListener('keydown', (event) => this.handleDemoTitleKeydown(event, input));
+                    input.addEventListener('blur', () => this.saveDemoTitle(input));
+                });
+            }
+
+            handleDemoTitleKeydown(event, input) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    input.blur();
+                    return;
+                }
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    input.value = input.dataset.originalTitle || '';
+                    input.blur();
+                }
             }
 
             async handleDemoAction(button) {
@@ -2769,6 +2832,40 @@
                     this.switchToPage(this.demoPageName);
                 } catch (error) {
                     this.setDemoStatus(error.message || '操作失败');
+                }
+            }
+
+            async saveDemoTitle(input) {
+                const slug = input.dataset.demoSlug;
+                const originalTitle = input.dataset.originalTitle || '';
+                const title = input.value.trim();
+                if (!slug || input.dataset.saving === 'true') return;
+                if (title === originalTitle) return;
+                if (!title) {
+                    input.value = originalTitle;
+                    this.setDemoStatus('演示名称不能为空');
+                    return;
+                }
+
+                input.dataset.saving = 'true';
+                this.setDemoStatus('正在重命名...');
+                try {
+                    const response = await fetch(`/api/demos/${encodeURIComponent(slug)}`, {
+                        method: 'PATCH',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title })
+                    });
+                    if (!response.ok) {
+                        throw new Error(await this.readErrorMessage(response));
+                    }
+                    this.setDemoStatus('已重命名');
+                    await this.loadDemos();
+                    this.switchToPage(this.demoPageName);
+                } catch (error) {
+                    input.dataset.saving = 'false';
+                    input.value = originalTitle;
+                    this.setDemoStatus(error.message || '重命名失败');
                 }
             }
 

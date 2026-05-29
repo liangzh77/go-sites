@@ -313,13 +313,14 @@ func (a *app) handleCreateMarkdownDemo(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleUpdateDemo(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	var input struct {
-		Disabled *bool `json:"disabled"`
+		Disabled *bool   `json:"disabled"`
+		Title    *string `json:"title"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&input); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body.")
 		return
 	}
-	if input.Disabled == nil {
+	if input.Disabled == nil && input.Title == nil {
 		writeError(w, http.StatusBadRequest, "NO_CHANGE", "No supported fields were provided.")
 		return
 	}
@@ -334,7 +335,29 @@ func (a *app) handleUpdateDemo(w http.ResponseWriter, r *http.Request) {
 	}
 	for i := range m.Demos {
 		if m.Demos[i].Slug == slug {
-			m.Demos[i].Disabled = *input.Disabled
+			if input.Title != nil {
+				title := strings.TrimSpace(*input.Title)
+				baseSlug := slugify(title)
+				if baseSlug == "" {
+					writeError(w, http.StatusUnprocessableEntity, "INVALID_TITLE", "Demo title is required.")
+					return
+				}
+				nextTitle, nextSlug := nextDemoNameAndSlugExcept(title, baseSlug, m.Demos, slug)
+				if nextSlug != m.Demos[i].Slug {
+					oldDir := filepath.Join(a.demosDir, m.Demos[i].Slug)
+					nextDir := filepath.Join(a.demosDir, nextSlug)
+					if err := os.Rename(oldDir, nextDir); err != nil {
+						writeError(w, http.StatusInternalServerError, "RENAME_FAILED", "Unable to rename demo files.")
+						return
+					}
+				}
+				m.Demos[i].Title = nextTitle
+				m.Demos[i].Slug = nextSlug
+				m.Demos[i].Address = a.demoAddress(nextSlug)
+			}
+			if input.Disabled != nil {
+				m.Demos[i].Disabled = *input.Disabled
+			}
 			m.Demos[i].UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 			if err := a.saveManifestLocked(m); err != nil {
 				writeError(w, http.StatusInternalServerError, "WRITE_FAILED", "Unable to save demo list.")
@@ -1020,8 +1043,15 @@ func slugify(input string) string {
 }
 
 func nextDemoNameAndSlug(title, baseSlug string, demos []demoItem) (string, string) {
+	return nextDemoNameAndSlugExcept(title, baseSlug, demos, "")
+}
+
+func nextDemoNameAndSlugExcept(title, baseSlug string, demos []demoItem, exceptSlug string) (string, string) {
 	used := map[string]bool{}
 	for _, item := range demos {
+		if item.Slug == exceptSlug {
+			continue
+		}
 		used[item.Slug] = true
 	}
 	if !used[baseSlug] {
