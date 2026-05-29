@@ -153,7 +153,7 @@ $remoteArchive = "/tmp/$Domain-$releaseId.tgz"
 $demoServerDir = Join-Path $PSScriptRoot "cmd\demo-server"
 $demoBinaryPath = Join-Path ([System.IO.Path]::GetTempPath()) "go-sites-demo-$releaseId"
 $remoteDemoBinary = "/tmp/go-sites-demo-$releaseId"
-$remoteCaddyfile = "/tmp/Caddyfile-$releaseId"
+$remoteSiteCaddyfile = "/tmp/$Domain-$releaseId.caddy"
 $shouldDeployDemoServer = Test-Path $demoServerDir
 
 try {
@@ -196,9 +196,9 @@ try {
         }
     }
 
-    & scp @scpArgs (Join-Path $PSScriptRoot "Caddyfile") "${target}:$remoteCaddyfile"
+    & scp @scpArgs (Join-Path $PSScriptRoot "Caddyfile") "${target}:$remoteSiteCaddyfile"
     if ($LASTEXITCODE -ne 0) {
-        throw "Failed to upload Caddyfile."
+        throw "Failed to upload site Caddyfile."
     }
 
     $deployScript = @'
@@ -330,16 +330,78 @@ echo "Demo server deployed: $NEW_RELEASE"
         Invoke-RemoteScript -Target $target -RemotePort $Port -KeyFile $resolvedIdentityFile -Script $demoDeployScript
     }
 
-    $caddyDeployScript = @'
+$caddyDeployScript = @'
 set -euo pipefail
-CADDYFILE='__REMOTE_CADDYFILE__'
-install -m 644 "$CADDYFILE" /etc/caddy/Caddyfile
+DOMAIN='__DOMAIN__'
+SITE_CADDYFILE='__REMOTE_SITE_CADDYFILE__'
+MAIN_CADDYFILE='/etc/caddy/Caddyfile'
+SITES_DIR='/etc/caddy/sites-enabled'
+SITE_CONFIG="$SITES_DIR/$DOMAIN.caddy"
+LEGACY_CONFIG="$SITES_DIR/legacy-existing.caddy"
+
+mkdir -p "$SITES_DIR"
+
+if [[ ! -f "$MAIN_CADDYFILE" ]] || ! grep -Eq '^[[:space:]]*import[[:space:]]+/etc/caddy/sites-enabled/\*\.caddy' "$MAIN_CADDYFILE"; then
+  timestamp=$(date +%Y%m%d-%H%M%S)
+  if [[ -f "$MAIN_CADDYFILE" ]]; then
+    cp "$MAIN_CADDYFILE" "$MAIN_CADDYFILE.bak.$timestamp"
+    if [[ ! -f "$LEGACY_CONFIG" ]]; then
+      awk '
+        function is_main_site(line) {
+          return line ~ /(^|[,[:space:]])https?:\/\/(www\.)?liangz77\.cn([[:space:],{]|$)/
+        }
+        function flush_block() {
+          if (!skip && block != "") {
+            printf "%s", block
+            if (substr(block, length(block), 1) != "\n") {
+              printf "\n"
+            }
+            printf "\n"
+          }
+          block = ""
+          skip = 0
+        }
+        {
+          line = $0 "\n"
+          if (depth == 0) {
+            block = ""
+            skip = 0
+            if ($0 ~ /^[[:space:]]*\{/) {
+              skip = 1
+            } else if (is_main_site($0)) {
+              skip = 1
+            }
+          }
+          block = block line
+          for (i = 1; i <= length($0); i++) {
+            c = substr($0, i, 1)
+            if (c == "{") depth++
+            if (c == "}") depth--
+          }
+          if (depth == 0) {
+            flush_block()
+          }
+        }
+      ' "$MAIN_CADDYFILE" >"$LEGACY_CONFIG"
+    fi
+  fi
+
+  cat >"$MAIN_CADDYFILE" <<'EOF'
+{
+    email admin@liangz77.cn
+}
+
+import /etc/caddy/sites-enabled/*.caddy
+EOF
+fi
+
+install -m 644 "$SITE_CADDYFILE" "$SITE_CONFIG"
 caddy validate --config /etc/caddy/Caddyfile
 systemctl reload caddy
-rm -f "$CADDYFILE"
+rm -f "$SITE_CADDYFILE"
 echo "Caddy reloaded"
 '@
-    $caddyDeployScript = $caddyDeployScript.Replace("__REMOTE_CADDYFILE__", $remoteCaddyfile)
+    $caddyDeployScript = $caddyDeployScript.Replace("__DOMAIN__", $Domain).Replace("__REMOTE_SITE_CADDYFILE__", $remoteSiteCaddyfile)
     Invoke-RemoteScript -Target $target -RemotePort $Port -KeyFile $resolvedIdentityFile -Script $caddyDeployScript
 }
 finally {

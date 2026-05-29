@@ -73,6 +73,6 @@ systemctl status caddy --no-pager
 echo "Server initialization completed."
 echo "Next steps:"
 echo "1. Upload your SSH public key to /home/${DEPLOY_USER}/.ssh/authorized_keys"
-echo "2. Copy the repo Caddyfile to /etc/caddy/Caddyfile"
-echo "3. Run caddy validate --config /etc/caddy/Caddyfile"
+echo "2. Keep /etc/caddy/Caddyfile as the shared main config with: import /etc/caddy/sites-enabled/*.caddy"
+echo "3. Put each site in /etc/caddy/sites-enabled/<domain>.caddy and run caddy validate --config /etc/caddy/Caddyfile"
 echo "4. Run deploy.ps1 from your local machine"
