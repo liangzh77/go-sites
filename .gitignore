@@ -2,3 +2,5 @@ site-config.js
 .playwright-mcp
 demo-data
 .local-demo-server.exe*
+.wiki-original-backup-*
+wiki/

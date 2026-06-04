@@ -54,7 +54,8 @@ function New-StagingDir {
         "Caddyfile",
         "go.mod",
         "go.sum",
-        "site-config.js"
+        "site-config.js",
+        "wiki"
     )
 
     Get-ChildItem -LiteralPath $SourceDir -Force | ForEach-Object {
@@ -63,6 +64,10 @@ function New-StagingDir {
         }
 
         if ($_.Name -like ".local-demo-server.exe*") {
+            return
+        }
+
+        if ($_.Name -like ".wiki-original-backup-*") {
             return
         }
 

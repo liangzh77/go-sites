@@ -15,6 +15,7 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -34,6 +35,7 @@ type app struct {
 	mu            sync.Mutex
 	dataDir       string
 	demosDir      string
+	wikiRoot      string
 	manifestPath  string
 	staticRoot    string
 	adminPassword string
@@ -47,6 +49,7 @@ type demoItem struct {
 	Address   string `json:"address"`
 	Disabled  bool   `json:"disabled"`
 	Kind      string `json:"kind"`
+	Feature   string `json:"feature"`
 	CreatedAt string `json:"createdAt"`
 	UpdatedAt string `json:"updatedAt"`
 }
@@ -74,6 +77,7 @@ func main() {
 	a := &app{
 		dataDir:       dataDir,
 		demosDir:      filepath.Join(dataDir, "demos"),
+		wikiRoot:      envOr("WIKI_ROOT", filepath.Join(".", "wiki")),
 		manifestPath:  filepath.Join(dataDir, "manifest.json"),
 		staticRoot:    staticRoot,
 		adminPassword: password,
@@ -95,12 +99,23 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/demo/session", a.handleSessionStatus)
 	mux.HandleFunc("POST /api/demo/session", a.handleSession)
 	mux.HandleFunc("GET /api/demos", a.handleListDemos)
 	mux.HandleFunc("POST /api/demos", a.requireAuth(a.handleCreateDemo))
 	mux.HandleFunc("PATCH /api/demos/{slug}", a.requireAuth(a.handleUpdateDemo))
 	mux.HandleFunc("DELETE /api/demos/{slug}", a.requireAuth(a.handleDeleteDemo))
+	mux.HandleFunc("GET /api/wiki/files", a.requireAuth(a.handleListWikiFiles))
+	mux.HandleFunc("POST /api/wiki/files", a.requireAuth(a.handleCreateWikiFile))
+	mux.HandleFunc("POST /api/wiki/upload", a.requireAuth(a.handleUploadWikiFiles))
+	mux.HandleFunc("GET /api/wiki/files/", a.requireAuth(a.handleGetWikiFile))
+	mux.HandleFunc("PUT /api/wiki/files/", a.requireAuth(a.handleUpdateWikiFile))
+	mux.HandleFunc("DELETE /api/wiki/files/", a.requireAuth(a.handleDeleteWikiFile))
+	mux.HandleFunc("POST /api/wiki/folders", a.requireAuth(a.handleCreateWikiFolder))
+	mux.HandleFunc("DELETE /api/wiki/folders/", a.requireAuth(a.handleDeleteWikiFolder))
+	mux.HandleFunc("PATCH /api/wiki/move", a.requireAuth(a.handleMoveWikiEntry))
 	mux.HandleFunc("/demo/", a.handleServeDemo)
+	mux.HandleFunc("/wiki/", a.requireAuth(a.handleServeWikiAsset))
 	mux.HandleFunc("/", a.handleStaticFallback)
 
 	addr := envOr("DEMO_SERVER_ADDR", ":9005")
@@ -138,6 +153,14 @@ func (a *app) handleSession(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
+func (a *app) handleSessionStatus(w http.ResponseWriter, r *http.Request) {
+	if !a.isAuthenticated(r) {
+		writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Login required.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 func (a *app) handleListDemos(w http.ResponseWriter, r *http.Request) {
 	m, err := a.loadManifest()
 	if err != nil {
@@ -156,6 +179,402 @@ func (a *app) handleListDemos(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string][]demoItem{"demos": demos})
+}
+
+type wikiFileItem struct {
+	Path      string `json:"path"`
+	Title     string `json:"title"`
+	Content   string `json:"content,omitempty"`
+	UpdatedAt string `json:"updatedAt"`
+	Size      int64  `json:"size"`
+}
+
+type wikiFolderItem struct {
+	Path string `json:"path"`
+}
+
+func (a *app) handleListWikiFiles(w http.ResponseWriter, r *http.Request) {
+	files, err := a.collectWikiFiles(true)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read wiki files.")
+		return
+	}
+	folders, err := a.collectWikiFolders()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read wiki folders.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"files": files, "folders": folders})
+}
+
+func (a *app) handleGetWikiFile(w http.ResponseWriter, r *http.Request) {
+	relPath := strings.TrimPrefix(r.URL.Path, "/api/wiki/files/")
+	if relPath == "" {
+		writeError(w, http.StatusBadRequest, "WIKI_FILE_REQUIRED", "Wiki file path is required.")
+		return
+	}
+	content, info, cleanPath, err := a.readWikiFile(relPath)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "WIKI_READ_FAILED"
+		if errors.Is(err, os.ErrNotExist) {
+			status = http.StatusNotFound
+			code = "WIKI_NOT_FOUND"
+		} else if errors.Is(err, errUnsafeWikiPath) {
+			status = http.StatusBadRequest
+			code = "WIKI_INVALID_PATH"
+		}
+		writeError(w, status, code, "Unable to read wiki file.")
+		return
+	}
+	writeJSON(w, http.StatusOK, wikiFileItem{
+		Path:      cleanPath,
+		Title:     markdownTitleFromContent(content),
+		Content:   content,
+		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
+		Size:      info.Size(),
+	})
+}
+
+func (a *app) handleCreateWikiFile(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Parent  string `json:"parent"`
+		Name    string `json:"name"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&input); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body.")
+		return
+	}
+	name := strings.TrimSpace(input.Name)
+	if filepath.Ext(name) == "" {
+		name += ".md"
+	}
+	if !validWikiName(name) || !isMarkdownFile(name) {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_NAME", "Invalid wiki file name.")
+		return
+	}
+	parentClean, parentTarget, err := a.wikiFolderTarget(input.Parent, true)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki folder path.")
+		return
+	}
+	targetClean := path.Join(parentClean, name)
+	if parentClean == "." || parentClean == "" {
+		targetClean = name
+	}
+	target := filepath.Join(parentTarget, name)
+	if !isWithin(filepath.Clean(a.wikiRoot), target) {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki file path.")
+		return
+	}
+	if _, err := os.Stat(target); err == nil {
+		writeError(w, http.StatusConflict, "WIKI_EXISTS", "Wiki file already exists.")
+		return
+	} else if !errors.Is(err, os.ErrNotExist) {
+		writeError(w, http.StatusInternalServerError, "WIKI_WRITE_FAILED", "Unable to create wiki file.")
+		return
+	}
+	content := input.Content
+	if strings.TrimSpace(content) == "" {
+		content = "# " + strings.TrimSuffix(name, filepath.Ext(name)) + "\n"
+	}
+	if err := os.WriteFile(target, []byte(content), 0o644); err != nil {
+		writeError(w, http.StatusInternalServerError, "WIKI_WRITE_FAILED", "Unable to create wiki file.")
+		return
+	}
+	content, info, cleanPath, err := a.readWikiFile(targetClean)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read created wiki file.")
+		return
+	}
+	writeJSON(w, http.StatusCreated, wikiFileItem{
+		Path:      cleanPath,
+		Title:     markdownTitleFromContent(content),
+		Content:   content,
+		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
+		Size:      info.Size(),
+	})
+}
+
+type wikiUploadItem struct {
+	Path string `json:"path"`
+	Size int64  `json:"size"`
+}
+
+func (a *app) handleUploadWikiFiles(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
+	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_UPLOAD", "Invalid wiki upload.")
+		return
+	}
+	parent := r.FormValue("parent")
+	parentClean, parentTarget, err := a.wikiFolderTarget(parent, false)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki folder path.")
+		return
+	}
+	headers := r.MultipartForm.File["files"]
+	if len(headers) == 0 {
+		headers = r.MultipartForm.File["file"]
+	}
+	if len(headers) == 0 {
+		writeError(w, http.StatusBadRequest, "WIKI_UPLOAD_REQUIRED", "No files were uploaded.")
+		return
+	}
+	for _, header := range headers {
+		name := strings.TrimSpace(filepath.Base(header.Filename))
+		if !validWikiName(name) || !isMarkdownFile(name) {
+			writeError(w, http.StatusBadRequest, "WIKI_UNSUPPORTED_UPLOAD", "Only Markdown files can be added to the wiki.")
+			return
+		}
+	}
+	uploaded := []wikiUploadItem{}
+	markdownFiles := []wikiFileItem{}
+	for _, header := range headers {
+		name := strings.TrimSpace(filepath.Base(header.Filename))
+		targetName, target, err := nextWikiUploadTarget(parentTarget, name)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "WIKI_UPLOAD_FAILED", "Unable to prepare wiki upload.")
+			return
+		}
+		if !isWithin(filepath.Clean(a.wikiRoot), target) {
+			writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki upload path.")
+			return
+		}
+		src, err := header.Open()
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "INVALID_UPLOAD", "Unable to read uploaded file.")
+			return
+		}
+		err = writeUploadedWikiFile(src, target)
+		_ = src.Close()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "WIKI_UPLOAD_FAILED", "Unable to save uploaded file.")
+			return
+		}
+		rel := path.Join(parentClean, targetName)
+		if parentClean == "." || parentClean == "" {
+			rel = targetName
+		}
+		rel = filepath.ToSlash(rel)
+		info, statErr := os.Stat(target)
+		size := header.Size
+		if statErr == nil {
+			size = info.Size()
+		}
+		uploaded = append(uploaded, wikiUploadItem{Path: rel, Size: size})
+		if isMarkdownFile(targetName) {
+			content, info, cleanPath, err := a.readWikiFile(rel)
+			if err == nil {
+				markdownFiles = append(markdownFiles, wikiFileItem{
+					Path:      cleanPath,
+					Title:     markdownTitleFromContent(content),
+					Content:   content,
+					UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
+					Size:      info.Size(),
+				})
+			}
+		}
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"uploaded": uploaded, "files": markdownFiles})
+}
+
+func (a *app) handleUpdateWikiFile(w http.ResponseWriter, r *http.Request) {
+	relPath := strings.TrimPrefix(r.URL.Path, "/api/wiki/files/")
+	var input struct {
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 5<<20)).Decode(&input); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body.")
+		return
+	}
+	cleanPath, target, err := a.wikiFileTarget(relPath)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki file path.")
+		return
+	}
+	if _, err := os.Stat(target); err != nil {
+		status := http.StatusInternalServerError
+		code := "WIKI_WRITE_FAILED"
+		if errors.Is(err, os.ErrNotExist) {
+			status = http.StatusNotFound
+			code = "WIKI_NOT_FOUND"
+		}
+		writeError(w, status, code, "Unable to save wiki file.")
+		return
+	}
+	if err := os.WriteFile(target, []byte(input.Content), 0o644); err != nil {
+		writeError(w, http.StatusInternalServerError, "WIKI_WRITE_FAILED", "Unable to save wiki file.")
+		return
+	}
+	content, info, cleanPath, err := a.readWikiFile(cleanPath)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read saved wiki file.")
+		return
+	}
+	writeJSON(w, http.StatusOK, wikiFileItem{
+		Path:      cleanPath,
+		Title:     markdownTitleFromContent(content),
+		Content:   content,
+		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
+		Size:      info.Size(),
+	})
+}
+
+func (a *app) handleDeleteWikiFile(w http.ResponseWriter, r *http.Request) {
+	relPath := strings.TrimPrefix(r.URL.Path, "/api/wiki/files/")
+	_, target, err := a.wikiFileTarget(relPath)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki file path.")
+		return
+	}
+	info, err := os.Lstat(target)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "WIKI_DELETE_FAILED"
+		if errors.Is(err, os.ErrNotExist) {
+			status = http.StatusNotFound
+			code = "WIKI_NOT_FOUND"
+		}
+		writeError(w, status, code, "Unable to delete wiki file.")
+		return
+	}
+	if info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki file path.")
+		return
+	}
+	if err := os.Remove(target); err != nil {
+		writeError(w, http.StatusInternalServerError, "WIKI_DELETE_FAILED", "Unable to delete wiki file.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (a *app) handleCreateWikiFolder(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Parent string `json:"parent"`
+		Name   string `json:"name"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&input); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body.")
+		return
+	}
+	name := strings.TrimSpace(input.Name)
+	if !validWikiName(name) {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_NAME", "Invalid wiki folder name.")
+		return
+	}
+	parentClean, parentTarget, err := a.wikiFolderTarget(input.Parent, true)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki folder path.")
+		return
+	}
+	targetClean := path.Join(parentClean, name)
+	if parentClean == "." || parentClean == "" {
+		targetClean = name
+	}
+	target := filepath.Join(parentTarget, name)
+	if !isWithin(filepath.Clean(a.wikiRoot), target) {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki folder path.")
+		return
+	}
+	if err := os.Mkdir(target, 0o755); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			writeError(w, http.StatusConflict, "WIKI_EXISTS", "Wiki folder already exists.")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "WIKI_WRITE_FAILED", "Unable to create wiki folder.")
+		return
+	}
+	writeJSON(w, http.StatusCreated, wikiFolderItem{Path: filepath.ToSlash(targetClean)})
+}
+
+func (a *app) handleDeleteWikiFolder(w http.ResponseWriter, r *http.Request) {
+	relPath := strings.TrimPrefix(r.URL.Path, "/api/wiki/folders/")
+	cleanPath, target, err := a.wikiFolderTarget(relPath, false)
+	if err != nil || cleanPath == "." || cleanPath == "" {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki folder path.")
+		return
+	}
+	info, err := os.Lstat(target)
+	if err != nil {
+		status := http.StatusInternalServerError
+		code := "WIKI_DELETE_FAILED"
+		if errors.Is(err, os.ErrNotExist) {
+			status = http.StatusNotFound
+			code = "WIKI_NOT_FOUND"
+		}
+		writeError(w, status, code, "Unable to delete wiki folder.")
+		return
+	}
+	if !info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki folder path.")
+		return
+	}
+	if err := os.RemoveAll(target); err != nil {
+		writeError(w, http.StatusInternalServerError, "WIKI_DELETE_FAILED", "Unable to delete wiki folder.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (a *app) handleMoveWikiEntry(w http.ResponseWriter, r *http.Request) {
+	var input struct {
+		Path         string `json:"path"`
+		TargetFolder string `json:"targetFolder"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 64<<10)).Decode(&input); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body.")
+		return
+	}
+	sourceClean, sourceTarget, err := a.wikiFileTarget(input.Path)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid wiki file path.")
+		return
+	}
+	targetFolderClean, targetFolder, err := a.wikiFolderTarget(input.TargetFolder, false)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "WIKI_INVALID_PATH", "Invalid target folder path.")
+		return
+	}
+	targetClean := path.Join(targetFolderClean, path.Base(sourceClean))
+	if targetFolderClean == "." || targetFolderClean == "" {
+		targetClean = path.Base(sourceClean)
+	}
+	target := filepath.Join(targetFolder, filepath.Base(sourceTarget))
+	if filepath.Clean(sourceTarget) == filepath.Clean(target) {
+		content, info, cleanPath, err := a.readWikiFile(sourceClean)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read wiki file.")
+			return
+		}
+		writeJSON(w, http.StatusOK, wikiFileItem{Path: cleanPath, Title: markdownTitleFromContent(content), Content: content, UpdatedAt: info.ModTime().UTC().Format(time.RFC3339), Size: info.Size()})
+		return
+	}
+	if _, err := os.Stat(target); err == nil {
+		writeError(w, http.StatusConflict, "WIKI_EXISTS", "Target file already exists.")
+		return
+	} else if !errors.Is(err, os.ErrNotExist) {
+		writeError(w, http.StatusInternalServerError, "WIKI_MOVE_FAILED", "Unable to move wiki file.")
+		return
+	}
+	if err := os.Rename(sourceTarget, target); err != nil {
+		writeError(w, http.StatusInternalServerError, "WIKI_MOVE_FAILED", "Unable to move wiki file.")
+		return
+	}
+	content, info, cleanPath, err := a.readWikiFile(targetClean)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read moved wiki file.")
+		return
+	}
+	writeJSON(w, http.StatusOK, wikiFileItem{
+		Path:      cleanPath,
+		Title:     markdownTitleFromContent(content),
+		Content:   content,
+		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
+		Size:      info.Size(),
+	})
 }
 
 func (a *app) handleCreateDemo(w http.ResponseWriter, r *http.Request) {
@@ -315,12 +734,13 @@ func (a *app) handleUpdateDemo(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Disabled *bool   `json:"disabled"`
 		Title    *string `json:"title"`
+		Feature  *string `json:"feature"`
 	}
 	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&input); err != nil {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body.")
 		return
 	}
-	if input.Disabled == nil && input.Title == nil {
+	if input.Disabled == nil && input.Title == nil && input.Feature == nil {
 		writeError(w, http.StatusBadRequest, "NO_CHANGE", "No supported fields were provided.")
 		return
 	}
@@ -357,6 +777,9 @@ func (a *app) handleUpdateDemo(w http.ResponseWriter, r *http.Request) {
 			}
 			if input.Disabled != nil {
 				m.Demos[i].Disabled = *input.Disabled
+			}
+			if input.Feature != nil {
+				m.Demos[i].Feature = strings.TrimSpace(*input.Feature)
 			}
 			m.Demos[i].UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 			if err := a.saveManifestLocked(m); err != nil {
@@ -437,6 +860,32 @@ func (a *app) handleServeDemo(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, target)
 }
 
+func (a *app) handleServeWikiAsset(w http.ResponseWriter, r *http.Request) {
+	relPath := strings.TrimPrefix(r.URL.Path, "/wiki/")
+	decoded, err := pathUnescape(relPath)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+	clean := strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(decoded)), "/")
+	if clean == "." || clean == "" || strings.Contains(clean, "..") || strings.Contains(decoded, "\\") {
+		http.NotFound(w, r)
+		return
+	}
+	root := filepath.Clean(a.wikiRoot)
+	target := filepath.Join(root, filepath.FromSlash(clean))
+	if !isWithin(root, target) {
+		http.NotFound(w, r)
+		return
+	}
+	info, err := os.Lstat(target)
+	if err != nil || info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+		http.NotFound(w, r)
+		return
+	}
+	http.ServeFile(w, r, target)
+}
+
 func (a *app) handleStaticFallback(w http.ResponseWriter, r *http.Request) {
 	cleanPath := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
 	if cleanPath == "" {
@@ -486,6 +935,250 @@ func (a *app) normalizeDemoAddresses() error {
 
 func (a *app) demoAddress(slug string) string {
 	return a.publicOrigin + "/demo/" + slug
+}
+
+var errUnsafeWikiPath = errors.New("unsafe wiki path")
+
+func (a *app) collectWikiFiles(includeContent bool) ([]wikiFileItem, error) {
+	root := filepath.Clean(a.wikiRoot)
+	files := []wikiFileItem{}
+	err := filepath.WalkDir(root, func(filePath string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		if entry.Type()&fs.ModeSymlink != 0 {
+			return nil
+		}
+		if !isMarkdownFile(entry.Name()) {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, filePath)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		content := ""
+		title := strings.TrimSuffix(filepath.Base(rel), filepath.Ext(rel))
+		if includeContent {
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				return err
+			}
+			content = string(data)
+			if extracted := markdownTitleFromContent(content); extracted != "" {
+				title = extracted
+			}
+		}
+		files = append(files, wikiFileItem{
+			Path:      rel,
+			Title:     title,
+			Content:   content,
+			UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
+			Size:      info.Size(),
+		})
+		return nil
+	})
+	if errors.Is(err, os.ErrNotExist) {
+		return []wikiFileItem{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(files, func(i, j int) bool {
+		if strings.EqualFold(files[i].Path, "README.md") || strings.EqualFold(files[i].Path, "index.md") {
+			return true
+		}
+		if strings.EqualFold(files[j].Path, "README.md") || strings.EqualFold(files[j].Path, "index.md") {
+			return false
+		}
+		return strings.ToLower(files[i].Path) < strings.ToLower(files[j].Path)
+	})
+	return files, nil
+}
+
+func (a *app) collectWikiFolders() ([]wikiFolderItem, error) {
+	root := filepath.Clean(a.wikiRoot)
+	folders := []wikiFolderItem{}
+	err := filepath.WalkDir(root, func(filePath string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if filePath == root || !entry.IsDir() || entry.Type()&fs.ModeSymlink != 0 {
+			return nil
+		}
+		rel, err := filepath.Rel(root, filePath)
+		if err != nil {
+			return err
+		}
+		folders = append(folders, wikiFolderItem{Path: filepath.ToSlash(rel)})
+		return nil
+	})
+	if errors.Is(err, os.ErrNotExist) {
+		return []wikiFolderItem{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	sort.Slice(folders, func(i, j int) bool {
+		return strings.ToLower(folders[i].Path) < strings.ToLower(folders[j].Path)
+	})
+	return folders, nil
+}
+
+func (a *app) readWikiFile(relPath string) (string, fs.FileInfo, string, error) {
+	decoded, err := pathUnescape(relPath)
+	if err != nil {
+		return "", nil, "", errUnsafeWikiPath
+	}
+	clean := strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(decoded)), "/")
+	if clean == "." || clean == "" || strings.Contains(clean, "..") || strings.Contains(decoded, "\\") || !isMarkdownFile(clean) {
+		return "", nil, "", errUnsafeWikiPath
+	}
+	root := filepath.Clean(a.wikiRoot)
+	target := filepath.Join(root, filepath.FromSlash(clean))
+	if !isWithin(root, target) {
+		return "", nil, "", errUnsafeWikiPath
+	}
+	info, err := os.Lstat(target)
+	if err != nil {
+		return "", nil, "", err
+	}
+	if info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+		return "", nil, "", os.ErrNotExist
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		return "", nil, "", err
+	}
+	return string(data), info, clean, nil
+}
+
+func (a *app) wikiFileTarget(relPath string) (string, string, error) {
+	decoded, err := pathUnescape(relPath)
+	if err != nil {
+		return "", "", errUnsafeWikiPath
+	}
+	clean := strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(decoded)), "/")
+	if clean == "." || clean == "" || strings.Contains(clean, "..") || strings.Contains(decoded, "\\") || !isMarkdownFile(clean) {
+		return "", "", errUnsafeWikiPath
+	}
+	root := filepath.Clean(a.wikiRoot)
+	target := filepath.Join(root, filepath.FromSlash(clean))
+	if !isWithin(root, target) {
+		return "", "", errUnsafeWikiPath
+	}
+	return clean, target, nil
+}
+
+func (a *app) wikiFolderTarget(relPath string, createIfMissing bool) (string, string, error) {
+	decoded, err := pathUnescape(relPath)
+	if err != nil {
+		return "", "", errUnsafeWikiPath
+	}
+	clean := strings.TrimPrefix(path.Clean("/"+filepath.ToSlash(decoded)), "/")
+	if clean == "" {
+		clean = "."
+	}
+	if strings.Contains(clean, "..") || strings.Contains(decoded, "\\") || clean == ".." {
+		return "", "", errUnsafeWikiPath
+	}
+	root := filepath.Clean(a.wikiRoot)
+	target := root
+	if clean != "." {
+		target = filepath.Join(root, filepath.FromSlash(clean))
+	}
+	if clean != "." && !isWithin(root, target) {
+		return "", "", errUnsafeWikiPath
+	}
+	if createIfMissing {
+		if err := os.MkdirAll(target, 0o755); err != nil {
+			return "", "", err
+		}
+	} else {
+		info, err := os.Lstat(target)
+		if err != nil {
+			return "", "", err
+		}
+		if !info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+			return "", "", errUnsafeWikiPath
+		}
+	}
+	return clean, target, nil
+}
+
+func pathUnescape(value string) (string, error) {
+	decoded, err := urlPathUnescape(value)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(decoded), nil
+}
+
+func urlPathUnescape(value string) (string, error) {
+	return url.PathUnescape(value)
+}
+
+func validWikiName(name string) bool {
+	name = strings.TrimSpace(name)
+	if name == "" || name == "." || name == ".." {
+		return false
+	}
+	if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		return false
+	}
+	for _, char := range name {
+		if char < 32 || char == 127 {
+			return false
+		}
+	}
+	return true
+}
+
+func nextWikiUploadTarget(parentTarget, name string) (string, string, error) {
+	ext := filepath.Ext(name)
+	base := strings.TrimSuffix(name, ext)
+	for index := 1; index < 10000; index++ {
+		candidate := name
+		if index > 1 {
+			candidate = fmt.Sprintf("%s-%d%s", base, index, ext)
+		}
+		if !validWikiName(candidate) {
+			return "", "", errUnsafeWikiPath
+		}
+		target := filepath.Join(parentTarget, candidate)
+		if _, err := os.Stat(target); errors.Is(err, os.ErrNotExist) {
+			return candidate, target, nil
+		} else if err != nil {
+			return "", "", err
+		}
+	}
+	return "", "", fmt.Errorf("too many duplicate upload names")
+}
+
+func writeUploadedWikiFile(src multipart.File, target string) error {
+	dst, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+	_, err = io.Copy(dst, io.LimitReader(src, maxUploadBytes))
+	return err
+}
+
+func isMarkdownFile(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".md", ".markdown":
+		return true
+	default:
+		return false
+	}
 }
 
 func (a *app) pruneStoredMarkdownTemplateTitles() error {

@@ -29,14 +29,14 @@
             --serif-stack: "Iowan Old Style", "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, serif;
             --sans-stack: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
         }
-        
+
         /* 基础样式 */
         * { box-sizing: border-box; }
 
         .flex { display: flex; }
         .flex-wrap { flex-wrap: wrap; }
-        
-        body { 
+
+        body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-color);
@@ -730,9 +730,406 @@
             outline: none;
         }
 
+        .demo-feature-input {
+            width: 100%;
+            min-width: 0;
+            height: 1.9rem;
+            padding: 0 0.45rem;
+            border: 1px solid rgba(111, 124, 107, 0.28);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.82);
+            color: var(--text-color);
+            font: inherit;
+            font-size: 0.78rem;
+        }
+
+        .demo-feature-input:focus {
+            border-color: rgba(79, 95, 83, 0.52);
+            box-shadow: 0 0 0 3px rgba(213, 220, 209, 0.42);
+            outline: none;
+        }
+
         .mobile-demo-actions {
             flex-shrink: 0;
             gap: 0.35rem;
+        }
+
+        .wiki-layout {
+            display: grid;
+            grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+            gap: 1rem;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .wiki-sidebar,
+        .wiki-reader {
+            min-height: 0;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+            overflow: hidden;
+        }
+
+        .wiki-sidebar,
+        .wiki-reader {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .wiki-panel-head,
+        .wiki-reader-head {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--secondary-bg);
+        }
+
+        .wiki-panel-head h3 {
+            flex: 1;
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        .wiki-nav-button {
+            width: 2rem;
+            height: 2rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: white;
+            color: var(--text-color);
+            cursor: pointer;
+        }
+
+        .wiki-nav-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.42;
+        }
+
+        .wiki-mode-button {
+            width: auto;
+            min-width: 3.4rem;
+            padding: 0 0.65rem;
+            font-size: 0.82rem;
+        }
+
+        .wiki-mode-button[aria-pressed="true"] {
+            border-color: var(--primary-color);
+            background: var(--sage-wash);
+            color: var(--hover-color);
+            font-weight: 700;
+        }
+
+        .wiki-file-tree,
+        .wiki-markdown {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+        }
+
+        .wiki-file-tree {
+            padding: 0.65rem;
+        }
+
+        .wiki-folder {
+            margin-bottom: 0.2rem;
+        }
+
+        .wiki-folder > summary {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            min-height: 1.9rem;
+            padding: 0.3rem 0.45rem;
+            border-radius: 6px;
+            color: var(--ink-soft);
+            cursor: pointer;
+            font-weight: 650;
+            list-style: none;
+        }
+
+        .wiki-folder > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .wiki-folder > summary::before {
+            content: "▸";
+            display: inline-block;
+            width: 1rem;
+            transition: transform 0.16s ease;
+        }
+
+        .wiki-folder[open] > summary::before {
+            transform: rotate(90deg);
+        }
+
+        .wiki-folder-title {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .wiki-add-button,
+        .wiki-delete-button {
+            display: none;
+            width: 1.45rem;
+            height: 1.45rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: white;
+            color: var(--ink-soft);
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .wiki-editor-enabled .wiki-add-button,
+        .wiki-editor-enabled .wiki-delete-button {
+            display: inline-grid;
+            place-items: center;
+        }
+
+        .wiki-add-button:hover,
+        .wiki-delete-button:hover {
+            border-color: var(--primary-color);
+            color: var(--hover-color);
+        }
+
+        .wiki-delete-button.is-confirming {
+            width: 2.4rem;
+            border-color: #b85c52;
+            background: #fff0ec;
+            color: #9d3d35;
+            font-size: 0.74rem;
+            font-weight: 700;
+        }
+
+        .wiki-create-menu {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .wiki-create-choice {
+            height: 1.45rem;
+            padding: 0 0.45rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: white;
+            color: var(--text-color);
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.74rem;
+            line-height: 1;
+        }
+
+        .wiki-create-choice:hover {
+            border-color: var(--primary-color);
+            color: var(--hover-color);
+        }
+
+        .wiki-folder-children {
+            margin-left: 0.8rem;
+            padding-left: 0.5rem;
+            border-left: 1px solid rgba(207, 208, 198, 0.72);
+        }
+
+        .wiki-page-row {
+            display: flex;
+            align-items: stretch;
+            gap: 0.25rem;
+            border-radius: 6px;
+        }
+
+        .wiki-page-item,
+        .wiki-search-result {
+            width: 100%;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--text-color);
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .wiki-page-item {
+            display: block;
+            flex: 1;
+            min-width: 0;
+            padding: 0.45rem 0.5rem;
+        }
+
+        .wiki-editor-enabled .wiki-page-row[draggable="true"] {
+            cursor: grab;
+        }
+
+        .wiki-drop-target {
+            outline: 2px solid var(--primary-color);
+            outline-offset: 2px;
+            background: var(--sage-wash);
+        }
+
+        .wiki-page-item:hover,
+        .wiki-page-item[aria-pressed="true"] {
+            background: var(--sage-wash);
+        }
+
+        .wiki-page-item[aria-pressed="true"] {
+            color: var(--hover-color);
+            font-weight: 700;
+        }
+
+        .wiki-page-item small,
+        .wiki-search-result small,
+        .wiki-status {
+            display: block;
+            color: var(--ink-soft);
+            font-size: 0.78rem;
+        }
+
+        .wiki-search-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .wiki-search-input {
+            width: 100%;
+            height: 2.4rem;
+            padding: 0 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font: inherit;
+        }
+
+        .wiki-page-context {
+            padding: 0.75rem 1.1rem 0;
+        }
+
+        .wiki-page-context h2 {
+            display: none;
+            margin: 0.15rem 0 0;
+            font-size: 1.2rem;
+        }
+
+        .wiki-markdown {
+            padding: 1rem 1.1rem 1.5rem;
+            line-height: 1.75;
+        }
+
+        .wiki-markdown-editor {
+            width: 100%;
+            min-height: calc(100vh - 17rem);
+            resize: vertical;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.85rem;
+            background: #fffef9;
+            color: var(--text-color);
+            font: 0.92rem/1.65 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+        }
+
+        .wiki-markdown-editor:focus {
+            border-color: var(--primary-color);
+            outline: 2px solid rgba(125, 146, 112, 0.2);
+            outline-offset: 0;
+        }
+
+        .wiki-markdown h1,
+        .wiki-markdown h2,
+        .wiki-markdown h3 {
+            line-height: 1.3;
+        }
+
+        .wiki-markdown h1:first-child,
+        .wiki-markdown h2:first-child,
+        .wiki-markdown h3:first-child {
+            margin-top: 0;
+        }
+
+        .wiki-markdown code {
+            padding: 0.12rem 0.3rem;
+            border-radius: 5px;
+            background: var(--secondary-bg);
+        }
+
+        .wiki-markdown pre {
+            overflow: auto;
+            padding: 0.9rem;
+            border-radius: 8px;
+            background: #283129;
+            color: #fbfaf4;
+        }
+
+        .wiki-markdown blockquote {
+            margin: 1rem 0;
+            padding: 0.4rem 0.85rem;
+            border-left: 3px solid var(--clay-color);
+            background: var(--sage-wash);
+            color: var(--ink-soft);
+        }
+
+        .wiki-media {
+            margin: 1rem 0;
+        }
+
+        .wiki-media img {
+            display: block;
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            object-fit: contain;
+        }
+
+        .wiki-media figcaption {
+            margin-top: 0.35rem;
+            color: var(--ink-soft);
+            font-size: 0.82rem;
+        }
+
+        .wiki-markdown table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .wiki-markdown th,
+        .wiki-markdown td {
+            padding: 0.45rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .wiki-search-results {
+            display: grid;
+            gap: 0.6rem;
+        }
+
+        .wiki-search-result {
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            background: var(--card-bg);
+        }
+
+        .wiki-search-result:hover {
+            border-color: var(--primary-color);
+        }
+
+        .wiki-search-result p {
+            margin: 0.35rem 0 0;
+        }
+
+        .wiki-search-result mark,
+        .wiki-search-hit {
+            border-radius: 3px;
+            background: #fff0a6;
+            color: #342f16;
+            padding: 0 0.12rem;
+        }
+
+        .wiki-empty {
+            color: var(--ink-soft);
         }
 
         tr.is-disabled-demo .name-line a {
@@ -910,6 +1307,30 @@
                 flex-direction: column;
                 gap: 0.75rem;
                 height: auto;
+            }
+
+            .wiki-layout {
+                display: flex;
+                flex-direction: column;
+                height: auto;
+                min-height: 0;
+            }
+
+            .wiki-sidebar {
+                max-height: 15rem;
+            }
+
+            .wiki-reader {
+                min-height: 32rem;
+            }
+
+            .wiki-panel-head,
+            .wiki-reader-head {
+                padding: 0.6rem;
+            }
+
+            .wiki-markdown {
+                max-height: 58vh;
             }
 
             .search-panel {
@@ -2034,11 +2455,11 @@
         var gk_isXlsx = false;
         var gk_xlsxFileLookup = {};
         var gk_fileData = {};
-        
+
         function filledCell(cell) {
             return cell !== '' && cell != null;
         }
-        
+
         function loadFileData(filename) {
             if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
                 try {
@@ -2064,21 +2485,1294 @@
             return gk_fileData[filename] || "";
         }
 
+        class WikiPanel {
+            constructor(app) {
+                this.app = app;
+                this.files = [];
+                this.folders = [];
+                this.currentPath = '';
+                this.history = [];
+                this.historyIndex = -1;
+                this.searchQuery = '';
+                this.searchTimer = 0;
+                this.editMode = false;
+                this.isEditingContent = false;
+                this.editTextarea = null;
+                this.draggingPath = '';
+                this.pendingDelete = null;
+                this.pendingCreateFolder = null;
+                this.treeStateKey = 'go-sites:wiki-tree-state';
+                this.historyKey = 'go-sites:wiki-history';
+                this.selectedKey = 'go-sites:wiki-selected';
+                this.scrollKey = 'go-sites:wiki-scroll';
+                this.historyLimit = 40;
+                this.treeState = this.loadTreeState();
+                this.scrollPositions = this.loadScrollPositions();
+                this.keydownBound = false;
+            }
+
+            bind() {
+                this.root = document.getElementById(this.app.getTabId(this.app.wikiPageName));
+                if (!this.root || this.root.dataset.wikiBound === 'true') return;
+                this.root.dataset.wikiBound = 'true';
+                this.treeEl = this.root.querySelector('[data-wiki-tree]');
+                this.contentEl = this.root.querySelector('[data-wiki-content]');
+                this.titleEl = this.root.querySelector('[data-wiki-title]');
+                this.pathEl = this.root.querySelector('[data-wiki-path]');
+                this.searchEl = this.root.querySelector('[data-wiki-search]');
+                this.statusEl = this.root.querySelector('[data-wiki-status]');
+                this.backBtn = this.root.querySelector('[data-wiki-back]');
+                this.forwardBtn = this.root.querySelector('[data-wiki-forward]');
+                this.refreshBtn = this.root.querySelector('[data-wiki-refresh]');
+                this.editModeBtn = this.root.querySelector('[data-wiki-edit-mode]');
+                this.saveStatusEl = this.root.querySelector('[data-wiki-save-status]');
+                this.syncEditModeUi();
+
+                this.backBtn?.addEventListener('click', () => this.goHistory(-1));
+                this.forwardBtn?.addEventListener('click', () => this.goHistory(1));
+                this.refreshBtn?.addEventListener('click', () => this.loadFiles({ force: true }));
+                this.editModeBtn?.addEventListener('click', () => this.toggleEditMode());
+                this.searchEl?.addEventListener('input', () => {
+                    this.searchQuery = this.searchEl.value;
+                    window.clearTimeout(this.searchTimer);
+                    this.searchTimer = window.setTimeout(() => this.runSearch(), 160);
+                });
+                this.treeEl?.addEventListener('scroll', () => {
+                    this.treeState.scrollTop = this.treeEl.scrollTop;
+                    this.saveTreeState();
+                });
+                this.contentEl?.addEventListener('scroll', () => this.rememberCurrentScroll());
+                this.contentEl?.addEventListener('dblclick', () => this.startContentEdit());
+                this.contentEl?.addEventListener('dragover', (event) => {
+                    if (!this.isEditingContent) return;
+                    const path = this.dragPathFromEvent(event);
+                    if (!path) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'copy';
+                });
+                this.contentEl?.addEventListener('drop', (event) => {
+                    if (!this.isEditingContent) return;
+                    const path = this.dragPathFromEvent(event);
+                    if (!path) return;
+                    event.preventDefault();
+                    this.insertLinkAtCursor(path);
+                });
+                document.addEventListener('click', (event) => {
+                    if (this.pendingDelete && !event.target?.closest?.('[data-wiki-delete-action]')) {
+                        this.clearDeleteConfirm();
+                    }
+                    if (this.pendingCreateFolder !== null && !event.target?.closest?.('[data-wiki-create-action]')) {
+                        this.clearCreateMenu();
+                    }
+                });
+                if (!this.keydownBound) {
+                    this.keydownBound = true;
+                    document.addEventListener('keydown', (event) => {
+                        if (this.app.currentTab !== this.app.wikiPageName) return;
+                        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+                        const target = event.target;
+                        if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+                        if (event.key === 'ArrowLeft') {
+                            event.preventDefault();
+                            this.goHistory(-1);
+                        } else if (event.key === 'ArrowRight') {
+                            event.preventDefault();
+                            this.goHistory(1);
+                        }
+                    });
+                }
+            }
+
+            async loadFiles(options = {}) {
+                this.bind();
+                if (!this.root) return;
+                if (!options.force && this.files.length) {
+                    this.renderTree();
+                    return;
+                }
+                this.setStatus('正在加载 wiki...');
+                try {
+                    const payload = await this.api('/api/wiki/files');
+                    this.files = Array.isArray(payload.files) ? payload.files : [];
+                    this.folders = Array.isArray(payload.folders) ? payload.folders : [];
+                    this.files.sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'));
+                    this.folders.sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'));
+                    this.restoreHistory();
+                    this.renderTree();
+                    const current = this.currentHistoryItem();
+                    const selected = this.loadSelectedPath();
+                    if (current && this.itemExists(current)) {
+                        await this.openHistoryItem(current, { record: false, restoreScroll: true });
+                    } else if (selected && this.files.some(file => file.path === selected)) {
+                        await this.openFile(selected, { record: true, restoreScroll: true });
+                    } else if (this.files.length) {
+                        await this.openFile(this.files[0].path, { record: true, restoreScroll: true });
+                    } else {
+                        this.renderEmpty('没有找到 Markdown 文件。');
+                    }
+                    this.setStatus(this.files.length ? `${this.files.length} 个文件` : '没有文件');
+                } catch (error) {
+                    this.renderEmpty(error.message || '加载 wiki 失败。');
+                    this.setStatus(error.message || '加载失败');
+                }
+            }
+
+            async api(path, options = {}) {
+                const response = await fetch(path, { credentials: 'same-origin', ...options });
+                const text = await response.text();
+                let payload = {};
+                if (text) {
+                    try {
+                        payload = JSON.parse(text);
+                    } catch (error) {
+                        payload = { error: text };
+                    }
+                }
+                if (!response.ok) {
+                    throw new Error(payload?.error?.message || payload.message || `HTTP ${response.status}`);
+                }
+                return payload;
+            }
+
+            renderTree(options = {}) {
+                if (!this.treeEl) return;
+                if (!this.files.length && !this.folders.length) {
+                    this.treeEl.innerHTML = '<p class="wiki-empty">还没有文件。</p>';
+                    return;
+                }
+                const hasRenderedTree = this.treeEl.children.length > 0;
+                const previousScrollTop = hasRenderedTree ? this.treeEl.scrollTop : (this.treeState.scrollTop || 0);
+                const root = this.createTreeNode('Wiki', '');
+                for (const folder of this.folders) {
+                    this.addTreeFolder(root, String(folder.path || '').split('/').filter(Boolean));
+                }
+                for (const file of this.files) {
+                    this.addTreeFile(root, file.path.split('/'), file);
+                }
+                this.treeEl.replaceChildren(this.renderTreeFolder(root));
+                this.treeEl.scrollTop = previousScrollTop;
+                if (options.revealCurrent) this.revealCurrentTreeItem();
+            }
+
+            createTreeNode(name, path = '') {
+                return { name, path, folders: new Map(), files: [] };
+            }
+
+            addTreeFolder(root, parts) {
+                let node = root;
+                const current = [];
+                for (const part of parts) {
+                    current.push(part);
+                    if (!node.folders.has(part)) node.folders.set(part, this.createTreeNode(part, current.join('/')));
+                    node = node.folders.get(part);
+                }
+            }
+
+            addTreeFile(root, parts, file) {
+                let node = root;
+                const current = [];
+                for (const part of parts.slice(0, -1)) {
+                    current.push(part);
+                    if (!node.folders.has(part)) node.folders.set(part, this.createTreeNode(part, current.join('/')));
+                    node = node.folders.get(part);
+                }
+                node.files.push(file);
+            }
+
+            renderTreeFolder(node) {
+                const folderPath = node.path || 'root';
+                const details = document.createElement('details');
+                details.className = 'wiki-folder';
+                details.dataset.folderPath = node.path || '';
+                details.open = Object.prototype.hasOwnProperty.call(this.treeState.folderOpen, folderPath)
+                    ? this.treeState.folderOpen[folderPath]
+                    : true;
+                const summary = document.createElement('summary');
+                const title = document.createElement('span');
+                title.className = 'wiki-folder-title';
+                title.textContent = node.name;
+                const addButton = document.createElement('button');
+                addButton.type = 'button';
+                addButton.className = 'wiki-add-button';
+                addButton.textContent = '+';
+                addButton.title = '在这个文件夹中新建';
+                addButton.setAttribute('aria-label', `在 ${node.name} 中新建`);
+                addButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.toggleCreateMenu(node.path || '');
+                });
+                const deleteButton = node.path ? this.renderDeleteButton('folder', node.path, `删除 ${node.name}`) : null;
+                summary.append(title);
+                if (this.editMode && this.pendingCreateFolder === (node.path || '')) {
+                    summary.appendChild(this.renderCreateMenu(node.path || ''));
+                } else {
+                    summary.appendChild(addButton);
+                }
+                if (deleteButton) summary.appendChild(deleteButton);
+                this.bindFolderDrop(details, node.path || '');
+                details.appendChild(summary);
+                summary.addEventListener('click', () => {
+                    details.dataset.userToggle = 'true';
+                });
+                summary.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') details.dataset.userToggle = 'true';
+                });
+                details.addEventListener('toggle', () => {
+                    if (details.dataset.userToggle !== 'true') return;
+                    delete details.dataset.userToggle;
+                    this.treeState.folderOpen[folderPath] = details.open;
+                    this.saveTreeState();
+                });
+                const children = document.createElement('div');
+                children.className = 'wiki-folder-children';
+                for (const child of [...node.folders.values()].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))) {
+                    children.appendChild(this.renderTreeFolder(child));
+                }
+                for (const file of node.files.sort((a, b) => this.fileTitle(a).localeCompare(this.fileTitle(b), 'zh-CN'))) {
+                    const row = document.createElement('div');
+                    row.className = 'wiki-page-row';
+                    row.dataset.wikiFilePath = file.path;
+                    row.draggable = this.editMode;
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'wiki-page-item';
+                    button.dataset.wikiFilePath = file.path;
+                    button.setAttribute('aria-pressed', String(file.path === this.currentPath));
+                    const title = document.createElement('span');
+                    title.textContent = this.fileTitle(file);
+                    const meta = document.createElement('small');
+                    meta.textContent = file.path;
+                    button.append(title, meta);
+                    button.addEventListener('click', () => this.openFile(file.path, { record: true, restoreScroll: true }));
+                    row.addEventListener('dragstart', (event) => this.startFileDrag(event, file.path));
+                    row.addEventListener('dragend', () => { this.draggingPath = ''; });
+                    this.bindFileDrop(row, file.path);
+                    row.append(button, this.renderDeleteButton('file', file.path, `删除 ${this.fileTitle(file)}`));
+                    children.appendChild(row);
+                }
+                details.appendChild(children);
+                return details;
+            }
+
+            revealCurrentTreeItem() {
+                const selected = this.treeEl?.querySelector(`.wiki-page-item[data-wiki-file-path="${CSS.escape(this.currentPath)}"]`);
+                if (!selected) return;
+                let parent = selected.parentElement;
+                while (parent && parent !== this.treeEl) {
+                    if (parent.matches?.('details.wiki-folder') && !parent.open) return;
+                    parent = parent.parentElement;
+                }
+                if (selected.offsetParent === null) return;
+                selected.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                this.treeState.scrollTop = this.treeEl.scrollTop;
+                this.saveTreeState();
+            }
+
+            async openFile(path, options = {}) {
+                if (this.isEditingContent) {
+                    const saved = await this.finishContentEdit({ save: true, render: false });
+                    if (!saved) return;
+                }
+                this.rememberCurrentScroll();
+                const file = this.files.find(item => item.path === path);
+                if (!file) return;
+                const searchQuery = String(options.searchQuery || '').trim();
+                const historyItem = { type: 'file', id: path };
+                if (searchQuery) historyItem.searchQuery = searchQuery;
+                if (options.record !== false) this.recordHistory(historyItem);
+                this.currentPath = path;
+                this.saveSelectedPath(path);
+                this.renderTree({ revealCurrent: Boolean(options.revealInTree) });
+                if (this.titleEl) this.titleEl.textContent = this.fileTitle(file);
+                this.pathEl.textContent = file.path;
+                if (this.editMode) {
+                    this.renderMarkdownEditor(file);
+                } else {
+                    this.contentEl.innerHTML = this.renderMarkdown(file.content || '');
+                    this.wireInternalLinks();
+                }
+                if (!this.editMode && searchQuery) {
+                    this.highlightSearchMatches(searchQuery);
+                } else if (!this.editMode) {
+                    this.clearSearchDisplay();
+                }
+                window.requestAnimationFrame(() => {
+                    if (options.restoreScroll !== false) {
+                        const saved = this.scrollPositions[this.scrollIdentity(historyItem)];
+                        if (Number.isFinite(saved)) {
+                            this.contentEl.scrollTop = saved;
+                        }
+                    }
+                });
+                this.updateHistoryButtons();
+            }
+
+            async toggleEditMode() {
+                if (this.editMode) {
+                    const saved = await this.finishContentEdit({ save: true, render: true });
+                    if (!saved) return;
+                    this.editMode = false;
+                    this.pendingCreateFolder = null;
+                    this.syncEditModeUi();
+                    this.renderTree();
+                    return;
+                }
+                this.editMode = true;
+                this.syncEditModeUi();
+                this.renderTree();
+                await this.startContentEdit();
+            }
+
+            syncEditModeUi() {
+                this.root?.classList.toggle('wiki-editor-enabled', this.editMode);
+                if (this.editModeBtn) {
+                    this.editModeBtn.setAttribute('aria-pressed', String(this.editMode));
+                    this.editModeBtn.textContent = this.editMode ? '完成' : '编辑';
+                }
+            }
+
+            toggleCreateMenu(parentPath) {
+                if (!this.editMode) return;
+                this.pendingDelete = null;
+                this.pendingCreateFolder = this.pendingCreateFolder === parentPath ? null : parentPath;
+                this.renderTree();
+            }
+
+            clearCreateMenu() {
+                if (this.pendingCreateFolder === null) return;
+                this.pendingCreateFolder = null;
+                this.renderTree();
+            }
+
+            renderCreateMenu(parentPath) {
+                const menu = document.createElement('span');
+                menu.className = 'wiki-create-menu';
+                menu.dataset.wikiCreateAction = 'menu';
+                const fileButton = document.createElement('button');
+                fileButton.type = 'button';
+                fileButton.className = 'wiki-create-choice';
+                fileButton.textContent = '文件';
+                fileButton.dataset.wikiCreateAction = 'file';
+                fileButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.createEntryInFolder(parentPath, 'file');
+                });
+                const folderButton = document.createElement('button');
+                folderButton.type = 'button';
+                folderButton.className = 'wiki-create-choice';
+                folderButton.textContent = '文件夹';
+                folderButton.dataset.wikiCreateAction = 'folder';
+                folderButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    this.createEntryInFolder(parentPath, 'folder');
+                });
+                menu.append(fileButton, folderButton);
+                return menu;
+            }
+
+            async createEntryInFolder(parentPath, kind) {
+                if (!this.editMode) return;
+                const isFolder = kind === 'folder';
+                const name = window.prompt(isFolder ? '文件夹名称' : 'Markdown 文件名称');
+                if (!name || !name.trim()) return;
+                try {
+                    this.pendingCreateFolder = null;
+                    if (isFolder) {
+                        await this.createWikiFolder(parentPath, name.trim());
+                    } else {
+                        const created = await this.createWikiFile(parentPath, name.trim());
+                        await this.loadFiles({ force: true });
+                        await this.openFile(created.path, { record: true, restoreScroll: false });
+                        return;
+                    }
+                    await this.loadFiles({ force: true });
+                    this.setSaveStatus('已创建');
+                } catch (error) {
+                    window.alert(error.message || '创建失败');
+                }
+            }
+
+            async createWikiFile(parentPath, name) {
+                return this.api('/api/wiki/files', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ parent: parentPath || '', name }),
+                });
+            }
+
+            async createWikiFolder(parentPath, name) {
+                return this.api('/api/wiki/folders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ parent: parentPath || '', name }),
+                });
+            }
+
+            bindFolderDrop(element, folderPath) {
+                element.addEventListener('dragover', (event) => {
+                    if (!this.editMode) return;
+                    if (this.hasExternalFiles(event)) {
+                        event.preventDefault();
+                        element.classList.add('wiki-drop-target');
+                        event.dataTransfer.dropEffect = 'copy';
+                        return;
+                    }
+                    const source = this.dragPathFromEvent(event);
+                    if (!source || this.parentFolder(source) === folderPath) return;
+                    event.preventDefault();
+                    element.classList.add('wiki-drop-target');
+                    event.dataTransfer.dropEffect = 'move';
+                });
+                element.addEventListener('dragleave', () => element.classList.remove('wiki-drop-target'));
+                element.addEventListener('drop', async (event) => {
+                    if (!this.editMode) return;
+                    if (this.hasExternalFiles(event)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        element.classList.remove('wiki-drop-target');
+                        await this.uploadExternalFiles(event.dataTransfer.files, folderPath);
+                        return;
+                    }
+                    const source = this.dragPathFromEvent(event);
+                    if (!source || this.parentFolder(source) === folderPath) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    element.classList.remove('wiki-drop-target');
+                    await this.moveWikiFile(source, folderPath);
+                });
+            }
+
+            bindFileDrop(element, filePath) {
+                element.addEventListener('dragover', (event) => {
+                    if (!this.editMode) return;
+                    if (this.hasExternalFiles(event)) {
+                        event.preventDefault();
+                        element.classList.add('wiki-drop-target');
+                        event.dataTransfer.dropEffect = 'copy';
+                        return;
+                    }
+                    const source = this.dragPathFromEvent(event);
+                    const targetFolder = this.parentFolder(filePath);
+                    if (!source || source === filePath || this.parentFolder(source) === targetFolder) return;
+                    event.preventDefault();
+                    element.classList.add('wiki-drop-target');
+                    event.dataTransfer.dropEffect = 'move';
+                });
+                element.addEventListener('dragleave', () => element.classList.remove('wiki-drop-target'));
+                element.addEventListener('drop', async (event) => {
+                    if (!this.editMode) return;
+                    if (this.hasExternalFiles(event)) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        element.classList.remove('wiki-drop-target');
+                        await this.uploadExternalFiles(event.dataTransfer.files, this.parentFolder(filePath));
+                        return;
+                    }
+                    const source = this.dragPathFromEvent(event);
+                    const targetFolder = this.parentFolder(filePath);
+                    if (!source || source === filePath || this.parentFolder(source) === targetFolder) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    element.classList.remove('wiki-drop-target');
+                    await this.moveWikiFile(source, targetFolder);
+                });
+            }
+
+            startFileDrag(event, path) {
+                if (!this.editMode) {
+                    event.preventDefault();
+                    return;
+                }
+                this.draggingPath = path;
+                const link = this.markdownLinkFor(path);
+                event.dataTransfer.effectAllowed = 'copyMove';
+                event.dataTransfer.setData('application/x-wiki-path', path);
+                event.dataTransfer.setData('text/plain', link);
+            }
+
+            dragPathFromEvent(event) {
+                return event?.dataTransfer?.getData('application/x-wiki-path') || this.draggingPath || '';
+            }
+
+            hasExternalFiles(event) {
+                const types = Array.from(event?.dataTransfer?.types || []);
+                return types.includes('Files') || Boolean(event?.dataTransfer?.files?.length);
+            }
+
+            async uploadExternalFiles(fileList, targetFolder) {
+                const files = Array.from(fileList || []).filter(file => file && file.name);
+                if (!files.length) return;
+                const unsupported = files.filter(file => !this.isDisplayableWikiFile(file.name));
+                if (unsupported.length) {
+                    window.alert('只能添加 Markdown 文件（.md / .markdown）。');
+                    return;
+                }
+                const form = new FormData();
+                form.append('parent', targetFolder || '');
+                for (const file of files) form.append('files', file, file.name);
+                try {
+                    await this.api('/api/wiki/upload', {
+                        method: 'POST',
+                        body: form,
+                    });
+                    await this.refreshWikiIndex();
+                } catch (error) {
+                    window.alert(error.message || '上传失败');
+                }
+            }
+
+            isDisplayableWikiFile(name) {
+                return /\.(md|markdown)$/i.test(String(name || '').trim());
+            }
+
+            async refreshWikiIndex(options = {}) {
+                const payload = await this.api('/api/wiki/files');
+                this.files = Array.isArray(payload.files) ? payload.files : [];
+                this.folders = Array.isArray(payload.folders) ? payload.folders : [];
+                this.files.sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'));
+                this.folders.sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'));
+                this.renderTree(options);
+            }
+
+            async moveWikiFile(path, targetFolder) {
+                try {
+                    const moved = await this.api('/api/wiki/move', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path, targetFolder: targetFolder || '' }),
+                    });
+                    await this.refreshWikiIndex();
+                    await this.openFile(moved.path, { record: true, restoreScroll: false });
+                    this.setSaveStatus('已移动');
+                } catch (error) {
+                    window.alert(error.message || '移动失败');
+                }
+            }
+
+            renderDeleteButton(kind, path, label) {
+                const button = document.createElement('button');
+                const key = this.deleteKey(kind, path);
+                const confirming = this.pendingDelete === key;
+                button.type = 'button';
+                button.className = `wiki-delete-button${confirming ? ' is-confirming' : ''}`;
+                button.dataset.wikiDeleteAction = kind;
+                button.textContent = confirming ? '确认' : '×';
+                button.title = confirming ? '再次点击确认删除' : label;
+                button.setAttribute('aria-label', button.title);
+                button.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (this.pendingDelete === key) {
+                        await this.deleteWikiEntry(kind, path);
+                        return;
+                    }
+                    this.pendingDelete = key;
+                    this.renderTree();
+                });
+                return button;
+            }
+
+            deleteKey(kind, path) {
+                return `${kind}:${path}`;
+            }
+
+            clearDeleteConfirm() {
+                if (!this.pendingDelete) return;
+                this.pendingDelete = null;
+                this.renderTree();
+            }
+
+            async deleteWikiEntry(kind, path) {
+                try {
+                    if (this.isEditingContent && (kind === 'folder' ? this.currentPath.startsWith(`${path}/`) : this.currentPath === path)) {
+                        this.isEditingContent = false;
+                        this.editTextarea = null;
+                    }
+                    const endpoint = kind === 'folder'
+                        ? `/api/wiki/folders/${this.encodePath(path)}`
+                        : `/api/wiki/files/${this.encodePath(path)}`;
+                    await this.api(endpoint, { method: 'DELETE' });
+                    this.pendingDelete = null;
+                    const deletedCurrent = kind === 'folder'
+                        ? this.currentPath === path || this.currentPath.startsWith(`${path}/`)
+                        : this.currentPath === path;
+                    if (deletedCurrent) {
+                        this.currentPath = '';
+                        this.saveSelectedPath('');
+                    }
+                    await this.loadFiles({ force: true });
+                } catch (error) {
+                    window.alert(error.message || '删除失败');
+                }
+            }
+
+            async startContentEdit() {
+                if (this.isEditingContent || !this.currentPath) return;
+                const file = this.files.find(item => item.path === this.currentPath);
+                if (!file) return;
+                if (!this.editMode) {
+                    this.editMode = true;
+                    this.syncEditModeUi();
+                    this.renderTree();
+                }
+                this.isEditingContent = true;
+                this.setSaveStatus('正在编辑');
+                this.renderMarkdownEditor(file);
+            }
+
+            renderMarkdownEditor(file) {
+                const textarea = document.createElement('textarea');
+                textarea.className = 'wiki-markdown-editor';
+                textarea.value = file.content || '';
+                textarea.setAttribute('aria-label', `${this.fileTitle(file)} Markdown 源码`);
+                textarea.addEventListener('dragover', (event) => {
+                    const path = this.dragPathFromEvent(event);
+                    if (!path) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'copy';
+                });
+                textarea.addEventListener('drop', (event) => {
+                    const path = this.dragPathFromEvent(event);
+                    if (!path) return;
+                    event.preventDefault();
+                    this.insertLinkAtCursor(path);
+                });
+                this.contentEl.replaceChildren(textarea);
+                this.editTextarea = textarea;
+                this.isEditingContent = true;
+                window.requestAnimationFrame(() => textarea.focus());
+            }
+
+            async finishContentEdit(options = {}) {
+                if (!this.isEditingContent) return true;
+                const textarea = this.editTextarea;
+                const file = this.files.find(item => item.path === this.currentPath);
+                const shouldRender = options.render !== false;
+                if (!textarea || !file) {
+                    this.isEditingContent = false;
+                    this.editTextarea = null;
+                    return true;
+                }
+                if (options.save === false || textarea.value === (file.content || '')) {
+                    this.isEditingContent = false;
+                    this.editTextarea = null;
+                    if (shouldRender) {
+                        this.contentEl.innerHTML = this.renderMarkdown(file.content || '');
+                        this.wireInternalLinks();
+                    }
+                    this.setSaveStatus('');
+                    return true;
+                }
+                this.setSaveStatus('保存中...');
+                try {
+                    const saved = await this.api(`/api/wiki/files/${this.encodePath(file.path)}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: textarea.value }),
+                    });
+                    const index = this.files.findIndex(item => item.path === saved.path);
+                    if (index >= 0) this.files[index] = saved;
+                    this.isEditingContent = false;
+                    this.editTextarea = null;
+                    if (this.titleEl) this.titleEl.textContent = this.fileTitle(saved);
+                    if (shouldRender) {
+                        this.contentEl.innerHTML = this.renderMarkdown(saved.content || '');
+                        this.wireInternalLinks();
+                    }
+                    this.renderTree();
+                    this.setSaveStatus('已保存');
+                    return true;
+                } catch (error) {
+                    this.setSaveStatus('保存失败');
+                    window.alert(error.message || '保存失败');
+                    textarea.focus();
+                    return false;
+                }
+            }
+
+            insertLinkAtCursor(path) {
+                if (!this.editTextarea) return;
+                const link = this.markdownLinkFor(path);
+                const textarea = this.editTextarea;
+                const start = textarea.selectionStart ?? textarea.value.length;
+                const end = textarea.selectionEnd ?? start;
+                textarea.value = `${textarea.value.slice(0, start)}${link}${textarea.value.slice(end)}`;
+                const next = start + link.length;
+                textarea.focus();
+                textarea.setSelectionRange(next, next);
+                this.setSaveStatus('已插入链接');
+            }
+
+            markdownLinkFor(path) {
+                const file = this.files.find(item => item.path === path);
+                const label = this.fileTitle(file) || path.split('/').pop();
+                return `[${label}](${this.relativePathFromCurrent(path)})`;
+            }
+
+            relativePathFromCurrent(targetPath) {
+                const from = this.currentPath.includes('/') ? this.currentPath.split('/').slice(0, -1) : [];
+                const to = String(targetPath || '').split('/').filter(Boolean);
+                while (from.length && to.length && from[0] === to[0]) {
+                    from.shift();
+                    to.shift();
+                }
+                return [...from.map(() => '..'), ...to].join('/') || targetPath;
+            }
+
+            parentFolder(path) {
+                const parts = String(path || '').split('/');
+                parts.pop();
+                return parts.join('/');
+            }
+
+            encodePath(path) {
+                return String(path || '').split('/').map(part => encodeURIComponent(part)).join('/');
+            }
+
+            setSaveStatus(message) {
+                if (this.saveStatusEl) this.saveStatusEl.textContent = '';
+            }
+
+            runSearch() {
+                const query = this.searchQuery.trim();
+                if (!query) {
+                    this.setStatus(this.files.length ? `${this.files.length} 个文件` : '');
+                    const current = this.currentHistoryItem();
+                    if (current?.type === 'file') {
+                        this.openFile(current.id, { record: false, restoreScroll: true });
+                    }
+                    return;
+                }
+                const lower = query.toLowerCase();
+                const results = this.files
+                    .map(file => {
+                        const haystack = [this.fileTitle(file), file.path, file.content || ''].join('\n');
+                        if (!haystack.toLowerCase().includes(lower)) return null;
+                        return { file, snippet: this.searchSnippet(haystack, query) };
+                    })
+                    .filter(Boolean);
+                this.setStatus(`${results.length} 个匹配结果`);
+                this.renderSearchResults(results, query);
+            }
+
+            renderSearchResults(results, query) {
+                this.titleEl.textContent = '搜索结果';
+                this.pathEl.textContent = query;
+                this.currentPath = '';
+                if (!results.length) {
+                    this.contentEl.innerHTML = `<p class="wiki-empty">没有找到包含“${this.escapeHtml(query)}”的文件。</p>`;
+                    return;
+                }
+                this.contentEl.innerHTML = `<div class="wiki-search-results">${results.map(({ file, snippet }) => `
+                    <button class="wiki-search-result" type="button" data-wiki-result="${this.escapeHtml(file.path)}">
+                        <strong>${this.escapeHtml(this.fileTitle(file))}</strong>
+                        <small>${this.escapeHtml(file.path)}</small>
+                        <p>${snippet || '文件名或路径包含关键词。'}</p>
+                    </button>
+                `).join('')}</div>`;
+                this.contentEl.querySelectorAll('[data-wiki-result]').forEach(button => {
+                    button.addEventListener('click', () => {
+                        this.recordHistory(this.currentSearchHistoryItem());
+                        this.openFile(button.dataset.wikiResult, { record: true, searchQuery: query, restoreScroll: true });
+                    });
+                });
+            }
+
+            recordHistory(item) {
+                const normalized = this.normalizeHistoryItem(item);
+                const current = this.currentHistoryItem();
+                if (current && this.isSameHistoryItem(current, normalized)) {
+                    this.saveHistory();
+                    this.updateHistoryButtons();
+                    return;
+                }
+                this.history = this.history.slice(0, this.historyIndex + 1);
+                this.history.push(normalized);
+                if (this.history.length > this.historyLimit) this.history = this.history.slice(-this.historyLimit);
+                this.historyIndex = this.history.length - 1;
+                this.saveHistory();
+                this.updateHistoryButtons();
+            }
+
+            normalizeHistoryItem(item) {
+                if (item.type === 'search') {
+                    const query = String(item.query || '').trim();
+                    return { type: 'search', id: `search:${query}`, query };
+                }
+                const normalized = { type: 'file', id: item.id };
+                const searchQuery = String(item.searchQuery || '').trim();
+                if (searchQuery) normalized.searchQuery = searchQuery;
+                return normalized;
+            }
+
+            currentSearchHistoryItem() {
+                return this.normalizeHistoryItem({ type: 'search', query: this.searchQuery });
+            }
+
+            currentHistoryItem() {
+                return this.history[this.historyIndex] || null;
+            }
+
+            async goHistory(delta) {
+                const nextIndex = this.historyIndex + delta;
+                if (nextIndex < 0 || nextIndex >= this.history.length) return;
+                this.rememberCurrentScroll();
+                this.historyIndex = nextIndex;
+                this.saveHistory();
+                this.updateHistoryButtons();
+                await this.openHistoryItem(this.history[this.historyIndex], { record: false, restoreScroll: true, revealInTree: true });
+            }
+
+            async openHistoryItem(item, options = {}) {
+                if (item.type === 'search') {
+                    this.searchQuery = item.query || '';
+                    if (this.searchEl) this.searchEl.value = this.searchQuery;
+                    this.runSearch();
+                    return;
+                }
+                await this.openFile(item.id, { ...options, searchQuery: item.searchQuery || '', record: false });
+            }
+
+            restoreHistory() {
+                if (this.history.length) return;
+                try {
+                    const parsed = JSON.parse(localStorage.getItem(this.historyKey) || '{}');
+                    const items = Array.isArray(parsed.items) ? parsed.items.map(item => this.normalizeHistoryItem(item)).filter(item => this.itemExists(item)) : [];
+                    this.history = items.slice(-this.historyLimit);
+                    const index = Number.isInteger(parsed.index) ? parsed.index : this.history.length - 1;
+                    this.historyIndex = Math.min(Math.max(index, 0), this.history.length - 1);
+                    if (!this.history.length) this.historyIndex = -1;
+                } catch (error) {
+                    this.history = [];
+                    this.historyIndex = -1;
+                }
+                this.updateHistoryButtons();
+            }
+
+            saveHistory() {
+                try {
+                    localStorage.setItem(this.historyKey, JSON.stringify({ items: this.history, index: this.historyIndex }));
+                } catch (error) {
+                    // Convenience state only.
+                }
+            }
+
+            updateHistoryButtons() {
+                if (this.backBtn) this.backBtn.disabled = this.historyIndex <= 0;
+                if (this.forwardBtn) this.forwardBtn.disabled = this.historyIndex < 0 || this.historyIndex >= this.history.length - 1;
+            }
+
+            itemExists(item) {
+                if (item.type === 'search') return Boolean(item.query);
+                return this.files.some(file => file.path === item.id);
+            }
+
+            isSameHistoryItem(left, right) {
+                return left?.type === right?.type
+                    && left?.id === right?.id
+                    && String(left?.searchQuery || '') === String(right?.searchQuery || '')
+                    && String(left?.query || '') === String(right?.query || '');
+            }
+
+            scrollIdentity(item) {
+                return `${item.id || this.currentPath}::${item.searchQuery || ''}`;
+            }
+
+            rememberCurrentScroll() {
+                if (!this.currentPath || !this.contentEl) return;
+                const item = this.currentHistoryItem() || { id: this.currentPath };
+                if (item.type !== 'file') return;
+                this.scrollPositions[this.scrollIdentity(item)] = this.contentEl.scrollTop;
+                this.saveScrollPositions();
+            }
+
+            loadScrollPositions() {
+                try {
+                    const parsed = JSON.parse(localStorage.getItem(this.scrollKey) || '{}');
+                    return parsed && typeof parsed === 'object' ? parsed : {};
+                } catch (error) {
+                    return {};
+                }
+            }
+
+            saveScrollPositions() {
+                try {
+                    localStorage.setItem(this.scrollKey, JSON.stringify(this.scrollPositions));
+                } catch (error) {
+                    // Convenience state only.
+                }
+            }
+
+            loadTreeState() {
+                try {
+                    const parsed = JSON.parse(localStorage.getItem(this.treeStateKey) || '{}');
+                    return {
+                        folderOpen: parsed && typeof parsed.folderOpen === 'object' ? parsed.folderOpen : {},
+                        scrollTop: Number.isFinite(parsed?.scrollTop) ? parsed.scrollTop : 0,
+                    };
+                } catch (error) {
+                    return { folderOpen: {}, scrollTop: 0 };
+                }
+            }
+
+            saveTreeState() {
+                try {
+                    localStorage.setItem(this.treeStateKey, JSON.stringify(this.treeState));
+                } catch (error) {
+                    // Convenience state only.
+                }
+            }
+
+            loadSelectedPath() {
+                try {
+                    return localStorage.getItem(this.selectedKey) || '';
+                } catch (error) {
+                    return '';
+                }
+            }
+
+            saveSelectedPath(path) {
+                try {
+                    localStorage.setItem(this.selectedKey, path);
+                } catch (error) {
+                    // Convenience state only.
+                }
+            }
+
+            clearSearchDisplay() {
+                if (!this.searchQuery) return;
+                this.searchQuery = '';
+                if (this.searchEl) this.searchEl.value = '';
+                this.setStatus(this.files.length ? `${this.files.length} 个文件` : '');
+            }
+
+            fileTitle(file) {
+                return file?.title || String(file?.path || '').split('/').pop() || '未命名';
+            }
+
+            plainText(value) {
+                return String(value || '')
+                    .replace(/```[\s\S]*?```/g, ' ')
+                    .replace(/[#>*_`[\]()|-]+/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            searchSnippet(content, query) {
+                const text = this.plainText(content);
+                const index = text.toLowerCase().indexOf(query.toLowerCase());
+                if (index < 0) return '';
+                const start = Math.max(0, index - 44);
+                const end = Math.min(text.length, index + query.length + 64);
+                const snippet = `${start > 0 ? '...' : ''}${text.slice(start, end)}${end < text.length ? '...' : ''}`;
+                const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                return this.escapeHtml(snippet).replace(new RegExp(escapedQuery, 'ig'), match => `<mark>${match}</mark>`);
+            }
+
+            renderEmpty(message) {
+                if (this.titleEl) this.titleEl.textContent = 'Wiki';
+                if (this.pathEl) this.pathEl.textContent = '';
+                if (this.contentEl) this.contentEl.innerHTML = `<p class="wiki-empty">${this.escapeHtml(message)}</p>`;
+            }
+
+            setStatus(message) {
+                if (this.statusEl) this.statusEl.textContent = message || '';
+            }
+
+            escapeHtml(value) {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            renderMarkdown(markdown) {
+                const lines = String(markdown || '').replace(/\r\n/g, '\n').split('\n');
+                const html = [];
+                let paragraph = [];
+                let list = [];
+                let orderedList = [];
+                let blockquote = [];
+                let inCode = false;
+                let code = [];
+                const flushParagraph = () => {
+                    if (paragraph.length) {
+                        html.push(`<p>${this.renderInline(paragraph.join('\n'))}</p>`);
+                        paragraph = [];
+                    }
+                };
+                const flushList = () => {
+                    if (list.length) {
+                        html.push(`<ul>${list.map(item => `<li>${this.renderInline(item)}</li>`).join('')}</ul>`);
+                        list = [];
+                    }
+                };
+                const flushOrderedList = () => {
+                    if (orderedList.length) {
+                        html.push(`<ol>${orderedList.map(item => `<li>${this.renderInline(item)}</li>`).join('')}</ol>`);
+                        orderedList = [];
+                    }
+                };
+                const flushBlockquote = () => {
+                    if (blockquote.length) {
+                        html.push(`<blockquote>${this.renderMarkdown(blockquote.join('\n'))}</blockquote>`);
+                        blockquote = [];
+                    }
+                };
+                const flushBlocks = () => {
+                    flushParagraph();
+                    flushList();
+                    flushOrderedList();
+                    flushBlockquote();
+                };
+                const isTableDivider = line => /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
+                const isTableRow = line => line.includes('|') && !line.trim().startsWith('|---') && !isTableDivider(line);
+                const parseTableRow = line => {
+                    let value = line.trim();
+                    if (value.startsWith('|')) value = value.slice(1);
+                    if (value.endsWith('|')) value = value.slice(0, -1);
+                    return value.split('|').map(cell => cell.trim());
+                };
+                for (let index = 0; index < lines.length; index += 1) {
+                    const line = lines[index];
+                    const trimmed = line.trim();
+                    if (trimmed.startsWith('```')) {
+                        if (inCode) {
+                            html.push(`<pre><code>${this.escapeHtml(code.join('\n'))}</code></pre>`);
+                            code = [];
+                            inCode = false;
+                        } else {
+                            flushBlocks();
+                            inCode = true;
+                        }
+                        continue;
+                    }
+                    if (inCode) {
+                        code.push(line);
+                        continue;
+                    }
+                    if (!trimmed) {
+                        flushBlocks();
+                        continue;
+                    }
+                    if (/^---+$/.test(trimmed) || /^\*\*\*+$/.test(trimmed)) {
+                        flushBlocks();
+                        html.push('<hr>');
+                        continue;
+                    }
+                    if (trimmed.startsWith('>')) {
+                        flushParagraph();
+                        flushList();
+                        flushOrderedList();
+                        blockquote.push(trimmed.replace(/^>\s?/, ''));
+                        continue;
+                    }
+                    if (isTableRow(line) && index + 1 < lines.length && isTableDivider(lines[index + 1])) {
+                        flushBlocks();
+                        const headers = parseTableRow(line);
+                        index += 2;
+                        const rows = [];
+                        while (index < lines.length && isTableRow(lines[index])) {
+                            rows.push(parseTableRow(lines[index]));
+                            index += 1;
+                        }
+                        index -= 1;
+                        html.push(`<table><thead><tr>${headers.map(cell => `<th>${this.renderInline(cell)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${headers.map((_header, cellIndex) => `<td>${this.renderInline(row[cellIndex] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table>`);
+                        continue;
+                    }
+                    const heading = /^(#{1,4})\s+(.+)$/.exec(trimmed);
+                    if (heading) {
+                        flushBlocks();
+                        const level = heading[1].length + 1;
+                        html.push(`<h${level}>${this.renderInline(heading[2])}</h${level}>`);
+                        continue;
+                    }
+                    const bullet = /^[-*]\s+(.+)$/.exec(trimmed);
+                    if (bullet) {
+                        flushParagraph();
+                        flushOrderedList();
+                        flushBlockquote();
+                        list.push(bullet[1]);
+                        continue;
+                    }
+                    const ordered = /^\d+\.\s+(.+)$/.exec(trimmed);
+                    if (ordered) {
+                        flushParagraph();
+                        flushList();
+                        flushBlockquote();
+                        orderedList.push(ordered[1]);
+                        continue;
+                    }
+                    paragraph.push(trimmed);
+                }
+                flushBlocks();
+                if (inCode) html.push(`<pre><code>${this.escapeHtml(code.join('\n'))}</code></pre>`);
+                return html.join('') || '<p class="wiki-empty">这个页面还没有内容。</p>';
+            }
+
+            renderInline(text) {
+                let value = this.escapeHtml(text);
+                value = value.replace(/`([^`]+)`/g, '<code>$1</code>');
+                value = value.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                value = value.replace(/!\[([^\]]*)\]\(<([^>]+)>\)/g, (_match, label, href) => {
+                    return this.renderMediaLink(label, href) || _match;
+                });
+                value = value.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_match, label, href) => {
+                    return this.renderMediaLink(label, href) || _match;
+                });
+                value = value.replace(/\[([^\]]+)\]\(<([^>]+)>\)/g, (_match, label, href) => {
+                    return this.renderMarkdownLink(label, href);
+                });
+                value = value.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, href) => {
+                    return this.renderMarkdownLink(label, href);
+                });
+                return value;
+            }
+
+            renderMarkdownLink(label, href) {
+                const cleanHref = this.decodeEscapedMarkdownHref(href.trim());
+                if (/^[a-z][a-z0-9+.-]*:/i.test(cleanHref)) {
+                    return `<a href="${this.escapeHtml(cleanHref)}" target="_blank" rel="noreferrer">${label}</a>`;
+                }
+                if (cleanHref.endsWith('.md') || cleanHref.includes('.md#')) {
+                    return `<a href="#" data-wiki-link="${this.escapeHtml(cleanHref.split('#')[0])}">${label}</a>`;
+                }
+                const assetHref = this.resolveAssetHref(cleanHref);
+                return `<a href="${this.escapeHtml(assetHref)}" target="_blank" rel="noreferrer">${label}</a>`;
+            }
+
+            renderMediaLink(label, href) {
+                const cleanHref = this.decodeEscapedMarkdownHref(href);
+                const pathOnly = cleanHref.split(/[?#]/)[0].toLowerCase();
+                if (!/\.(png|jpe?g|gif|webp|avif|svg)$/.test(pathOnly)) return '';
+                const safeHref = this.escapeHtml(this.resolveAssetHref(cleanHref));
+                const plainLabel = this.stripHtml(label).trim();
+                const caption = plainLabel ? `<figcaption>${label}</figcaption>` : '';
+                return `<figure class="wiki-media"><img src="${safeHref}" alt="${this.escapeHtml(plainLabel)}" loading="lazy" decoding="async">${caption}</figure>`;
+            }
+
+            stripHtml(value) {
+                return String(value || '').replace(/<[^>]*>/g, '');
+            }
+
+            resolveAssetHref(href) {
+                const cleanHref = this.decodeEscapedMarkdownHref(href);
+                if (/^(https?:|mailto:|data:|blob:)/i.test(cleanHref)) return cleanHref;
+                const [pathPart, suffix = ''] = cleanHref.split(/([?#].*)/, 2);
+                const base = this.currentPath && this.currentPath.includes('/') ? this.currentPath.split('/').slice(0, -1) : [];
+                const parts = pathPart.startsWith('/') ? [] : base;
+                for (const segment of pathPart.split('/')) {
+                    if (!segment || segment === '.') continue;
+                    if (segment === '..') parts.pop();
+                    else parts.push(segment);
+                }
+                const encoded = parts.map(segment => encodeURIComponent(segment)).join('/');
+                return `/wiki/${encoded}${suffix || ''}`;
+            }
+
+            decodeEscapedMarkdownHref(value) {
+                return String(value || '')
+                    .trim()
+                    .replace(/&lt;/g, '<')
+                    .replace(/&gt;/g, '>')
+                    .replace(/&amp;/g, '&')
+                    .replace(/&quot;/g, '"')
+                    .replace(/&#39;/g, "'")
+                    .replace(/^<|>$/g, '');
+            }
+
+            wireInternalLinks() {
+                this.contentEl.querySelectorAll('[data-wiki-link]').forEach(link => {
+                    link.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        const target = link.getAttribute('data-wiki-link');
+                        const resolved = this.resolveWikiLink(target);
+                        if (resolved) this.openFile(resolved, { record: true, restoreScroll: true });
+                    });
+                });
+            }
+
+            resolveWikiLink(target) {
+                const direct = this.files.find(file => file.path === target || file.path.endsWith(`/${target}`));
+                if (direct) return direct.path;
+                if (!this.currentPath.includes('/')) return target;
+                const base = this.currentPath.split('/').slice(0, -1);
+                for (const segment of String(target || '').split('/')) {
+                    if (!segment || segment === '.') continue;
+                    if (segment === '..') base.pop();
+                    else base.push(segment);
+                }
+                const resolved = base.join('/');
+                return this.files.some(file => file.path === resolved) ? resolved : target;
+            }
+
+            highlightSearchMatches(query) {
+                query = String(query || '').trim();
+                if (!query) return;
+                const pattern = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'ig');
+                const walker = document.createTreeWalker(this.contentEl, NodeFilter.SHOW_TEXT, {
+                    acceptNode(node) {
+                        const parent = node.parentElement;
+                        if (!parent || !node.nodeValue || !pattern.test(node.nodeValue)) {
+                            pattern.lastIndex = 0;
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        pattern.lastIndex = 0;
+                        if (parent.closest('button, input, textarea, select, mark')) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        return NodeFilter.FILTER_ACCEPT;
+                    },
+                });
+                const nodes = [];
+                while (walker.nextNode()) nodes.push(walker.currentNode);
+                for (const node of nodes) {
+                    const fragment = document.createDocumentFragment();
+                    const text = node.nodeValue || '';
+                    let cursor = 0;
+                    text.replace(pattern, (match, offset) => {
+                        if (offset > cursor) fragment.appendChild(document.createTextNode(text.slice(cursor, offset)));
+                        const mark = document.createElement('mark');
+                        mark.className = 'wiki-search-hit';
+                        mark.textContent = match;
+                        fragment.appendChild(mark);
+                        cursor = offset + match.length;
+                        return match;
+                    });
+                    if (cursor < text.length) fragment.appendChild(document.createTextNode(text.slice(cursor)));
+                    node.parentNode.replaceChild(fragment, node);
+                    pattern.lastIndex = 0;
+                }
+                const firstHit = this.contentEl.querySelector('.wiki-search-hit');
+                if (firstHit && !Number.isFinite(this.scrollPositions[this.scrollIdentity(this.currentHistoryItem() || {})])) {
+                    firstHit.scrollIntoView({ block: 'center', inline: 'nearest' });
+                }
+            }
+        }
+
         // 应用程序主类
         class AIWebpagesApp {
             constructor() {
                 this.currentTab = null;
                 this.privatePageName = '我的';
                 this.demoPageName = '演示';
+                this.wikiPageName = 'wiki';
                 this.searchPageName = '搜索';
                 this.recommendationPageName = '推荐';
                 this.authSessionKey = 'go-sites:private-visible';
                 this.recommendationStorageKey = 'go-sites:recommendations';
-                this.isAuthenticated = sessionStorage.getItem(this.authSessionKey) === 'true';
+                this.hasStoredAuthSession = sessionStorage.getItem(this.authSessionKey) === 'true';
+                this.isAuthenticated = false;
                 this.isEditingRecommendations = false;
                 this.searchQuery = '';
                 this.demoItems = [];
                 this.recommendationOverrides = this.loadRecommendationOverrides();
+                this.wikiPanel = new WikiPanel(this);
                 this.init();
             }
 
@@ -2086,8 +3780,8 @@
                 this.renderVisiblePages();
                 this.bindAuthEvents();
                 this.updateAuthButton();
-                if (this.isAuthenticated) {
-                    this.loadDemos();
+                if (this.hasStoredAuthSession) {
+                    this.restoreAuthSession();
                 }
             }
 
@@ -2101,6 +3795,7 @@
                     pages[pageName] = pageData;
                     if (pageName === this.privatePageName && this.isAuthenticated) {
                         pages[this.demoPageName] = this.buildDemoPage();
+                        pages[this.wikiPageName] = { wiki: true };
                     }
                 });
                 return pages;
@@ -2118,6 +3813,7 @@
             getSearchSourcePages(sourcePages = this.getVisibleSourcePages()) {
                 const searchPages = { ...sourcePages };
                 delete searchPages[this.demoPageName];
+                delete searchPages[this.wikiPageName];
                 if (this.isAuthenticated) {
                     searchPages[this.demoPageName] = this.buildDemoPage();
                 }
@@ -2130,6 +3826,7 @@
                 this.initializeTables();
                 this.bindSearchEvents();
                 this.bindDemoEvents();
+                this.bindWikiEvents();
                 this.checkFunctionCellTruncation();
                 this.bindTableScrollEvents();
             }
@@ -2138,7 +3835,7 @@
             generateTabs(preferredPageName = this.currentTab) {
                 const tabsContainer = document.getElementById('tabs');
                 const contentSection = document.querySelector('.content-section');
-                
+
                 if (!WEBPAGES_DATA || !WEBPAGES_DATA.pages) {
                     console.error('WEBPAGES_DATA 未正确加载');
                     return;
@@ -2151,7 +3848,7 @@
                 const pageNames = Object.keys(visiblePages);
                 const defaultPageName = pageNames.includes(this.recommendationPageName) ? this.recommendationPageName : pageNames[0];
                 const activePageName = pageNames.includes(preferredPageName) ? preferredPageName : defaultPageName;
-                
+
                 // 生成标签页按钮
                 pageNames.forEach((pageName) => {
                     const tabButton = document.createElement('li');
@@ -2199,13 +3896,17 @@
                 const div = document.createElement('div');
                 div.id = tabId;
                 div.className = `tab-content ${isActive ? 'fade-enter' : 'hidden'}`;
-                
+                if (pageName === this.wikiPageName) {
+                    div.innerHTML = this.createWikiContent();
+                    return div;
+                }
+
                 // 动态检查页面数据中是否有非空的功能字段
                 const showFunctionColumn = pageName === this.searchPageName || pageName === this.demoPageName || pageData && pageData['类型'] && pageData['类型'].length > 0 &&
-                                         pageData['类型'][0] && Object.values(pageData['类型'][0])[0] && 
-                                         Object.values(pageData['类型'][0])[0][0] && 
+                                         pageData['类型'][0] && Object.values(pageData['类型'][0])[0] &&
+                                         Object.values(pageData['类型'][0])[0][0] &&
                                          Object.values(pageData['类型'][0])[0][0].hasOwnProperty('功能') &&
-                                         Object.values(pageData['类型'][0])[0][0]['功能'] && 
+                                         Object.values(pageData['类型'][0])[0][0]['功能'] &&
                                          Object.values(pageData['类型'][0])[0][0]['功能'].trim() !== '';
                 const functionColumnHtml = showFunctionColumn ? '<th>功能</th>' : '';
                 const tableClass = showFunctionColumn ? '' : 'no-function-column';
@@ -2233,7 +3934,7 @@
                                     <div id="${tabId}DemoStatus" class="demo-status" aria-live="polite"></div>
                                 </div>
                             </div>` : '';
-                
+
                 div.innerHTML = `
                     <div class="content-layout">
                         <nav class="type-nav ${pageName === this.demoPageName ? 'has-demo-panel' : ''}">
@@ -2262,8 +3963,40 @@
                         </div>
                     </div>
                 `;
-                
+
                 return div;
+            }
+
+            createWikiContent() {
+                return `
+                    <div class="wiki-layout">
+                        <aside class="wiki-sidebar">
+                            <div class="wiki-panel-head">
+                                <h3>文件树</h3>
+                                <button class="wiki-nav-button" type="button" data-wiki-back aria-label="后退" title="后退（左方向键）" disabled>‹</button>
+                                <button class="wiki-nav-button" type="button" data-wiki-forward aria-label="前进" title="前进（右方向键）" disabled>›</button>
+                                <button class="wiki-nav-button wiki-mode-button" type="button" data-wiki-edit-mode aria-pressed="false" title="编辑文件树和正文">编辑</button>
+                                <button class="wiki-nav-button" type="button" data-wiki-refresh aria-label="刷新 wiki" title="刷新 wiki">↻</button>
+                            </div>
+                            <nav class="wiki-file-tree" data-wiki-tree aria-label="Wiki 文件树"></nav>
+                        </aside>
+                        <article class="wiki-reader">
+                            <div class="wiki-reader-head">
+                                <div class="wiki-search-wrap">
+                                    <label class="sr-only" for="wikiSearchInput">搜索文件名和正文内容</label>
+                                    <input id="wikiSearchInput" class="wiki-search-input" type="search" placeholder="搜索文件名和正文内容" autocomplete="off" data-wiki-search>
+                                    <span class="wiki-status" data-wiki-status aria-live="polite"></span>
+                                </div>
+                            </div>
+                            <div class="wiki-page-context">
+                                <span class="wiki-status" data-wiki-path></span>
+                                <span class="wiki-status" data-wiki-save-status></span>
+                                <h2 data-wiki-title>Wiki</h2>
+                            </div>
+                            <div class="wiki-markdown" data-wiki-content></div>
+                        </article>
+                    </div>
+                `;
             }
 
             // 绑定标签切换事件
@@ -2277,7 +4010,7 @@
             // 标签切换逻辑
             switchTab(button) {
                 const tabId = button.dataset.tab;
-                
+
                 // 隐藏所有内容
                 document.querySelectorAll('.tab-content').forEach(content => {
                     content.classList.add('hidden');
@@ -2307,6 +4040,9 @@
                     const searchInput = targetContent?.querySelector('.search-input');
                     searchInput?.focus();
                 }
+                if (this.currentTab === this.wikiPageName) {
+                    this.wikiPanel.loadFiles();
+                }
 
                 // 切换标签后重新检测功能列截断
                 this.checkFunctionCellTruncation();
@@ -2332,10 +4068,11 @@
 
                 // 为每个可见页面生成表格
                 Object.keys(visiblePages).forEach(pageName => {
+                    if (pageName === this.wikiPageName) return;
                     const tabId = this.getTabId(pageName);
                     const tableBodyId = `${tabId}TableBody`;
                     const navListId = `${tabId}TypeNavList`;
-                    
+
                     this.generateTable(tableBodyId, navListId, visiblePages[pageName], pageName);
                 });
             }
@@ -2353,11 +4090,11 @@
 
                 // 动态检查页面数据中是否有非空的功能字段
                 const hasFunctionColumn = pageName === this.searchPageName || pageName === this.demoPageName || pageData['类型'].length > 0 &&
-                                       pageData['类型'][0] && 
-                                       Object.values(pageData['类型'][0])[0] && 
-                                       Object.values(pageData['类型'][0])[0][0] && 
+                                       pageData['类型'][0] &&
+                                       Object.values(pageData['类型'][0])[0] &&
+                                       Object.values(pageData['类型'][0])[0][0] &&
                                        Object.values(pageData['类型'][0])[0][0].hasOwnProperty('功能') &&
-                                       Object.values(pageData['类型'][0])[0][0]['功能'] && 
+                                       Object.values(pageData['类型'][0])[0][0]['功能'] &&
                                        Object.values(pageData['类型'][0])[0][0]['功能'].trim() !== '';
 
                 // 根据是否有功能列来设置表格的CSS类
@@ -2376,13 +4113,13 @@
                     const categoryName = Object.keys(categoryObj)[0];
                     types.push(categoryName); // 添加到类型列表
                     const tools = categoryObj[categoryName];
-                    
+
                     tools.forEach((tool, index) => {
                         const row = document.createElement('tr');
                         if (pageName === this.demoPageName && tool.disabled) {
                             row.classList.add('is-disabled-demo');
                         }
-                        
+
                         // 类型列 - 第一行显示类型并设置rowspan，后续行不创建类型单元格
                         if (index === 0) {
                             const typeCell = document.createElement('td');
@@ -2397,7 +4134,7 @@
                             row.appendChild(typeCell);
                         }
                         // 后续行的类型单元格不创建，因为被第一行的rowspan覆盖
-                        
+
                         // 名称列
                         const nameCell = document.createElement('td');
                         nameCell.className = 'name-cell';
@@ -2420,7 +4157,7 @@
                             this.appendRecommendationControl(nameCell, tool);
                         }
                         row.appendChild(nameCell);
-                        
+
                         // 地址列
                         const addressCell = document.createElement('td');
                         const displayAddress = this.getDisplayAddress(tool['地址']);
@@ -2431,7 +4168,7 @@
                         addressCell.appendChild(addressText);
                         addressCell.addEventListener('click', () => this.copyToClipboard(displayAddress, addressCell));
                         row.appendChild(addressCell);
-                        
+
                         // 备注列
                         const noteCell = document.createElement('td');
                         noteCell.className = 'note-cell';
@@ -2440,7 +4177,7 @@
                         noteText.textContent = tool['备注'] || '';
                         noteCell.appendChild(noteText);
                         row.appendChild(noteCell);
-                        
+
                         // 功能列（如果存在）
                         if (hasFunctionColumn) {
                             const functionCell = document.createElement('td');
@@ -2459,7 +4196,7 @@
                             }
                             row.appendChild(functionCell);
                         }
-                        
+
                         tableBody.appendChild(row);
                     });
                 });
@@ -2550,11 +4287,15 @@
 
                 // 功能描述和标题同行展示，移动端空间不足时省略。
                 if (tool['功能']) {
-                    const desc = document.createElement('div');
-                    desc.className = 'mobile-card-desc';
-                    desc.textContent = tool['功能'];
-                    desc.title = tool['功能'];
-                    summary.appendChild(desc);
+                    if (pageName === this.demoPageName && this.isEditingRecommendations && tool.demoSlug) {
+                        summary.appendChild(this.createDemoFeatureInput(tool));
+                    } else {
+                        const desc = document.createElement('div');
+                        desc.className = 'mobile-card-desc';
+                        desc.textContent = tool['功能'];
+                        desc.title = tool['功能'];
+                        summary.appendChild(desc);
+                    }
                 }
 
                 header.appendChild(summary);
@@ -2607,14 +4348,31 @@
                 return input;
             }
 
+            createDemoFeatureInput(tool) {
+                const input = document.createElement('input');
+                input.className = 'demo-feature-input';
+                input.type = 'text';
+                input.value = tool['功能'] || '';
+                input.placeholder = '功能';
+                input.dataset.demoFeatureInput = 'true';
+                input.dataset.demoSlug = tool.demoSlug;
+                input.dataset.originalFeature = tool['功能'] || '';
+                input.setAttribute('aria-label', '编辑演示功能');
+                return input;
+            }
+
             appendDemoActions(functionCell, tool) {
                 const actions = document.createElement('div');
                 actions.className = 'demo-actions';
 
-                const label = document.createElement('span');
-                label.className = 'table-cell-text function-cell-text demo-state-label';
-                label.textContent = tool['功能'] || '';
-                actions.appendChild(label);
+                if (this.isEditingRecommendations) {
+                    actions.appendChild(this.createDemoFeatureInput(tool));
+                } else {
+                    const label = document.createElement('span');
+                    label.className = 'table-cell-text function-cell-text demo-state-label';
+                    label.textContent = tool['功能'] || '';
+                    actions.appendChild(label);
+                }
 
                 this.appendDemoActionButtons(actions, tool);
 
@@ -2689,6 +4447,18 @@
                     input.addEventListener('keydown', (event) => this.handleDemoTitleKeydown(event, input));
                     input.addEventListener('blur', () => this.saveDemoTitle(input));
                 });
+
+                document.querySelectorAll('[data-demo-feature-input]').forEach(input => {
+                    input.addEventListener('keydown', (event) => this.handleDemoFeatureKeydown(event, input));
+                    input.addEventListener('blur', () => this.saveDemoFeature(input));
+                });
+            }
+
+            bindWikiEvents() {
+                this.wikiPanel.bind();
+                if (this.currentTab === this.wikiPageName) {
+                    this.wikiPanel.loadFiles();
+                }
             }
 
             handleDemoTitleKeydown(event, input) {
@@ -2700,6 +4470,19 @@
                 if (event.key === 'Escape') {
                     event.preventDefault();
                     input.value = input.dataset.originalTitle || '';
+                    input.blur();
+                }
+            }
+
+            handleDemoFeatureKeydown(event, input) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    input.blur();
+                    return;
+                }
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    input.value = input.dataset.originalFeature || '';
                     input.blur();
                 }
             }
@@ -2718,11 +4501,48 @@
                 await this.setDemoDisabled(slug, action === 'disable');
             }
 
+            async restoreAuthSession() {
+                if (await this.verifyDemoSession()) {
+                    this.isAuthenticated = true;
+                    this.updateAuthButton();
+                    await this.loadDemos();
+                    return;
+                }
+                this.handleAuthExpired();
+            }
+
+            async verifyDemoSession() {
+                try {
+                    const response = await fetch('/api/demo/session', { credentials: 'same-origin' });
+                    return response.ok;
+                } catch (error) {
+                    console.warn('Demo session check unavailable', error);
+                    return false;
+                }
+            }
+
+            handleAuthExpired() {
+                this.isAuthenticated = false;
+                this.hasStoredAuthSession = false;
+                this.isEditingRecommendations = false;
+                this.demoItems = [];
+                sessionStorage.removeItem(this.authSessionKey);
+                this.updateAuthButton();
+                const nextPage = [this.privatePageName, this.demoPageName, this.wikiPageName].includes(this.currentTab)
+                    ? this.recommendationPageName
+                    : this.currentTab;
+                this.renderVisiblePages(nextPage);
+            }
+
             async loadDemos() {
                 if (!this.isAuthenticated) return;
 
                 try {
                     const response = await fetch('/api/demos', { credentials: 'same-origin' });
+                    if (response.status === 401) {
+                        this.handleAuthExpired();
+                        return;
+                    }
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}`);
                     }
@@ -2869,6 +4689,35 @@
                 }
             }
 
+            async saveDemoFeature(input) {
+                const slug = input.dataset.demoSlug;
+                const originalFeature = input.dataset.originalFeature || '';
+                const feature = input.value.trim();
+                if (!slug || input.dataset.saving === 'true') return;
+                if (feature === originalFeature) return;
+
+                input.dataset.saving = 'true';
+                this.setDemoStatus('正在保存功能...');
+                try {
+                    const response = await fetch(`/api/demos/${encodeURIComponent(slug)}`, {
+                        method: 'PATCH',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ feature })
+                    });
+                    if (!response.ok) {
+                        throw new Error(await this.readErrorMessage(response));
+                    }
+                    this.setDemoStatus('已保存功能');
+                    await this.loadDemos();
+                    this.switchToPage(this.demoPageName);
+                } catch (error) {
+                    input.dataset.saving = 'false';
+                    input.value = originalFeature;
+                    this.setDemoStatus(error.message || '保存失败');
+                }
+            }
+
             async deleteDemo(slug) {
                 this.setDemoStatus('正在删除...');
                 try {
@@ -2888,6 +4737,10 @@
             }
 
             async readErrorMessage(response) {
+                if (response.status === 401) {
+                    this.handleAuthExpired();
+                    return '登录已过期，请重新登录';
+                }
                 try {
                     const payload = await response.json();
                     return payload?.error?.message || `HTTP ${response.status}`;
@@ -2909,7 +4762,8 @@
                     "名称": item.title,
                     "地址": item.address,
                     "备注": item.disabled ? "已禁用" : "已启用",
-                    "功能": `${item.disabled ? '已禁用' : '已启用'} · ${this.getDemoKindLabel(item.kind)}`,
+                    "功能": item.feature || `${item.disabled ? '已禁用' : '已启用'} · ${this.getDemoKindLabel(item.kind)}`,
+                    demoFeature: item.feature || '',
                     demoSlug: item.slug,
                     disabled: item.disabled
                 }));
@@ -3327,6 +5181,7 @@
                 }
 
                 this.isAuthenticated = true;
+                this.hasStoredAuthSession = true;
                 this.isEditingRecommendations = false;
                 sessionStorage.setItem(this.authSessionKey, 'true');
                 await this.establishDemoSession(passwordInput.value);
@@ -3340,11 +5195,15 @@
 
             logout() {
                 this.isAuthenticated = false;
+                this.hasStoredAuthSession = false;
                 this.isEditingRecommendations = false;
                 this.demoItems = [];
                 sessionStorage.removeItem(this.authSessionKey);
                 this.updateAuthButton();
-                this.renderVisiblePages();
+                const nextPage = [this.privatePageName, this.demoPageName, this.wikiPageName].includes(this.currentTab)
+                    ? this.recommendationPageName
+                    : this.currentTab;
+                this.renderVisiblePages(nextPage);
             }
 
             // 站内路径补成线上可直接访问和分享的完整地址。
