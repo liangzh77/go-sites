@@ -11,7 +11,15 @@ https://liangz77.cn {
         reverse_proxy 127.0.0.1:9005
     }
 
+    handle /api/wiki/* {
+        reverse_proxy 127.0.0.1:9005
+    }
+
     handle /demo/* {
+        reverse_proxy 127.0.0.1:9005
+    }
+
+    handle /wiki/* {
         reverse_proxy 127.0.0.1:9005
     }
 
