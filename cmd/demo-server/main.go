@@ -24,6 +24,11 @@ import (
 	"sync"
 	"time"
 	"unicode"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
+	rendererhtml "github.com/yuin/goldmark/renderer/html"
 )
 
 const (
@@ -86,6 +91,9 @@ func main() {
 	}
 
 	if err := os.MkdirAll(a.demosDir, 0o755); err != nil {
+		log.Fatal(err)
+	}
+	if err := os.MkdirAll(a.wikiRoot, 0o755); err != nil {
 		log.Fatal(err)
 	}
 	if err := a.ensureManifest(); err != nil {
@@ -185,6 +193,7 @@ type wikiFileItem struct {
 	Path      string `json:"path"`
 	Title     string `json:"title"`
 	Content   string `json:"content,omitempty"`
+	HTML      string `json:"html,omitempty"`
 	UpdatedAt string `json:"updatedAt"`
 	Size      int64  `json:"size"`
 }
@@ -231,6 +240,7 @@ func (a *app) handleGetWikiFile(w http.ResponseWriter, r *http.Request) {
 		Path:      cleanPath,
 		Title:     markdownTitleFromContent(content),
 		Content:   content,
+		HTML:      renderMarkdown(content),
 		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 		Size:      info.Size(),
 	})
@@ -292,6 +302,7 @@ func (a *app) handleCreateWikiFile(w http.ResponseWriter, r *http.Request) {
 		Path:      cleanPath,
 		Title:     markdownTitleFromContent(content),
 		Content:   content,
+		HTML:      renderMarkdown(content),
 		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 		Size:      info.Size(),
 	})
@@ -371,6 +382,7 @@ func (a *app) handleUploadWikiFiles(w http.ResponseWriter, r *http.Request) {
 					Path:      cleanPath,
 					Title:     markdownTitleFromContent(content),
 					Content:   content,
+					HTML:      renderMarkdown(content),
 					UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 					Size:      info.Size(),
 				})
@@ -417,6 +429,7 @@ func (a *app) handleUpdateWikiFile(w http.ResponseWriter, r *http.Request) {
 		Path:      cleanPath,
 		Title:     markdownTitleFromContent(content),
 		Content:   content,
+		HTML:      renderMarkdown(content),
 		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 		Size:      info.Size(),
 	})
@@ -549,7 +562,7 @@ func (a *app) handleMoveWikiEntry(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read wiki file.")
 			return
 		}
-		writeJSON(w, http.StatusOK, wikiFileItem{Path: cleanPath, Title: markdownTitleFromContent(content), Content: content, UpdatedAt: info.ModTime().UTC().Format(time.RFC3339), Size: info.Size()})
+		writeJSON(w, http.StatusOK, wikiFileItem{Path: cleanPath, Title: markdownTitleFromContent(content), Content: content, HTML: renderMarkdown(content), UpdatedAt: info.ModTime().UTC().Format(time.RFC3339), Size: info.Size()})
 		return
 	}
 	if _, err := os.Stat(target); err == nil {
@@ -572,6 +585,7 @@ func (a *app) handleMoveWikiEntry(w http.ResponseWriter, r *http.Request) {
 		Path:      cleanPath,
 		Title:     markdownTitleFromContent(content),
 		Content:   content,
+		HTML:      renderMarkdown(content),
 		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 		Size:      info.Size(),
 	})
@@ -965,6 +979,7 @@ func (a *app) collectWikiFiles(includeContent bool) ([]wikiFileItem, error) {
 		}
 		rel = filepath.ToSlash(rel)
 		content := ""
+		renderedHTML := ""
 		title := strings.TrimSuffix(filepath.Base(rel), filepath.Ext(rel))
 		if includeContent {
 			data, err := os.ReadFile(filePath)
@@ -972,6 +987,7 @@ func (a *app) collectWikiFiles(includeContent bool) ([]wikiFileItem, error) {
 				return err
 			}
 			content = string(data)
+			renderedHTML = renderMarkdown(content)
 			if extracted := markdownTitleFromContent(content); extracted != "" {
 				title = extracted
 			}
@@ -980,6 +996,7 @@ func (a *app) collectWikiFiles(includeContent bool) ([]wikiFileItem, error) {
 			Path:      rel,
 			Title:     title,
 			Content:   content,
+			HTML:      renderedHTML,
 			UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 			Size:      info.Size(),
 		})
@@ -1437,7 +1454,8 @@ func renderMarkdownPage(title, source string) string {
     h2 { margin-top: 2rem; padding-top: 0.5rem; border-top: 1px solid var(--line); }
     a { color: var(--clay); }
     code { padding: 0.12rem 0.35rem; border-radius: 6px; background: var(--wash); }
-    pre { overflow-x: auto; padding: 1rem; border-radius: 14px; background: #283129; color: #f8f5ef; }
+    pre { overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 0.9rem 1rem; border: 1px solid var(--line); border-left: 3px solid #8fa5a0; border-radius: 10px; background: #f7f6ef; color: var(--ink); font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; line-height: 1.72; }
+    pre code { display: block; padding: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; white-space: inherit; }
     blockquote { margin: 1rem 0; padding: 0.4rem 1rem; border-left: 3px solid var(--clay); color: var(--soft); background: rgba(239, 240, 232, 0.62); }
   </style>
 </head>
@@ -1456,87 +1474,16 @@ func renderMarkdownPage(title, source string) string {
 }
 
 func renderMarkdown(source string) string {
-	lines := strings.Split(strings.ReplaceAll(source, "\r\n", "\n"), "\n")
-	var b strings.Builder
-	listType := ""
-	inCode := false
-
-	closeList := func() {
-		if listType != "" {
-			b.WriteString("</" + listType + ">\n")
-			listType = ""
-		}
+	var out bytes.Buffer
+	md := goldmark.New(
+		goldmark.WithExtensions(extension.GFM, extension.Typographer),
+		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
+		goldmark.WithRendererOptions(rendererhtml.WithHardWraps()),
+	)
+	if err := md.Convert([]byte(source), &out); err != nil {
+		return "<p>" + html.EscapeString(source) + "</p>\n"
 	}
-
-	openList := func(kind string) {
-		if listType == kind {
-			return
-		}
-		closeList()
-		b.WriteString("<" + kind + ">\n")
-		listType = kind
-	}
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "```") {
-			if inCode {
-				b.WriteString("</code></pre>\n")
-				inCode = false
-			} else {
-				closeList()
-				b.WriteString("<pre><code>")
-				inCode = true
-			}
-			continue
-		}
-		if inCode {
-			b.WriteString(html.EscapeString(line))
-			b.WriteByte('\n')
-			continue
-		}
-		if trimmed == "" {
-			closeList()
-			continue
-		}
-		if strings.HasPrefix(trimmed, "### ") {
-			closeList()
-			b.WriteString("<h3>" + inlineMarkdown(trimmed[4:]) + "</h3>\n")
-			continue
-		}
-		if strings.HasPrefix(trimmed, "## ") {
-			closeList()
-			b.WriteString("<h2>" + inlineMarkdown(trimmed[3:]) + "</h2>\n")
-			continue
-		}
-		if strings.HasPrefix(trimmed, "# ") {
-			closeList()
-			b.WriteString("<h1>" + inlineMarkdown(trimmed[2:]) + "</h1>\n")
-			continue
-		}
-		if strings.HasPrefix(trimmed, "> ") {
-			closeList()
-			b.WriteString("<blockquote>" + inlineMarkdown(trimmed[2:]) + "</blockquote>\n")
-			continue
-		}
-		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") {
-			openList("ul")
-			b.WriteString("<li>" + inlineMarkdown(trimmed[2:]) + "</li>\n")
-			continue
-		}
-		if itemText, ok := orderedListItem(trimmed); ok {
-			openList("ol")
-			b.WriteString("<li>" + inlineMarkdown(itemText) + "</li>\n")
-			continue
-		}
-		closeList()
-		b.WriteString("<p>" + inlineMarkdown(trimmed) + "</p>\n")
-	}
-	closeList()
-	if inCode {
-		b.WriteString("</code></pre>\n")
-	}
-	return b.String()
+	return out.String()
 }
 
 func markdownTitleFromContent(source string) string {

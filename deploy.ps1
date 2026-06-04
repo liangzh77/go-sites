@@ -262,7 +262,7 @@ SHARED_DIR="$APP_ROOT/shared"
 BINARY='__REMOTE_DEMO_BINARY__'
 CONFIG="$SHARED_DIR/config.env"
 
-mkdir -p "$RELEASES_DIR" "$NEW_RELEASE" "$SHARED_DIR/demos"
+mkdir -p "$RELEASES_DIR" "$NEW_RELEASE" "$SHARED_DIR/demos" "$SHARED_DIR/wiki"
 mv "$BINARY" "$NEW_RELEASE/go-sites-demo"
 chmod 755 "$NEW_RELEASE/go-sites-demo"
 
@@ -289,12 +289,19 @@ if [[ ! -f "$CONFIG" ]]; then
   cat >"$CONFIG" <<EOF
 DEMO_SERVER_ADDR=127.0.0.1:9005
 DEMO_DATA_DIR=$SHARED_DIR
+WIKI_ROOT=$SHARED_DIR/wiki
 SITE_ROOT=$SITE_ROOT/current
 PUBLIC_ORIGIN=https://$DOMAIN
 DEMO_ADMIN_PASSWORD=$site_password
 DEMO_SESSION_SECRET=$session_secret
 EOF
 else
+  if grep -q '^WIKI_ROOT=' "$CONFIG"; then
+    sed -i "s|^WIKI_ROOT=.*|WIKI_ROOT=$SHARED_DIR/wiki|" "$CONFIG"
+  else
+    printf '\nWIKI_ROOT=%s/wiki\n' "$SHARED_DIR" >>"$CONFIG"
+  fi
+
   if grep -q '^DEMO_ADMIN_PASSWORD=' "$CONFIG"; then
     sed -i "s|^DEMO_ADMIN_PASSWORD=.*|DEMO_ADMIN_PASSWORD=$site_password|" "$CONFIG"
   else

@@ -1005,13 +1005,54 @@
         }
 
         .wiki-page-context {
-            padding: 0.75rem 1.1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.85rem 1.1rem 0.15rem;
+        }
+
+        .wiki-page-meta {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .wiki-page-tools {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            flex-shrink: 0;
+        }
+
+        .wiki-page-tool {
+            height: 1.9rem;
+            padding: 0 0.65rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: #fffef9;
+            color: var(--ink-soft);
+            cursor: pointer;
+            font: 0.82rem/1 var(--sans-stack);
+        }
+
+        .wiki-page-tool:hover,
+        .wiki-page-tool:focus-visible {
+            border-color: var(--primary-color);
+            background: var(--sage-wash);
+            color: var(--hover-color);
+            outline: none;
+        }
+
+        .wiki-page-tool:disabled {
+            cursor: not-allowed;
+            opacity: 0.42;
         }
 
         .wiki-page-context h2 {
             display: none;
             margin: 0.15rem 0 0;
-            font-size: 1.2rem;
+            color: var(--text-color);
+            font-size: 1.15rem;
+            line-height: 1.35;
         }
 
         .wiki-markdown {
@@ -1039,14 +1080,105 @@
 
         .wiki-markdown h1,
         .wiki-markdown h2,
-        .wiki-markdown h3 {
+        .wiki-markdown h3,
+        .wiki-markdown h4,
+        .wiki-markdown h5,
+        .wiki-markdown h6 {
             line-height: 1.3;
         }
 
         .wiki-markdown h1:first-child,
         .wiki-markdown h2:first-child,
-        .wiki-markdown h3:first-child {
+        .wiki-markdown h3:first-child,
+        .wiki-markdown h4:first-child,
+        .wiki-markdown h5:first-child,
+        .wiki-markdown h6:first-child {
             margin-top: 0;
+        }
+
+        .wiki-heading-section {
+            position: relative;
+            margin: 0.35rem 0;
+        }
+
+        .wiki-heading-section .wiki-heading-section {
+            margin-left: 0.9rem;
+            padding-left: 0.9rem;
+            border-left: 1px solid rgba(207, 208, 198, 0.72);
+        }
+
+        .wiki-heading-title {
+            display: flex;
+            align-items: baseline;
+            gap: 0.35rem;
+            margin-bottom: 0.45rem;
+        }
+
+        .wiki-heading-grip {
+            align-self: stretch;
+            flex: 0 0 1.35rem;
+            border: 0;
+            border-radius: 5px;
+            background: transparent;
+            color: var(--ink-soft);
+            cursor: pointer;
+            font: inherit;
+            line-height: 1;
+        }
+
+        .wiki-heading-grip:hover,
+        .wiki-heading-grip:focus-visible {
+            background: var(--sage-wash);
+            color: var(--hover-color);
+            outline: none;
+        }
+
+        .wiki-heading-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            max-width: 100%;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            font-weight: inherit;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .wiki-heading-toggle .wiki-heading-icon {
+            display: none;
+        }
+
+        .wiki-heading-toggle:hover .wiki-heading-text {
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 0.18em;
+        }
+
+        .wiki-heading-toggle:focus-visible {
+            outline: 2px solid rgba(88, 103, 88, 0.35);
+            outline-offset: 3px;
+            border-radius: 4px;
+        }
+
+        .wiki-heading-icon {
+            width: 1rem;
+            flex: 0 0 1rem;
+            color: var(--ink-soft);
+            font-size: 0.82em;
+            line-height: 1;
+            transition: transform 0.16s ease;
+        }
+
+        .wiki-heading-section.is-collapsed > .wiki-heading-title .wiki-heading-grip {
+            transform: rotate(-90deg);
+        }
+
+        .wiki-heading-body[hidden] {
+            display: none;
         }
 
         .wiki-markdown code {
@@ -1057,10 +1189,26 @@
 
         .wiki-markdown pre {
             overflow: auto;
-            padding: 0.9rem;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            padding: 0.85rem 1rem;
+            border: 1px solid rgba(207, 208, 198, 0.92);
+            border-left: 3px solid var(--dusty-blue);
             border-radius: 8px;
-            background: #283129;
-            color: #fbfaf4;
+            background: #f7f6ef;
+            color: var(--text-color);
+            font-family: var(--sans-stack);
+            line-height: 1.72;
+        }
+
+        .wiki-markdown pre code {
+            display: block;
+            padding: 0;
+            border-radius: 0;
+            background: transparent;
+            color: inherit;
+            font: inherit;
+            white-space: inherit;
         }
 
         .wiki-markdown blockquote {
@@ -1069,6 +1217,114 @@
             border-left: 3px solid var(--clay-color);
             background: var(--sage-wash);
             color: var(--ink-soft);
+        }
+
+        .wiki-markdown ul,
+        .wiki-markdown ol {
+            margin: 0.55rem 0 0.9rem;
+            padding-left: 1.45rem;
+        }
+
+        .wiki-markdown li {
+            margin: 0.25rem 0;
+        }
+
+        .wiki-markdown li > p {
+            margin: 0.2rem 0;
+        }
+
+        .wiki-markdown li > p:first-child {
+            margin-top: 0;
+        }
+
+        .wiki-markdown li > p:last-child {
+            margin-bottom: 0;
+        }
+
+        .wiki-markdown li.wiki-list-collapsible {
+            position: relative;
+        }
+
+        .wiki-list-grip {
+            position: absolute;
+            left: -1.35rem;
+            top: 0.12em;
+            width: 1.15rem;
+            height: 1.15rem;
+            margin: 0;
+            border: 0;
+            border-radius: 5px;
+            background: transparent;
+            color: var(--ink-soft);
+            cursor: pointer;
+            font: inherit;
+            line-height: 1;
+            vertical-align: baseline;
+        }
+
+        .wiki-list-label {
+            vertical-align: baseline;
+        }
+
+        .wiki-list-label > p {
+            display: inline;
+            margin: 0;
+        }
+
+        .wiki-list-grip:hover,
+        .wiki-list-grip:focus-visible {
+            background: var(--sage-wash);
+            color: var(--hover-color);
+            outline: none;
+        }
+
+        .wiki-list-collapsible.is-collapsed > .wiki-list-grip {
+            transform: rotate(-90deg);
+        }
+
+        .wiki-markdown li.wiki-list-collapsible.is-collapsed {
+            line-height: 1.25;
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        .wiki-list-collapsible.is-collapsed > .wiki-list-grip {
+            height: 1.15em;
+            line-height: 1;
+            vertical-align: middle;
+        }
+
+        .wiki-list-collapsible.is-collapsed > .wiki-list-label {
+            display: block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .wiki-list-collapsible.is-collapsed > :not(.wiki-list-grip):not(.wiki-list-label) {
+            display: none;
+        }
+
+        .wiki-markdown li > ul,
+        .wiki-markdown li > ol {
+            margin-top: 0.25rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .wiki-markdown .contains-task-list {
+            list-style: none;
+            padding-left: 0.35rem;
+        }
+
+        .wiki-markdown .task-list-item {
+            list-style: none;
+        }
+
+        .wiki-markdown .task-list-item-checkbox {
+            margin-right: 0.45rem;
+            transform: translateY(0.08rem);
         }
 
         .wiki-media {
@@ -1327,6 +1583,16 @@
             .wiki-panel-head,
             .wiki-reader-head {
                 padding: 0.6rem;
+            }
+
+            .wiki-page-context {
+                flex-wrap: wrap;
+                padding: 0.7rem 0.85rem 0.1rem;
+            }
+
+            .wiki-page-tools {
+                width: 100%;
+                justify-content: flex-end;
             }
 
             .wiki-markdown {
@@ -2502,11 +2768,15 @@
                 this.pendingDelete = null;
                 this.pendingCreateFolder = null;
                 this.treeStateKey = 'go-sites:wiki-tree-state';
+                this.headingStateKey = 'go-sites:wiki-heading-state';
+                this.listStateKey = 'go-sites:wiki-list-state';
                 this.historyKey = 'go-sites:wiki-history';
                 this.selectedKey = 'go-sites:wiki-selected';
                 this.scrollKey = 'go-sites:wiki-scroll';
                 this.historyLimit = 40;
                 this.treeState = this.loadTreeState();
+                this.headingState = this.loadHeadingState();
+                this.listState = this.loadListState();
                 this.scrollPositions = this.loadScrollPositions();
                 this.keydownBound = false;
             }
@@ -2525,6 +2795,8 @@
                 this.forwardBtn = this.root.querySelector('[data-wiki-forward]');
                 this.refreshBtn = this.root.querySelector('[data-wiki-refresh]');
                 this.editModeBtn = this.root.querySelector('[data-wiki-edit-mode]');
+                this.collapseAllBtn = this.root.querySelector('[data-wiki-collapse-all]');
+                this.expandAllBtn = this.root.querySelector('[data-wiki-expand-all]');
                 this.saveStatusEl = this.root.querySelector('[data-wiki-save-status]');
                 this.syncEditModeUi();
 
@@ -2532,6 +2804,8 @@
                 this.forwardBtn?.addEventListener('click', () => this.goHistory(1));
                 this.refreshBtn?.addEventListener('click', () => this.loadFiles({ force: true }));
                 this.editModeBtn?.addEventListener('click', () => this.toggleEditMode());
+                this.collapseAllBtn?.addEventListener('click', () => this.setAllContentCollapsed(true));
+                this.expandAllBtn?.addEventListener('click', () => this.setAllContentCollapsed(false));
                 this.searchEl?.addEventListener('input', () => {
                     this.searchQuery = this.searchEl.value;
                     window.clearTimeout(this.searchTimer);
@@ -2542,7 +2816,16 @@
                     this.saveTreeState();
                 });
                 this.contentEl?.addEventListener('scroll', () => this.rememberCurrentScroll());
-                this.contentEl?.addEventListener('dblclick', () => this.startContentEdit());
+                this.contentEl?.addEventListener('click', (event) => {
+                    const listGrip = event.target?.closest?.('[data-wiki-list-grip]');
+                    if (listGrip && this.contentEl.contains(listGrip)) {
+                        this.toggleListItem(listGrip);
+                        return;
+                    }
+                    const control = event.target?.closest?.('[data-wiki-heading-toggle], [data-wiki-heading-grip]');
+                    if (!control || !this.contentEl.contains(control)) return;
+                    this.toggleHeadingSection(control);
+                });
                 this.contentEl?.addEventListener('dragover', (event) => {
                     if (!this.isEditingContent) return;
                     const path = this.dragPathFromEvent(event);
@@ -2636,13 +2919,9 @@
 
             renderTree(options = {}) {
                 if (!this.treeEl) return;
-                if (!this.files.length && !this.folders.length) {
-                    this.treeEl.innerHTML = '<p class="wiki-empty">还没有文件。</p>';
-                    return;
-                }
                 const hasRenderedTree = this.treeEl.children.length > 0;
                 const previousScrollTop = hasRenderedTree ? this.treeEl.scrollTop : (this.treeState.scrollTop || 0);
-                const root = this.createTreeNode('Wiki', '');
+                const root = this.createTreeNode('wiki', '');
                 for (const folder of this.folders) {
                     this.addTreeFolder(root, String(folder.path || '').split('/').filter(Boolean));
                 }
@@ -2741,15 +3020,20 @@
                     button.setAttribute('aria-pressed', String(file.path === this.currentPath));
                     const title = document.createElement('span');
                     title.textContent = this.fileTitle(file);
-                    const meta = document.createElement('small');
-                    meta.textContent = file.path;
-                    button.append(title, meta);
+                    button.title = file.path;
+                    button.append(title);
                     button.addEventListener('click', () => this.openFile(file.path, { record: true, restoreScroll: true }));
                     row.addEventListener('dragstart', (event) => this.startFileDrag(event, file.path));
                     row.addEventListener('dragend', () => { this.draggingPath = ''; });
                     this.bindFileDrop(row, file.path);
                     row.append(button, this.renderDeleteButton('file', file.path, `删除 ${this.fileTitle(file)}`));
                     children.appendChild(row);
+                }
+                if (!node.folders.size && !node.files.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'wiki-empty';
+                    empty.textContent = this.editMode ? '点上面的 + 添加文件或文件夹。' : '空目录。';
+                    children.appendChild(empty);
                 }
                 details.appendChild(children);
                 return details;
@@ -2789,7 +3073,11 @@
                 if (this.editMode) {
                     this.renderMarkdownEditor(file);
                 } else {
-                    this.contentEl.innerHTML = this.renderMarkdown(file.content || '');
+                    this.contentEl.innerHTML = this.renderMarkdownFile(file);
+                    this.wireHeadingToggles();
+                    this.wireRenderedMarkdownAssets();
+                    this.wireListToggles();
+                    this.syncContentFoldButtons();
                     this.wireInternalLinks();
                 }
                 if (!this.editMode && searchQuery) {
@@ -2830,6 +3118,7 @@
                     this.editModeBtn.setAttribute('aria-pressed', String(this.editMode));
                     this.editModeBtn.textContent = this.editMode ? '完成' : '编辑';
                 }
+                this.syncContentFoldButtons();
             }
 
             toggleCreateMenu(parentPath) {
@@ -3113,6 +3402,7 @@
                 if (this.isEditingContent || !this.currentPath) return;
                 const file = this.files.find(item => item.path === this.currentPath);
                 if (!file) return;
+                const scrollRatio = this.contentScrollRatio(this.contentEl);
                 if (!this.editMode) {
                     this.editMode = true;
                     this.syncEditModeUi();
@@ -3120,10 +3410,10 @@
                 }
                 this.isEditingContent = true;
                 this.setSaveStatus('正在编辑');
-                this.renderMarkdownEditor(file);
+                this.renderMarkdownEditor(file, { scrollRatio });
             }
 
-            renderMarkdownEditor(file) {
+            renderMarkdownEditor(file, options = {}) {
                 const textarea = document.createElement('textarea');
                 textarea.className = 'wiki-markdown-editor';
                 textarea.value = file.content || '';
@@ -3143,7 +3433,11 @@
                 this.contentEl.replaceChildren(textarea);
                 this.editTextarea = textarea;
                 this.isEditingContent = true;
-                window.requestAnimationFrame(() => textarea.focus());
+                this.syncContentFoldButtons();
+                window.requestAnimationFrame(() => {
+                    this.applyScrollRatio(textarea, options.scrollRatio);
+                    textarea.focus({ preventScroll: true });
+                });
             }
 
             async finishContentEdit(options = {}) {
@@ -3151,6 +3445,7 @@
                 const textarea = this.editTextarea;
                 const file = this.files.find(item => item.path === this.currentPath);
                 const shouldRender = options.render !== false;
+                const scrollRatio = this.contentScrollRatio(textarea);
                 if (!textarea || !file) {
                     this.isEditingContent = false;
                     this.editTextarea = null;
@@ -3160,8 +3455,13 @@
                     this.isEditingContent = false;
                     this.editTextarea = null;
                     if (shouldRender) {
-                        this.contentEl.innerHTML = this.renderMarkdown(file.content || '');
+                        this.contentEl.innerHTML = this.renderMarkdownFile(file);
+                        this.wireHeadingToggles();
+                        this.wireRenderedMarkdownAssets();
+                        this.wireListToggles();
+                        this.syncContentFoldButtons();
                         this.wireInternalLinks();
+                        this.restoreRenderedScroll(scrollRatio);
                     }
                     this.setSaveStatus('');
                     return true;
@@ -3179,8 +3479,13 @@
                     this.editTextarea = null;
                     if (this.titleEl) this.titleEl.textContent = this.fileTitle(saved);
                     if (shouldRender) {
-                        this.contentEl.innerHTML = this.renderMarkdown(saved.content || '');
+                        this.contentEl.innerHTML = this.renderMarkdownFile(saved);
+                        this.wireHeadingToggles();
+                        this.wireRenderedMarkdownAssets();
+                        this.wireListToggles();
+                        this.syncContentFoldButtons();
                         this.wireInternalLinks();
+                        this.restoreRenderedScroll(scrollRatio);
                     }
                     this.renderTree();
                     this.setSaveStatus('已保存');
@@ -3264,6 +3569,7 @@
                 this.currentPath = '';
                 if (!results.length) {
                     this.contentEl.innerHTML = `<p class="wiki-empty">没有找到包含“${this.escapeHtml(query)}”的文件。</p>`;
+                    this.syncContentFoldButtons();
                     return;
                 }
                 this.contentEl.innerHTML = `<div class="wiki-search-results">${results.map(({ file, snippet }) => `
@@ -3279,6 +3585,7 @@
                         this.openFile(button.dataset.wikiResult, { record: true, searchQuery: query, restoreScroll: true });
                     });
                 });
+                this.syncContentFoldButtons();
             }
 
             recordHistory(item) {
@@ -3381,6 +3688,26 @@
                 return `${item.id || this.currentPath}::${item.searchQuery || ''}`;
             }
 
+            contentScrollRatio(element) {
+                if (!element) return 0;
+                const maxScroll = element.scrollHeight - element.clientHeight;
+                if (maxScroll <= 0) return 0;
+                return Math.min(1, Math.max(0, element.scrollTop / maxScroll));
+            }
+
+            applyScrollRatio(element, ratio) {
+                if (!element || !Number.isFinite(ratio)) return;
+                const maxScroll = element.scrollHeight - element.clientHeight;
+                element.scrollTop = Math.max(0, maxScroll * Math.min(1, Math.max(0, ratio)));
+            }
+
+            restoreRenderedScroll(ratio) {
+                window.requestAnimationFrame(() => {
+                    this.applyScrollRatio(this.contentEl, ratio);
+                    this.rememberCurrentScroll();
+                });
+            }
+
             rememberCurrentScroll() {
                 if (!this.currentPath || !this.contentEl) return;
                 const item = this.currentHistoryItem() || { id: this.currentPath };
@@ -3426,6 +3753,210 @@
                 }
             }
 
+            loadHeadingState() {
+                try {
+                    const parsed = JSON.parse(localStorage.getItem(this.headingStateKey) || '{}');
+                    return parsed && typeof parsed === 'object' ? parsed : {};
+                } catch (error) {
+                    return {};
+                }
+            }
+
+            saveHeadingState() {
+                try {
+                    localStorage.setItem(this.headingStateKey, JSON.stringify(this.headingState));
+                } catch (error) {
+                    // Convenience state only.
+                }
+            }
+
+            loadListState() {
+                try {
+                    const parsed = JSON.parse(localStorage.getItem(this.listStateKey) || '{}');
+                    return parsed && typeof parsed === 'object' ? parsed : {};
+                } catch (error) {
+                    return {};
+                }
+            }
+
+            saveListState() {
+                try {
+                    localStorage.setItem(this.listStateKey, JSON.stringify(this.listState));
+                } catch (error) {
+                    // Convenience state only.
+                }
+            }
+
+            wireHeadingToggles() {
+                this.contentEl?.querySelectorAll('[data-wiki-heading-toggle]').forEach(button => {
+                    const expanded = button.getAttribute('aria-expanded') !== 'false';
+                    const label = expanded ? '收起' : '展开';
+                    const text = button.querySelector('.wiki-heading-text')?.textContent?.trim() || '标题';
+                    button.setAttribute('aria-label', `${label}：${text}`);
+                });
+                this.contentEl?.querySelectorAll('[data-wiki-heading-grip]').forEach(button => {
+                    const expanded = button.getAttribute('aria-expanded') !== 'false';
+                    const label = expanded ? '收起' : '展开';
+                    const text = button.closest('.wiki-heading-title')?.querySelector('.wiki-heading-text')?.textContent?.trim() || '标题';
+                    button.setAttribute('aria-label', `${label}：${text}`);
+                    button.title = `${label}：${text}`;
+                });
+            }
+
+            toggleHeadingSection(control) {
+                const section = control.closest('.wiki-heading-section');
+                const body = section?.querySelector(':scope > .wiki-heading-body');
+                const button = section?.querySelector(':scope > .wiki-heading-title [data-wiki-heading-toggle]');
+                const grip = section?.querySelector(':scope > .wiki-heading-title [data-wiki-heading-grip]');
+                const id = control.getAttribute('data-wiki-heading-toggle') || control.getAttribute('data-wiki-heading-grip');
+                if (!section || !body || !id) return;
+                const nextExpanded = button.getAttribute('aria-expanded') === 'false';
+                button.setAttribute('aria-expanded', String(nextExpanded));
+                grip?.setAttribute('aria-expanded', String(nextExpanded));
+                button.title = `${nextExpanded ? '收起' : '展开'}：${button.querySelector('.wiki-heading-text')?.textContent?.trim() || '标题'}`;
+                body.hidden = !nextExpanded;
+                section.classList.toggle('is-collapsed', !nextExpanded);
+                if (nextExpanded) {
+                    delete this.headingState[id];
+                } else {
+                    this.headingState[id] = true;
+                }
+                this.saveHeadingState();
+                this.wireHeadingToggles();
+                this.syncContentFoldButtons();
+            }
+
+            setAllContentCollapsed(collapsed) {
+                if (!this.contentEl || this.isEditingContent) return;
+                let changed = false;
+                this.contentEl.querySelectorAll('.wiki-heading-section[data-heading-id]').forEach(section => {
+                    const id = section.dataset.headingId;
+                    const body = section.querySelector(':scope > .wiki-heading-body');
+                    const button = section.querySelector(':scope > .wiki-heading-title [data-wiki-heading-toggle]');
+                    const grip = section.querySelector(':scope > .wiki-heading-title [data-wiki-heading-grip]');
+                    if (!id || !body || !button) return;
+                    button.setAttribute('aria-expanded', String(!collapsed));
+                    grip?.setAttribute('aria-expanded', String(!collapsed));
+                    body.hidden = collapsed;
+                    section.classList.toggle('is-collapsed', collapsed);
+                    if (collapsed) {
+                        this.headingState[id] = true;
+                    } else {
+                        delete this.headingState[id];
+                    }
+                    changed = true;
+                });
+                this.contentEl.querySelectorAll('li.wiki-list-collapsible[data-wiki-list-id]').forEach(item => {
+                    const id = item.dataset.wikiListId;
+                    const grip = item.querySelector(':scope > [data-wiki-list-grip]');
+                    if (!id || !grip) return;
+                    grip.setAttribute('aria-expanded', String(!collapsed));
+                    item.classList.toggle('is-collapsed', collapsed);
+                    if (collapsed) {
+                        this.listState[id] = true;
+                    } else {
+                        delete this.listState[id];
+                    }
+                    changed = true;
+                });
+                if (!changed) return;
+                this.saveHeadingState();
+                this.saveListState();
+                this.wireHeadingToggles();
+                this.syncContentFoldButtons();
+                this.rememberCurrentScroll();
+            }
+
+            syncContentFoldButtons() {
+                const hasFoldableContent = Boolean(this.contentEl?.querySelector('.wiki-heading-section[data-heading-id], li.wiki-list-collapsible[data-wiki-list-id]'));
+                const disabled = !hasFoldableContent || this.isEditingContent;
+                if (this.collapseAllBtn) this.collapseAllBtn.disabled = disabled;
+                if (this.expandAllBtn) this.expandAllBtn.disabled = disabled;
+            }
+
+            wireListToggles() {
+                const candidates = this.contentEl?.querySelectorAll('.wiki-markdown li') || [];
+                candidates.forEach(item => {
+                    if (item.querySelector(':scope > .wiki-list-grip')) return;
+                    const firstDetail = this.firstCollapsibleListDetail(item);
+                    if (!firstDetail) return;
+                    this.wrapListItemLabel(item, firstDetail);
+                    const id = this.listItemStateId(item);
+                    const collapsed = Boolean(this.listState[id]);
+                    item.classList.add('wiki-list-collapsible');
+                    item.classList.toggle('is-collapsed', collapsed);
+                    item.dataset.wikiListId = id;
+                    const grip = document.createElement('button');
+                    grip.type = 'button';
+                    grip.className = 'wiki-list-grip';
+                    grip.dataset.wikiListGrip = id;
+                    grip.textContent = '▾';
+                    grip.setAttribute('aria-expanded', String(!collapsed));
+                    grip.setAttribute('aria-label', `${collapsed ? '展开' : '收起'}：${this.listItemOwnText(item) || '列表项'}`);
+                    item.insertBefore(grip, item.firstChild);
+                });
+            }
+
+            firstCollapsibleListDetail(item) {
+                const children = Array.from(item.children).filter(child => !child.matches('.wiki-list-grip, .wiki-list-label'));
+                const directList = children.find(child => child.matches('ul, ol'));
+                if (directList) return directList;
+                const blockChildren = children.filter(child => this.isListDetailBlock(child));
+                return blockChildren.length > 1 ? blockChildren[1] : null;
+            }
+
+            isListDetailBlock(element) {
+                return element.matches('p, ul, ol, blockquote, pre, table, figure, div');
+            }
+
+            wrapListItemLabel(item, firstDetail) {
+                if (item.querySelector(':scope > .wiki-list-label')) return;
+                const label = document.createElement('span');
+                label.className = 'wiki-list-label';
+                const nodes = [];
+                for (const node of Array.from(item.childNodes)) {
+                    if (node === firstDetail) break;
+                    if (node.nodeType === Node.ELEMENT_NODE && node.matches('.wiki-list-grip')) continue;
+                    nodes.push(node);
+                }
+                for (const node of nodes) label.appendChild(node);
+                item.insertBefore(label, firstDetail);
+            }
+
+            toggleListItem(grip) {
+                const item = grip.closest('li.wiki-list-collapsible');
+                const id = grip.getAttribute('data-wiki-list-grip') || item?.dataset.wikiListId;
+                if (!item || !id) return;
+                const nextExpanded = grip.getAttribute('aria-expanded') === 'false';
+                grip.setAttribute('aria-expanded', String(nextExpanded));
+                grip.setAttribute('aria-label', `${nextExpanded ? '收起' : '展开'}：${this.listItemOwnText(item) || '列表项'}`);
+                item.classList.toggle('is-collapsed', !nextExpanded);
+                if (nextExpanded) {
+                    delete this.listState[id];
+                } else {
+                    this.listState[id] = true;
+                }
+                this.saveListState();
+                this.syncContentFoldButtons();
+            }
+
+            listItemStateId(item) {
+                const parts = [];
+                let current = item;
+                while (current && current.matches?.('li')) {
+                    parts.unshift(this.listItemOwnText(current) || '列表项');
+                    const parentList = current.parentElement;
+                    current = parentList?.parentElement?.closest?.('li') || null;
+                }
+                return `${this.currentPath || 'wiki'}::li:${parts.join('>')}`;
+            }
+
+            listItemOwnText(item) {
+                const clone = item.cloneNode(true);
+                clone.querySelectorAll('ul, ol, .wiki-list-grip').forEach(node => node.remove());
+                return clone.textContent.replace(/\s+/g, ' ').trim();
+            }
+
             loadSelectedPath() {
                 try {
                     return localStorage.getItem(this.selectedKey) || '';
@@ -3450,7 +3981,7 @@
             }
 
             fileTitle(file) {
-                return file?.title || String(file?.path || '').split('/').pop() || '未命名';
+                return String(file?.path || '').split('/').pop() || '未命名';
             }
 
             plainText(value) {
@@ -3476,6 +4007,7 @@
                 if (this.titleEl) this.titleEl.textContent = 'Wiki';
                 if (this.pathEl) this.pathEl.textContent = '';
                 if (this.contentEl) this.contentEl.innerHTML = `<p class="wiki-empty">${this.escapeHtml(message)}</p>`;
+                this.syncContentFoldButtons();
             }
 
             setStatus(message) {
@@ -3491,9 +4023,78 @@
                     .replace(/'/g, '&#39;');
             }
 
+            renderMarkdownFile(file) {
+                const rendered = String(file?.html || '').trim();
+                if (rendered) return this.renderCollapsibleHTML(rendered);
+                return this.renderMarkdown(file?.content || '');
+            }
+
+            renderCollapsibleHTML(renderedHtml) {
+                const template = document.createElement('template');
+                template.innerHTML = renderedHtml;
+                this.removeLeadingHeading(template.content);
+                const root = { children: [] };
+                const stack = [{ level: 0, node: root }];
+                const counts = new Map();
+                for (const node of Array.from(template.content.childNodes)) {
+                    const heading = node.nodeType === Node.ELEMENT_NODE ? /^H([1-6])$/.exec(node.tagName) : null;
+                    if (!heading) {
+                        stack[stack.length - 1].node.children.push({ type: 'html', html: this.nodeToHTML(node) });
+                        continue;
+                    }
+                    const level = Number(heading[1]);
+                    while (stack.length > 1 && stack[stack.length - 1].level >= level) {
+                        stack.pop();
+                    }
+                    const text = node.textContent?.trim() || `标题 ${level}`;
+                    const keyBase = `${level}:${text}`;
+                    const count = counts.get(keyBase) || 0;
+                    counts.set(keyBase, count + 1);
+                    const section = {
+                        type: 'heading',
+                        level,
+                        id: this.headingStateId({ level, text }, count),
+                        originalId: node.getAttribute('id') || '',
+                        text,
+                        html: node.innerHTML,
+                        children: [],
+                    };
+                    stack[stack.length - 1].node.children.push(section);
+                    stack.push({ level, node: section });
+                }
+                const html = root.children.map(child => this.renderCollapsibleNode(child)).join('');
+                return html || '<p class="wiki-empty">这个页面还没有内容。</p>';
+            }
+
+            removeLeadingHeading(fragment) {
+                for (const node of Array.from(fragment.childNodes)) {
+                    if (node.nodeType === Node.TEXT_NODE && !node.textContent.trim()) {
+                        node.remove();
+                        continue;
+                    }
+                    if (node.nodeType === Node.ELEMENT_NODE && /^H[1-6]$/.test(node.tagName)) {
+                        node.remove();
+                    }
+                    return;
+                }
+            }
+
+            nodeToHTML(node) {
+                if (node.nodeType === Node.TEXT_NODE) return this.escapeHtml(node.textContent || '');
+                if (node.nodeType !== Node.ELEMENT_NODE) return '';
+                return node.outerHTML || '';
+            }
+
             renderMarkdown(markdown) {
+                const blocks = this.parseMarkdownBlocks(markdown);
+                if (blocks[0]?.type === 'heading') blocks.shift();
+                if (!blocks.length) return '<p class="wiki-empty">这个页面还没有内容。</p>';
+                return this.renderCollapsibleBlocks(blocks);
+            }
+
+            parseMarkdownBlocks(markdown) {
                 const lines = String(markdown || '').replace(/\r\n/g, '\n').split('\n');
-                const html = [];
+                const blocks = [];
                 let paragraph = [];
                 let list = [];
                 let orderedList = [];
@@ -3502,25 +4103,25 @@
                 let code = [];
                 const flushParagraph = () => {
                     if (paragraph.length) {
-                        html.push(`<p>${this.renderInline(paragraph.join('\n'))}</p>`);
+                        blocks.push({ type: 'html', html: `<p>${this.renderInline(paragraph.join('\n'))}</p>` });
                         paragraph = [];
                     }
                 };
                 const flushList = () => {
                     if (list.length) {
-                        html.push(`<ul>${list.map(item => `<li>${this.renderInline(item)}</li>`).join('')}</ul>`);
+                        blocks.push({ type: 'html', html: `<ul>${list.map(item => `<li>${this.renderInline(item)}</li>`).join('')}</ul>` });
                         list = [];
                     }
                 };
                 const flushOrderedList = () => {
                     if (orderedList.length) {
-                        html.push(`<ol>${orderedList.map(item => `<li>${this.renderInline(item)}</li>`).join('')}</ol>`);
+                        blocks.push({ type: 'html', html: `<ol>${orderedList.map(item => `<li>${this.renderInline(item)}</li>`).join('')}</ol>` });
                         orderedList = [];
                     }
                 };
                 const flushBlockquote = () => {
                     if (blockquote.length) {
-                        html.push(`<blockquote>${this.renderMarkdown(blockquote.join('\n'))}</blockquote>`);
+                        blocks.push({ type: 'html', html: `<blockquote>${this.renderMarkdown(blockquote.join('\n'))}</blockquote>` });
                         blockquote = [];
                     }
                 };
@@ -3543,7 +4144,7 @@
                     const trimmed = line.trim();
                     if (trimmed.startsWith('```')) {
                         if (inCode) {
-                            html.push(`<pre><code>${this.escapeHtml(code.join('\n'))}</code></pre>`);
+                            blocks.push({ type: 'html', html: `<pre><code>${this.escapeHtml(code.join('\n'))}</code></pre>` });
                             code = [];
                             inCode = false;
                         } else {
@@ -3562,7 +4163,7 @@
                     }
                     if (/^---+$/.test(trimmed) || /^\*\*\*+$/.test(trimmed)) {
                         flushBlocks();
-                        html.push('<hr>');
+                        blocks.push({ type: 'html', html: '<hr>' });
                         continue;
                     }
                     if (trimmed.startsWith('>')) {
@@ -3582,14 +4183,19 @@
                             index += 1;
                         }
                         index -= 1;
-                        html.push(`<table><thead><tr>${headers.map(cell => `<th>${this.renderInline(cell)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${headers.map((_header, cellIndex) => `<td>${this.renderInline(row[cellIndex] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table>`);
+                        blocks.push({ type: 'html', html: `<table><thead><tr>${headers.map(cell => `<th>${this.renderInline(cell)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${headers.map((_header, cellIndex) => `<td>${this.renderInline(row[cellIndex] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table>` });
                         continue;
                     }
-                    const heading = /^(#{1,4})\s+(.+)$/.exec(trimmed);
+                    const heading = /^(#{1,6})\s+(.+)$/.exec(trimmed);
                     if (heading) {
                         flushBlocks();
-                        const level = heading[1].length + 1;
-                        html.push(`<h${level}>${this.renderInline(heading[2])}</h${level}>`);
+                        const level = heading[1].length;
+                        blocks.push({
+                            type: 'heading',
+                            level,
+                            text: this.stripHtml(this.renderInline(heading[2])).trim() || `标题 ${level}`,
+                            html: this.renderInline(heading[2]),
+                        });
                         continue;
                     }
                     const bullet = /^[-*]\s+(.+)$/.exec(trimmed);
@@ -3611,8 +4217,55 @@
                     paragraph.push(trimmed);
                 }
                 flushBlocks();
-                if (inCode) html.push(`<pre><code>${this.escapeHtml(code.join('\n'))}</code></pre>`);
-                return html.join('') || '<p class="wiki-empty">这个页面还没有内容。</p>';
+                if (inCode) blocks.push({ type: 'html', html: `<pre><code>${this.escapeHtml(code.join('\n'))}</code></pre>` });
+                return blocks;
+            }
+
+            renderCollapsibleBlocks(blocks) {
+                const root = { children: [] };
+                const stack = [{ level: 0, node: root }];
+                const counts = new Map();
+                for (const block of blocks) {
+                    if (block.type !== 'heading') {
+                        stack[stack.length - 1].node.children.push(block);
+                        continue;
+                    }
+                    while (stack.length > 1 && stack[stack.length - 1].level >= block.level) {
+                        stack.pop();
+                    }
+                    const parent = stack[stack.length - 1].node;
+                    const keyBase = `${block.level}:${block.text}`;
+                    const count = counts.get(keyBase) || 0;
+                    counts.set(keyBase, count + 1);
+                    const section = { ...block, id: this.headingStateId(block, count), children: [] };
+                    parent.children.push(section);
+                    stack.push({ level: block.level, node: section });
+                }
+                return root.children.map(child => this.renderCollapsibleNode(child)).join('');
+            }
+
+            renderCollapsibleNode(node) {
+                if (node.type === 'html') return node.html;
+                const level = Math.min(Math.max(node.level, 1), 6);
+                const collapsed = Boolean(this.headingState[node.id]);
+                const body = node.children.map(child => this.renderCollapsibleNode(child)).join('');
+                const title = this.escapeHtml(node.text);
+                const originalId = node.originalId ? ` id="${this.escapeHtml(node.originalId)}"` : '';
+                return `<section class="wiki-heading-section${collapsed ? ' is-collapsed' : ''}" data-heading-level="${level}" data-heading-id="${this.escapeHtml(node.id)}">
+                    <h${level}${originalId} class="wiki-heading-title">
+                        <button class="wiki-heading-grip" type="button" data-wiki-heading-grip="${this.escapeHtml(node.id)}" aria-expanded="${collapsed ? 'false' : 'true'}" title="${collapsed ? '展开' : '收起'}：${title}" aria-label="${collapsed ? '展开' : '收起'}：${title}">▾</button>
+                        <button class="wiki-heading-toggle" type="button" data-wiki-heading-toggle="${this.escapeHtml(node.id)}" aria-expanded="${collapsed ? 'false' : 'true'}" title="${collapsed ? '展开' : '收起'}：${title}">
+                            <span class="wiki-heading-icon" aria-hidden="true">▾</span>
+                            <span class="wiki-heading-text">${node.html}</span>
+                        </button>
+                    </h${level}>
+                    <div class="wiki-heading-body"${collapsed ? ' hidden' : ''}>${body}</div>
+                </section>`;
+            }
+
+            headingStateId(block, count) {
+                const safePath = this.currentPath || 'wiki';
+                return `${safePath}::h${block.level}:${block.text}:${count}`;
             }
 
             renderInline(text) {
@@ -3684,6 +4337,28 @@
                     .replace(/&quot;/g, '"')
                     .replace(/&#39;/g, "'")
                     .replace(/^<|>$/g, '');
+            }
+
+            wireRenderedMarkdownAssets() {
+                this.contentEl.querySelectorAll('.wiki-markdown img[src]').forEach(image => {
+                    const src = image.getAttribute('src') || '';
+                    if (/^(https?:|data:|blob:)/i.test(src)) return;
+                    image.src = this.resolveAssetHref(src);
+                    image.loading = 'lazy';
+                    image.decoding = 'async';
+                });
+                this.contentEl.querySelectorAll('.wiki-markdown a[href]').forEach(link => {
+                    const href = link.getAttribute('href') || '';
+                    if (!href || href.startsWith('#') || /^[a-z][a-z0-9+.-]*:/i.test(href)) return;
+                    if (/\.md(?:$|[#?])/i.test(href)) {
+                        link.dataset.wikiLink = href.split('#')[0].split('?')[0];
+                        link.href = '#';
+                        return;
+                    }
+                    link.href = this.resolveAssetHref(href);
+                    link.target = '_blank';
+                    link.rel = 'noreferrer';
+                });
             }
 
             wireInternalLinks() {
@@ -3988,10 +4663,16 @@
                                     <span class="wiki-status" data-wiki-status aria-live="polite"></span>
                                 </div>
                             </div>
-                            <div class="wiki-page-context">
-                                <span class="wiki-status" data-wiki-path></span>
-                                <span class="wiki-status" data-wiki-save-status></span>
-                                <h2 data-wiki-title>Wiki</h2>
+            <div class="wiki-page-context">
+                                <div class="wiki-page-meta">
+                                    <span class="wiki-status" data-wiki-path></span>
+                                    <span class="wiki-status" data-wiki-save-status></span>
+                                    <h2 data-wiki-title>Wiki</h2>
+                                </div>
+                                <div class="wiki-page-tools" aria-label="正文折叠控制">
+                                    <button class="wiki-page-tool" type="button" data-wiki-collapse-all disabled>全部收缩</button>
+                                    <button class="wiki-page-tool" type="button" data-wiki-expand-all disabled>全部展开</button>
+                                </div>
                             </div>
                             <div class="wiki-markdown" data-wiki-content></div>
                         </article>
