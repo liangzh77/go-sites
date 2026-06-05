@@ -286,6 +286,7 @@ fi
 
 if [[ ! -f "$CONFIG" ]]; then
   session_secret=$(openssl rand -hex 32 2>/dev/null || date +%s%N | sha256sum | awk '{print $1}')
+  api_key='5fd8745cbd09e7000479611d8dbe1e172918b09b8cff289a1e959716928403b9'
   cat >"$CONFIG" <<EOF
 DEMO_SERVER_ADDR=127.0.0.1:9005
 DEMO_DATA_DIR=$SHARED_DIR
@@ -293,6 +294,7 @@ WIKI_ROOT=$SHARED_DIR/wiki
 SITE_ROOT=$SITE_ROOT/current
 PUBLIC_ORIGIN=https://$DOMAIN
 DEMO_ADMIN_PASSWORD=$site_password
+DEMO_API_KEY=$api_key
 DEMO_SESSION_SECRET=$session_secret
 EOF
 else
@@ -306,6 +308,13 @@ else
     sed -i "s|^DEMO_ADMIN_PASSWORD=.*|DEMO_ADMIN_PASSWORD=$site_password|" "$CONFIG"
   else
     printf '\nDEMO_ADMIN_PASSWORD=%s\n' "$site_password" >>"$CONFIG"
+  fi
+
+  api_key='5fd8745cbd09e7000479611d8dbe1e172918b09b8cff289a1e959716928403b9'
+  if grep -q '^DEMO_API_KEY=' "$CONFIG"; then
+    sed -i "s|^DEMO_API_KEY=.*|DEMO_API_KEY=$api_key|" "$CONFIG"
+  else
+    printf '\nDEMO_API_KEY=%s\n' "$api_key" >>"$CONFIG"
   fi
 fi
 

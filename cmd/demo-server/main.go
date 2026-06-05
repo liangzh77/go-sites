@@ -44,6 +44,7 @@ type app struct {
 	manifestPath  string
 	staticRoot    string
 	adminPassword string
+	apiKey        string
 	sessionSecret []byte
 	publicOrigin  string
 }
@@ -70,10 +71,22 @@ type apiError struct {
 	} `json:"error"`
 }
 
+type publishDemoInput struct {
+	Title    string `json:"title"`
+	Slug     string `json:"slug"`
+	HTML     string `json:"html"`
+	Markdown string `json:"markdown"`
+	Content  string `json:"content"`
+	Kind     string `json:"kind"`
+	Feature  string `json:"feature"`
+	Disabled *bool  `json:"disabled"`
+}
+
 func main() {
 	dataDir := envOr("DEMO_DATA_DIR", filepath.Join(".", "demo-data"))
 	staticRoot := envOr("SITE_ROOT", ".")
 	password := firstEnv("DEMO_ADMIN_PASSWORD", "GO_SITES_DEMO_PASSWORD")
+	apiKey := firstEnv("DEMO_API_KEY", "GO_SITES_DEMO_API_KEY")
 	secret := firstEnv("DEMO_SESSION_SECRET", "GO_SITES_DEMO_PASSWORD", "DEMO_ADMIN_PASSWORD")
 	if secret == "" {
 		secret = "local-development-demo-secret"
@@ -86,6 +99,7 @@ func main() {
 		manifestPath:  filepath.Join(dataDir, "manifest.json"),
 		staticRoot:    staticRoot,
 		adminPassword: password,
+		apiKey:        apiKey,
 		sessionSecret: []byte(secret),
 		publicOrigin:  strings.TrimRight(envOr("PUBLIC_ORIGIN", "https://liangz77.cn"), "/"),
 	}
@@ -111,6 +125,7 @@ func main() {
 	mux.HandleFunc("POST /api/demo/session", a.handleSession)
 	mux.HandleFunc("GET /api/demos", a.handleListDemos)
 	mux.HandleFunc("POST /api/demos", a.requireAuth(a.handleCreateDemo))
+	mux.HandleFunc("POST /api/demos/publish", a.requireAPIKey(a.handlePublishDemo))
 	mux.HandleFunc("PATCH /api/demos/{slug}", a.requireAuth(a.handleUpdateDemo))
 	mux.HandleFunc("DELETE /api/demos/{slug}", a.requireAuth(a.handleDeleteDemo))
 	mux.HandleFunc("GET /api/wiki/files", a.requireAuth(a.handleListWikiFiles))
@@ -743,6 +758,110 @@ func (a *app) handleCreateMarkdownDemo(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, item)
 }
 
+func (a *app) handlePublishDemo(w http.ResponseWriter, r *http.Request) {
+	var input publishDemoInput
+	if err := json.NewDecoder(io.LimitReader(r.Body, maxUploadBytes)).Decode(&input); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body.")
+		return
+	}
+
+	title := strings.TrimSpace(input.Title)
+	if title == "" {
+		writeError(w, http.StatusUnprocessableEntity, "INVALID_TITLE", "Demo title is required.")
+		return
+	}
+
+	kind, page, err := publishedDemoPage(title, input)
+	if err != nil {
+		writeError(w, http.StatusUnprocessableEntity, "INVALID_CONTENT", err.Error())
+		return
+	}
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	m, err := a.loadManifestLocked()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "READ_FAILED", "Unable to read demos.")
+		return
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	index := demoIndexByTitle(m.Demos, title)
+	created := now
+	slug := slugify(input.Slug)
+	if index >= 0 {
+		slug = m.Demos[index].Slug
+		created = m.Demos[index].CreatedAt
+	} else {
+		if slug == "" {
+			slug = slugify(title)
+		}
+		if slug == "" {
+			writeError(w, http.StatusUnprocessableEntity, "INVALID_SLUG", "Demo slug is required.")
+			return
+		}
+		if demoSlugInUse(m.Demos, slug) {
+			writeError(w, http.StatusConflict, "SLUG_EXISTS", "Demo slug is already used by another title.")
+			return
+		}
+	}
+
+	targetDir := filepath.Join(a.demosDir, slug)
+	tempDir := filepath.Join(a.demosDir, "."+slug+".tmp-"+fmt.Sprintf("%d", time.Now().UnixNano()))
+	if err := os.MkdirAll(tempDir, 0o755); err != nil {
+		writeError(w, http.StatusInternalServerError, "WRITE_FAILED", "Unable to prepare demo directory.")
+		return
+	}
+	defer os.RemoveAll(tempDir)
+
+	if err := os.WriteFile(filepath.Join(tempDir, "index.html"), []byte(page), 0o644); err != nil {
+		writeError(w, http.StatusInternalServerError, "WRITE_FAILED", "Unable to save demo.")
+		return
+	}
+	if err := os.RemoveAll(targetDir); err != nil {
+		writeError(w, http.StatusInternalServerError, "WRITE_FAILED", "Unable to replace existing demo.")
+		return
+	}
+	if err := os.Rename(tempDir, targetDir); err != nil {
+		writeError(w, http.StatusInternalServerError, "WRITE_FAILED", "Unable to publish demo.")
+		return
+	}
+
+	item := demoItem{
+		Title:     title,
+		Slug:      slug,
+		Address:   a.demoAddress(slug),
+		Kind:      kind,
+		Feature:   strings.TrimSpace(input.Feature),
+		CreatedAt: created,
+		UpdatedAt: now,
+	}
+	if input.Disabled != nil {
+		item.Disabled = *input.Disabled
+	} else if index >= 0 {
+		item.Disabled = m.Demos[index].Disabled
+	}
+
+	status := http.StatusCreated
+	if index >= 0 {
+		m.Demos[index] = item
+		status = http.StatusOK
+	} else {
+		m.Demos = append(m.Demos, item)
+	}
+	sort.Slice(m.Demos, func(i, j int) bool {
+		return m.Demos[i].CreatedAt > m.Demos[j].CreatedAt
+	})
+
+	if err := a.saveManifestLocked(m); err != nil {
+		writeError(w, http.StatusInternalServerError, "WRITE_FAILED", "Unable to save demo list.")
+		return
+	}
+
+	writeJSON(w, status, item)
+}
+
 func (a *app) handleUpdateDemo(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	var input struct {
@@ -1296,15 +1415,79 @@ func (a *app) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func (a *app) requireAPIKey(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if a.apiKey == "" {
+			writeError(w, http.StatusServiceUnavailable, "API_AUTH_NOT_CONFIGURED", "Demo API key is not configured.")
+			return
+		}
+		if !a.isAPIAuthenticated(r) {
+			writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Valid API key required.")
+			return
+		}
+		next(w, r)
+	}
+}
+
 func (a *app) isAuthenticated(r *http.Request) bool {
 	cookie, err := r.Cookie(cookieName)
 	return err == nil && hmac.Equal([]byte(cookie.Value), []byte(a.sessionToken()))
+}
+
+func (a *app) isAPIAuthenticated(r *http.Request) bool {
+	key := strings.TrimSpace(r.Header.Get("X-Demo-API-Key"))
+	if key == "" {
+		auth := strings.TrimSpace(r.Header.Get("Authorization"))
+		if strings.HasPrefix(strings.ToLower(auth), "bearer ") {
+			key = strings.TrimSpace(auth[len("bearer "):])
+		}
+	}
+	return key != "" && hmac.Equal([]byte(key), []byte(a.apiKey))
 }
 
 func (a *app) sessionToken() string {
 	mac := hmac.New(sha256.New, a.sessionSecret)
 	mac.Write([]byte("go-sites-demo-admin"))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func publishedDemoPage(title string, input publishDemoInput) (string, string, error) {
+	if strings.TrimSpace(input.HTML) != "" {
+		return "html", input.HTML, nil
+	}
+
+	markdown := strings.TrimSpace(input.Markdown)
+	if markdown == "" && strings.EqualFold(strings.TrimSpace(input.Kind), "markdown") {
+		markdown = strings.TrimSpace(input.Content)
+	}
+	if markdown != "" {
+		return "markdown", renderMarkdownPage(title, markdown), nil
+	}
+
+	content := strings.TrimSpace(input.Content)
+	if content != "" {
+		return "html", input.Content, nil
+	}
+
+	return "", "", fmt.Errorf("provide html, markdown, or content")
+}
+
+func demoIndexByTitle(demos []demoItem, title string) int {
+	for i, item := range demos {
+		if strings.EqualFold(strings.TrimSpace(item.Title), title) {
+			return i
+		}
+	}
+	return -1
+}
+
+func demoSlugInUse(demos []demoItem, slug string) bool {
+	for _, item := range demos {
+		if item.Slug == slug {
+			return true
+		}
+	}
+	return false
 }
 
 func materializeUpload(file multipart.File, header *multipart.FileHeader, targetDir, title string) (string, error) {
