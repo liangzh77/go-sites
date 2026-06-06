@@ -218,7 +218,7 @@ type wikiFolderItem struct {
 }
 
 func (a *app) handleListWikiFiles(w http.ResponseWriter, r *http.Request) {
-	files, err := a.collectWikiFiles(true)
+	files, err := a.collectWikiFiles(false)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read wiki files.")
 		return
@@ -308,16 +308,15 @@ func (a *app) handleCreateWikiFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "WIKI_WRITE_FAILED", "Unable to create wiki file.")
 		return
 	}
-	content, info, cleanPath, err := a.readWikiFile(targetClean)
+	info, err := os.Stat(target)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read created wiki file.")
+		writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to inspect created wiki file.")
 		return
 	}
 	writeJSON(w, http.StatusCreated, wikiFileItem{
-		Path:      cleanPath,
+		Path:      filepath.ToSlash(targetClean),
 		Title:     markdownTitleFromContent(content),
 		Content:   content,
-		HTML:      renderMarkdown(content),
 		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 		Size:      info.Size(),
 	})
@@ -390,19 +389,19 @@ func (a *app) handleUploadWikiFiles(w http.ResponseWriter, r *http.Request) {
 			size = info.Size()
 		}
 		uploaded = append(uploaded, wikiUploadItem{Path: rel, Size: size})
-		if isMarkdownFile(targetName) {
-			content, info, cleanPath, err := a.readWikiFile(rel)
-			if err == nil {
-				markdownFiles = append(markdownFiles, wikiFileItem{
-					Path:      cleanPath,
-					Title:     markdownTitleFromContent(content),
-					Content:   content,
-					HTML:      renderMarkdown(content),
-					UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
-					Size:      info.Size(),
-				})
-			}
+		title := strings.TrimSuffix(filepath.Base(rel), filepath.Ext(rel))
+		updatedAt := ""
+		fileSize := size
+		if statErr == nil {
+			updatedAt = info.ModTime().UTC().Format(time.RFC3339)
+			fileSize = info.Size()
 		}
+		markdownFiles = append(markdownFiles, wikiFileItem{
+			Path:      rel,
+			Title:     title,
+			UpdatedAt: updatedAt,
+			Size:      fileSize,
+		})
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{"uploaded": uploaded, "files": markdownFiles})
 }
@@ -435,16 +434,15 @@ func (a *app) handleUpdateWikiFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "WIKI_WRITE_FAILED", "Unable to save wiki file.")
 		return
 	}
-	content, info, cleanPath, err := a.readWikiFile(cleanPath)
+	info, err := os.Stat(target)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read saved wiki file.")
+		writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to inspect saved wiki file.")
 		return
 	}
 	writeJSON(w, http.StatusOK, wikiFileItem{
 		Path:      cleanPath,
-		Title:     markdownTitleFromContent(content),
-		Content:   content,
-		HTML:      renderMarkdown(content),
+		Title:     markdownTitleFromContent(input.Content),
+		Content:   input.Content,
 		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 		Size:      info.Size(),
 	})
@@ -572,12 +570,12 @@ func (a *app) handleMoveWikiEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	target := filepath.Join(targetFolder, filepath.Base(sourceTarget))
 	if filepath.Clean(sourceTarget) == filepath.Clean(target) {
-		content, info, cleanPath, err := a.readWikiFile(sourceClean)
+		info, err := os.Stat(sourceTarget)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read wiki file.")
 			return
 		}
-		writeJSON(w, http.StatusOK, wikiFileItem{Path: cleanPath, Title: markdownTitleFromContent(content), Content: content, HTML: renderMarkdown(content), UpdatedAt: info.ModTime().UTC().Format(time.RFC3339), Size: info.Size()})
+		writeJSON(w, http.StatusOK, wikiFileItem{Path: sourceClean, Title: strings.TrimSuffix(filepath.Base(sourceClean), filepath.Ext(sourceClean)), UpdatedAt: info.ModTime().UTC().Format(time.RFC3339), Size: info.Size()})
 		return
 	}
 	if _, err := os.Stat(target); err == nil {
@@ -591,16 +589,14 @@ func (a *app) handleMoveWikiEntry(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "WIKI_MOVE_FAILED", "Unable to move wiki file.")
 		return
 	}
-	content, info, cleanPath, err := a.readWikiFile(targetClean)
+	info, err := os.Stat(target)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "WIKI_READ_FAILED", "Unable to read moved wiki file.")
 		return
 	}
 	writeJSON(w, http.StatusOK, wikiFileItem{
-		Path:      cleanPath,
-		Title:     markdownTitleFromContent(content),
-		Content:   content,
-		HTML:      renderMarkdown(content),
+		Path:      filepath.ToSlash(targetClean),
+		Title:     strings.TrimSuffix(filepath.Base(targetClean), filepath.Ext(targetClean)),
 		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 		Size:      info.Size(),
 	})

@@ -90,6 +90,47 @@ func TestPublishDemoRequiresAPIKey(t *testing.T) {
 	}
 }
 
+func TestListWikiFilesReturnsMetadataOnly(t *testing.T) {
+	wikiRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(wikiRoot, "note.md"), []byte("# Note\n\nbody"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := &app{wikiRoot: wikiRoot}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/wiki/files", nil)
+	listRec := httptest.NewRecorder()
+	a.handleListWikiFiles(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list status = %d, body = %s", listRec.Code, listRec.Body.String())
+	}
+	var listPayload struct {
+		Files []wikiFileItem `json:"files"`
+	}
+	if err := json.NewDecoder(listRec.Body).Decode(&listPayload); err != nil {
+		t.Fatal(err)
+	}
+	if len(listPayload.Files) != 1 {
+		t.Fatalf("file count = %d, want 1", len(listPayload.Files))
+	}
+	if listPayload.Files[0].Content != "" || listPayload.Files[0].HTML != "" {
+		t.Fatalf("list returned heavy fields: content=%q html=%q", listPayload.Files[0].Content, listPayload.Files[0].HTML)
+	}
+
+	getReq := httptest.NewRequest(http.MethodGet, "/api/wiki/files/note.md", nil)
+	getRec := httptest.NewRecorder()
+	a.handleGetWikiFile(getRec, getReq)
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("get status = %d, body = %s", getRec.Code, getRec.Body.String())
+	}
+	var file wikiFileItem
+	if err := json.NewDecoder(getRec.Body).Decode(&file); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(file.Content, "body") || !strings.Contains(file.HTML, "<h1") {
+		t.Fatalf("single file did not include content/html: %#v", file)
+	}
+}
+
 func publishDemo(t *testing.T, a *app, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, "/api/demos/publish", strings.NewReader(body))

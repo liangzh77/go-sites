@@ -6,7 +6,7 @@
     <title>AI入口</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260528">
     <script src="./site-config.js"></script>
-    <script src="./data.js"></script>
+    <script src="./data.js?v=20260606-zhongzhou-law-nav"></script>
     <style>
         /* CSS变量定义 */
         :root {
@@ -1060,10 +1060,18 @@
             line-height: 1.75;
         }
 
+        .wiki-markdown.is-editing {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
         .wiki-markdown-editor {
+            flex: 1;
             width: 100%;
-            min-height: calc(100vh - 17rem);
-            resize: vertical;
+            height: 100%;
+            min-height: 0;
+            resize: none;
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 0.85rem;
@@ -3059,8 +3067,9 @@
                     if (!saved) return;
                 }
                 this.rememberCurrentScroll();
-                const file = this.files.find(item => item.path === path);
+                let file = this.files.find(item => item.path === path);
                 if (!file) return;
+                file = await this.ensureWikiFileLoaded(file);
                 const searchQuery = String(options.searchQuery || '').trim();
                 const historyItem = { type: 'file', id: path };
                 if (searchQuery) historyItem.searchQuery = searchQuery;
@@ -3073,6 +3082,7 @@
                 if (this.editMode) {
                     this.renderMarkdownEditor(file);
                 } else {
+                    this.setContentEditingState(false);
                     this.contentEl.innerHTML = this.renderMarkdownFile(file);
                     this.wireHeadingToggles();
                     this.wireRenderedMarkdownAssets();
@@ -3170,14 +3180,16 @@
                 try {
                     this.pendingCreateFolder = null;
                     if (isFolder) {
-                        await this.createWikiFolder(parentPath, name.trim());
+                        const created = await this.createWikiFolder(parentPath, name.trim());
+                        this.upsertWikiFolder(created);
+                        this.renderTree();
                     } else {
                         const created = await this.createWikiFile(parentPath, name.trim());
-                        await this.loadFiles({ force: true });
+                        this.upsertWikiFile(created);
+                        this.renderTree({ revealCurrent: true });
                         await this.openFile(created.path, { record: true, restoreScroll: false });
                         return;
                     }
-                    await this.loadFiles({ force: true });
                     this.setSaveStatus('已创建');
                 } catch (error) {
                     window.alert(error.message || '创建失败');
@@ -3326,6 +3338,37 @@
                 this.renderTree(options);
             }
 
+            async ensureWikiFileLoaded(fileOrPath) {
+                const path = typeof fileOrPath === 'string' ? fileOrPath : fileOrPath?.path;
+                if (!path) return null;
+                const existing = this.files.find(item => item.path === path);
+                if (existing && typeof existing.content === 'string') {
+                    return existing;
+                }
+                const loaded = await this.api(`/api/wiki/files/${this.encodePath(path)}`);
+                this.upsertWikiFile(loaded);
+                return this.files.find(item => item.path === loaded.path) || loaded;
+            }
+
+            upsertWikiFile(file) {
+                if (!file?.path) return;
+                const index = this.files.findIndex(item => item.path === file.path);
+                if (index >= 0) {
+                    this.files[index] = { ...this.files[index], ...file };
+                } else {
+                    this.files.push(file);
+                }
+                this.files.sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'));
+            }
+
+            upsertWikiFolder(folder) {
+                if (!folder?.path) return;
+                if (!this.folders.some(item => item.path === folder.path)) {
+                    this.folders.push(folder);
+                    this.folders.sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'));
+                }
+            }
+
             async moveWikiFile(path, targetFolder) {
                 try {
                     const moved = await this.api('/api/wiki/move', {
@@ -3400,8 +3443,9 @@
 
             async startContentEdit() {
                 if (this.isEditingContent || !this.currentPath) return;
-                const file = this.files.find(item => item.path === this.currentPath);
+                let file = this.files.find(item => item.path === this.currentPath);
                 if (!file) return;
+                file = await this.ensureWikiFileLoaded(file);
                 const scrollRatio = this.contentScrollRatio(this.contentEl);
                 if (!this.editMode) {
                     this.editMode = true;
@@ -3430,6 +3474,7 @@
                     event.preventDefault();
                     this.insertLinkAtCursor(path);
                 });
+                this.setContentEditingState(true);
                 this.contentEl.replaceChildren(textarea);
                 this.editTextarea = textarea;
                 this.isEditingContent = true;
@@ -3438,6 +3483,10 @@
                     this.applyScrollRatio(textarea, options.scrollRatio);
                     textarea.focus({ preventScroll: true });
                 });
+            }
+
+            setContentEditingState(editing) {
+                this.contentEl?.classList.toggle('is-editing', Boolean(editing));
             }
 
             async finishContentEdit(options = {}) {
@@ -3455,6 +3504,7 @@
                     this.isEditingContent = false;
                     this.editTextarea = null;
                     if (shouldRender) {
+                        this.setContentEditingState(false);
                         this.contentEl.innerHTML = this.renderMarkdownFile(file);
                         this.wireHeadingToggles();
                         this.wireRenderedMarkdownAssets();
@@ -3473,12 +3523,12 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ content: textarea.value }),
                     });
-                    const index = this.files.findIndex(item => item.path === saved.path);
-                    if (index >= 0) this.files[index] = saved;
+                    this.upsertWikiFile(saved);
                     this.isEditingContent = false;
                     this.editTextarea = null;
                     if (this.titleEl) this.titleEl.textContent = this.fileTitle(saved);
                     if (shouldRender) {
+                        this.setContentEditingState(false);
                         this.contentEl.innerHTML = this.renderMarkdownFile(saved);
                         this.wireHeadingToggles();
                         this.wireRenderedMarkdownAssets();
@@ -3541,7 +3591,7 @@
                 if (this.saveStatusEl) this.saveStatusEl.textContent = '';
             }
 
-            runSearch() {
+            async runSearch() {
                 const query = this.searchQuery.trim();
                 if (!query) {
                     this.setStatus(this.files.length ? `${this.files.length} 个文件` : '');
@@ -3551,6 +3601,8 @@
                     }
                     return;
                 }
+                await this.ensureWikiSearchContentLoaded(query);
+                if (query !== this.searchQuery.trim()) return;
                 const lower = query.toLowerCase();
                 const results = this.files
                     .map(file => {
@@ -3563,10 +3615,22 @@
                 this.renderSearchResults(results, query);
             }
 
+            async ensureWikiSearchContentLoaded(query) {
+                const lower = query.toLowerCase();
+                const missing = this.files.filter(file => {
+                    const metadata = [this.fileTitle(file), file.path].join('\n').toLowerCase();
+                    return !metadata.includes(lower) && typeof file.content !== 'string';
+                });
+                if (!missing.length) return;
+                this.setStatus('正在搜索正文...');
+                await Promise.all(missing.map(file => this.ensureWikiFileLoaded(file).catch(() => null)));
+            }
+
             renderSearchResults(results, query) {
                 this.titleEl.textContent = '搜索结果';
                 this.pathEl.textContent = query;
                 this.currentPath = '';
+                this.setContentEditingState(false);
                 if (!results.length) {
                     this.contentEl.innerHTML = `<p class="wiki-empty">没有找到包含“${this.escapeHtml(query)}”的文件。</p>`;
                     this.syncContentFoldButtons();
@@ -4006,7 +4070,10 @@
             renderEmpty(message) {
                 if (this.titleEl) this.titleEl.textContent = 'Wiki';
                 if (this.pathEl) this.pathEl.textContent = '';
-                if (this.contentEl) this.contentEl.innerHTML = `<p class="wiki-empty">${this.escapeHtml(message)}</p>`;
+                if (this.contentEl) {
+                    this.setContentEditingState(false);
+                    this.contentEl.innerHTML = `<p class="wiki-empty">${this.escapeHtml(message)}</p>`;
+                }
                 this.syncContentFoldButtons();
             }
 
