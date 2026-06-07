@@ -251,14 +251,17 @@ func (a *app) handleGetWikiFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, status, code, "Unable to read wiki file.")
 		return
 	}
-	writeJSON(w, http.StatusOK, wikiFileItem{
+	item := wikiFileItem{
 		Path:      cleanPath,
 		Title:     markdownTitleFromContent(content),
 		Content:   content,
-		HTML:      renderMarkdown(content),
 		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 		Size:      info.Size(),
-	})
+	}
+	if r.URL.Query().Get("render") != "false" {
+		item.HTML = renderMarkdown(content)
+	}
+	writeJSON(w, http.StatusOK, item)
 }
 
 func (a *app) handleCreateWikiFile(w http.ResponseWriter, r *http.Request) {

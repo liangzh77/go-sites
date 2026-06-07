@@ -129,6 +129,20 @@ func TestListWikiFilesReturnsMetadataOnly(t *testing.T) {
 	if !strings.Contains(file.Content, "body") || !strings.Contains(file.HTML, "<h1") {
 		t.Fatalf("single file did not include content/html: %#v", file)
 	}
+
+	sourceReq := httptest.NewRequest(http.MethodGet, "/api/wiki/files/note.md?render=false", nil)
+	sourceRec := httptest.NewRecorder()
+	a.handleGetWikiFile(sourceRec, sourceReq)
+	if sourceRec.Code != http.StatusOK {
+		t.Fatalf("source status = %d, body = %s", sourceRec.Code, sourceRec.Body.String())
+	}
+	var sourceOnly wikiFileItem
+	if err := json.NewDecoder(sourceRec.Body).Decode(&sourceOnly); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(sourceOnly.Content, "body") || sourceOnly.HTML != "" {
+		t.Fatalf("source response should include content without html: %#v", sourceOnly)
+	}
 }
 
 func TestServeDemoRedirectsSlugToDirectory(t *testing.T) {

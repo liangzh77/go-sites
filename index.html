@@ -3069,7 +3069,7 @@
                 this.rememberCurrentScroll();
                 let file = this.files.find(item => item.path === path);
                 if (!file) return;
-                file = await this.ensureWikiFileLoaded(file);
+                file = await this.ensureWikiFileLoaded(file, { render: false });
                 const searchQuery = String(options.searchQuery || '').trim();
                 const historyItem = { type: 'file', id: path };
                 if (searchQuery) historyItem.searchQuery = searchQuery;
@@ -3338,14 +3338,15 @@
                 this.renderTree(options);
             }
 
-            async ensureWikiFileLoaded(fileOrPath) {
+            async ensureWikiFileLoaded(fileOrPath, options = {}) {
                 const path = typeof fileOrPath === 'string' ? fileOrPath : fileOrPath?.path;
                 if (!path) return null;
                 const existing = this.files.find(item => item.path === path);
                 if (existing && typeof existing.content === 'string') {
                     return existing;
                 }
-                const loaded = await this.api(`/api/wiki/files/${this.encodePath(path)}`);
+                const query = options.render === false ? '?render=false' : '';
+                const loaded = await this.api(`/api/wiki/files/${this.encodePath(path)}${query}`);
                 this.upsertWikiFile(loaded);
                 return this.files.find(item => item.path === loaded.path) || loaded;
             }
@@ -3445,13 +3446,18 @@
                 if (this.isEditingContent || !this.currentPath) return;
                 let file = this.files.find(item => item.path === this.currentPath);
                 if (!file) return;
-                file = await this.ensureWikiFileLoaded(file);
                 const scrollRatio = this.contentScrollRatio(this.contentEl);
                 if (!this.editMode) {
                     this.editMode = true;
                     this.syncEditModeUi();
                     this.renderTree();
                 }
+                if (typeof file.content !== 'string') {
+                    this.setContentEditingState(false);
+                    this.contentEl.innerHTML = '<p class="wiki-empty">正在加载源码...</p>';
+                    this.setSaveStatus('正在加载源码...');
+                }
+                file = await this.ensureWikiFileLoaded(file, { render: false });
                 this.isEditingContent = true;
                 this.setSaveStatus('正在编辑');
                 this.renderMarkdownEditor(file, { scrollRatio });
@@ -3623,7 +3629,7 @@
                 });
                 if (!missing.length) return;
                 this.setStatus('正在搜索正文...');
-                await Promise.all(missing.map(file => this.ensureWikiFileLoaded(file).catch(() => null)));
+                await Promise.all(missing.map(file => this.ensureWikiFileLoaded(file, { render: false }).catch(() => null)));
             }
 
             renderSearchResults(results, query) {
