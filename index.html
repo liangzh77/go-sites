@@ -3069,7 +3069,7 @@
                 this.rememberCurrentScroll();
                 let file = this.files.find(item => item.path === path);
                 if (!file) return;
-                file = await this.ensureWikiFileLoaded(file, { render: false });
+                file = await this.ensureWikiFileLoaded(file);
                 const searchQuery = String(options.searchQuery || '').trim();
                 const historyItem = { type: 'file', id: path };
                 if (searchQuery) historyItem.searchQuery = searchQuery;
@@ -3342,11 +3342,16 @@
                 const path = typeof fileOrPath === 'string' ? fileOrPath : fileOrPath?.path;
                 if (!path) return null;
                 const existing = this.files.find(item => item.path === path);
-                if (existing && typeof existing.content === 'string') {
+                const wantsRendered = options.render !== false;
+                const hasSource = Boolean(existing?._sourceLoaded) || typeof existing?.content === 'string';
+                const hasRendered = Boolean(existing?._htmlLoaded) || Boolean(String(existing?.html || '').trim());
+                if (existing && hasSource && (!wantsRendered || hasRendered)) {
                     return existing;
                 }
-                const query = options.render === false ? '?render=false' : '';
+                const query = wantsRendered ? '' : '?render=false';
                 const loaded = await this.api(`/api/wiki/files/${this.encodePath(path)}${query}`);
+                loaded._sourceLoaded = true;
+                loaded._htmlLoaded = wantsRendered;
                 this.upsertWikiFile(loaded);
                 return this.files.find(item => item.path === loaded.path) || loaded;
             }
