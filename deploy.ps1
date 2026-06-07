@@ -71,7 +71,7 @@ function New-StagingDir {
             return
         }
 
-        if ($_.Extension -in @(".md", ".txt")) {
+        if ($_.Extension -in @(".md", ".txt") -and $_.Name -ne "5768f25008cb6868cb00692e18a72154.txt") {
             return
         }
 
