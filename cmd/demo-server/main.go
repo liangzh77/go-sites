@@ -970,6 +970,14 @@ func (a *app) handleServeDemo(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	if subPath == "" && !strings.HasSuffix(r.URL.Path, "/") {
+		target := "/demo/" + slug + "/"
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, target, http.StatusPermanentRedirect)
+		return
+	}
 
 	item, ok := a.findDemo(slug)
 	if !ok || item.Disabled {

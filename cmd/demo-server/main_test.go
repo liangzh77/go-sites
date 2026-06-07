@@ -131,6 +131,36 @@ func TestListWikiFilesReturnsMetadataOnly(t *testing.T) {
 	}
 }
 
+func TestServeDemoRedirectsSlugToDirectory(t *testing.T) {
+	dataDir := t.TempDir()
+	a := &app{
+		dataDir:      dataDir,
+		demosDir:     filepath.Join(dataDir, "demos"),
+		manifestPath: filepath.Join(dataDir, "manifest.json"),
+		publicOrigin: "https://example.test",
+	}
+	if err := os.MkdirAll(filepath.Join(a.demosDir, "persona-box"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(a.demosDir, "persona-box", "index.html"), []byte(`<img src="assets/product.jpg">`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.saveManifestLocked(manifest{Demos: []demoItem{{Title: "Persona Box", Slug: "persona-box"}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/demo/persona-box", nil)
+	rec := httptest.NewRecorder()
+	a.handleServeDemo(rec, req)
+
+	if rec.Code != http.StatusPermanentRedirect {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusPermanentRedirect)
+	}
+	if location := rec.Header().Get("Location"); location != "/demo/persona-box/" {
+		t.Fatalf("Location = %q, want /demo/persona-box/", location)
+	}
+}
+
 func publishDemo(t *testing.T, a *app, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, "/api/demos/publish", strings.NewReader(body))
