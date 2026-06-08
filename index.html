@@ -2129,13 +2129,29 @@
         #tabs {
             position: relative;
             z-index: 1;
+            display: flex;
+            flex-wrap: nowrap;
             gap: 0.35rem;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
             padding-top: 0.65rem;
             border-top: 1px solid rgba(215, 207, 194, 0.72);
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        #tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        #tabs > li {
+            flex: 0 0 auto;
         }
 
         .tab-btn {
             position: relative;
+            white-space: nowrap;
             margin: 0.8rem 0.2rem 0 0;
             padding: 0.58rem 0.98rem;
             border: 1px solid transparent;
@@ -2696,7 +2712,7 @@
                         <button id="authButton" class="auth-btn" type="button">登录</button>
                     </div>
                 </div>
-                <ul id="tabs" class="flex flex-wrap">
+                <ul id="tabs" class="flex">
                     <!-- 标签页将动态生成 -->
                 </ul>
             </div>
@@ -4690,6 +4706,7 @@
                 });
 
                 this.currentTab = activePageName;
+                this.scrollActiveTabIntoView({ instant: true });
             }
 
             // 获取标签页ID
@@ -4868,6 +4885,7 @@
                 if (updateHistory) {
                     this.syncUrlToCurrentTab();
                 }
+                this.scrollActiveTabIntoView();
             }
 
             switchToPage(pageName, options = {}) {
@@ -4877,6 +4895,15 @@
                 if (button) {
                     this.switchTab(button, options);
                 }
+            }
+
+            scrollActiveTabIntoView({ instant = false } = {}) {
+                const activeButton = document.querySelector('.tab-btn.tab-active');
+                activeButton?.scrollIntoView({
+                    block: 'nearest',
+                    inline: 'center',
+                    behavior: instant ? 'auto' : 'smooth'
+                });
             }
 
             // 初始化所有表格
