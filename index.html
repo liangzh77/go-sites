@@ -4588,6 +4588,10 @@
             }
 
             getPagePath(pageName) {
+                return this.pageRouteMap()[pageName] || encodeURIComponent(this.getTabId(pageName));
+            }
+
+            pageRouteMap() {
                 return {
                     [this.searchPageName]: 'search',
                     [this.recommendationPageName]: 'recommendations',
@@ -4599,7 +4603,7 @@
                     [this.privatePageName]: 'private',
                     [this.demoPageName]: 'demo',
                     [this.wikiPageName]: 'wiki'
-                }[pageName] || encodeURIComponent(this.getTabId(pageName));
+                };
             }
 
             getRoutePageName() {
@@ -4607,8 +4611,8 @@
                 if (parts.length !== 1) return '';
 
                 const segment = decodeURIComponent(parts[0]).toLowerCase();
-                const visiblePages = this.getVisiblePages();
-                return Object.keys(visiblePages).find(pageName => this.getPagePath(pageName).toLowerCase() === segment) || '';
+                const routes = this.pageRouteMap();
+                return Object.keys(routes).find(pageName => routes[pageName].toLowerCase() === segment) || '';
             }
 
             bindRouteEvents() {
