@@ -787,10 +787,33 @@
             background: var(--secondary-bg);
         }
 
-        .wiki-panel-head h3 {
+        .wiki-panel-head h3,
+        .wiki-tree-title {
             flex: 1;
             margin: 0;
             font-size: 0.95rem;
+        }
+
+        .wiki-tree-title {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            min-width: 0;
+            color: inherit;
+            cursor: default;
+            user-select: none;
+        }
+
+        .wiki-tree-title span:first-child {
+            min-width: 0;
+        }
+
+        .wiki-tree-toggle-icon {
+            display: none;
+            color: var(--ink-soft);
+            font-size: 0.82rem;
+            line-height: 1;
+            transition: transform 0.16s ease;
         }
 
         .wiki-nav-button {
@@ -1581,7 +1604,8 @@
             }
 
             .wiki-sidebar {
-                max-height: 15rem;
+                height: min(70vh, calc(100dvh - 6rem));
+                max-height: none;
             }
 
             .wiki-reader {
@@ -1591,6 +1615,36 @@
             .wiki-panel-head,
             .wiki-reader-head {
                 padding: 0.6rem;
+            }
+
+            .wiki-tree-title {
+                cursor: pointer;
+            }
+
+            .wiki-tree-title:focus-visible {
+                border-radius: 4px;
+                outline: 2px solid rgba(88, 103, 88, 0.35);
+                outline-offset: 3px;
+            }
+
+            .wiki-tree-toggle-icon {
+                display: inline-block;
+            }
+
+            .wiki-sidebar.is-collapsed {
+                height: auto;
+            }
+
+            .wiki-sidebar.is-collapsed .wiki-panel-head {
+                border-bottom: 0;
+            }
+
+            .wiki-sidebar.is-collapsed .wiki-file-tree {
+                display: none;
+            }
+
+            .wiki-sidebar.is-collapsed .wiki-tree-toggle-icon {
+                transform: rotate(-90deg);
             }
 
             .wiki-page-context {
@@ -2803,13 +2857,17 @@
                 this.listState = this.loadListState();
                 this.scrollPositions = this.loadScrollPositions();
                 this.keydownBound = false;
+                this.resizeBound = false;
+                this.contentTouchStartY = 0;
             }
 
             bind() {
                 this.root = document.getElementById(this.app.getTabId(this.app.wikiPageName));
                 if (!this.root || this.root.dataset.wikiBound === 'true') return;
                 this.root.dataset.wikiBound = 'true';
+                this.sidebarEl = this.root.querySelector('[data-wiki-sidebar]');
                 this.treeEl = this.root.querySelector('[data-wiki-tree]');
+                this.treeToggleEl = this.root.querySelector('[data-wiki-tree-toggle]');
                 this.contentEl = this.root.querySelector('[data-wiki-content]');
                 this.titleEl = this.root.querySelector('[data-wiki-title]');
                 this.pathEl = this.root.querySelector('[data-wiki-path]');
@@ -2823,7 +2881,15 @@
                 this.expandAllBtn = this.root.querySelector('[data-wiki-expand-all]');
                 this.saveStatusEl = this.root.querySelector('[data-wiki-save-status]');
                 this.syncEditModeUi();
+                this.syncMobileTreeUi();
 
+                this.treeToggleEl?.addEventListener('click', () => this.toggleMobileTree());
+                this.treeToggleEl?.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    if (!this.isMobileWikiLayout()) return;
+                    event.preventDefault();
+                    this.toggleMobileTree();
+                });
                 this.backBtn?.addEventListener('click', () => this.goHistory(-1));
                 this.forwardBtn?.addEventListener('click', () => this.goHistory(1));
                 this.refreshBtn?.addEventListener('click', () => this.loadFiles({ force: true }));
@@ -2839,7 +2905,22 @@
                     this.treeState.scrollTop = this.treeEl.scrollTop;
                     this.saveTreeState();
                 });
-                this.contentEl?.addEventListener('scroll', () => this.rememberCurrentScroll());
+                this.contentEl?.addEventListener('scroll', () => {
+                    this.rememberCurrentScroll();
+                    this.collapseMobileTreeFromContent();
+                });
+                this.contentEl?.addEventListener('touchstart', (event) => {
+                    this.contentTouchStartY = event.touches?.[0]?.clientY || 0;
+                }, { passive: true });
+                this.contentEl?.addEventListener('touchmove', (event) => {
+                    const currentY = event.touches?.[0]?.clientY || 0;
+                    if (this.contentTouchStartY && this.contentTouchStartY - currentY > 18) {
+                        this.collapseMobileTreeFromContent();
+                    }
+                }, { passive: true });
+                this.contentEl?.addEventListener('wheel', (event) => {
+                    if (event.deltaY > 0) this.collapseMobileTreeFromContent();
+                }, { passive: true });
                 this.contentEl?.addEventListener('click', (event) => {
                     const listGrip = event.target?.closest?.('[data-wiki-list-grip]');
                     if (listGrip && this.contentEl.contains(listGrip)) {
@@ -2872,6 +2953,10 @@
                         this.clearCreateMenu();
                     }
                 });
+                if (!this.resizeBound) {
+                    this.resizeBound = true;
+                    window.addEventListener('resize', () => this.syncMobileTreeUi());
+                }
                 if (!this.keydownBound) {
                     this.keydownBound = true;
                     document.addEventListener('keydown', (event) => {
@@ -2888,6 +2973,45 @@
                         }
                     });
                 }
+            }
+
+            isMobileWikiLayout() {
+                return window.matchMedia('(max-width: 860px)').matches;
+            }
+
+            syncMobileTreeUi() {
+                if (!this.sidebarEl || !this.treeToggleEl || !this.treeEl) return;
+                const isMobile = this.isMobileWikiLayout();
+                const collapsed = isMobile && Boolean(this.treeState.mobileCollapsed);
+                this.sidebarEl.classList.toggle('is-collapsed', collapsed);
+                this.treeToggleEl.setAttribute('aria-expanded', String(!collapsed));
+                this.treeToggleEl.setAttribute('tabindex', isMobile ? '0' : '-1');
+                if (isMobile) {
+                    this.treeToggleEl.setAttribute('role', 'button');
+                } else {
+                    this.treeToggleEl.removeAttribute('role');
+                }
+                this.treeEl.hidden = collapsed;
+            }
+
+            setMobileTreeCollapsed(collapsed) {
+                if (!this.isMobileWikiLayout()) {
+                    this.syncMobileTreeUi();
+                    return;
+                }
+                this.treeState.mobileCollapsed = Boolean(collapsed);
+                this.saveTreeState();
+                this.syncMobileTreeUi();
+            }
+
+            toggleMobileTree() {
+                if (!this.isMobileWikiLayout()) return;
+                this.setMobileTreeCollapsed(!this.treeState.mobileCollapsed);
+            }
+
+            collapseMobileTreeFromContent() {
+                if (!this.isMobileWikiLayout() || this.treeState.mobileCollapsed) return;
+                this.setMobileTreeCollapsed(true);
             }
 
             async loadFiles(options = {}) {
@@ -2955,6 +3079,7 @@
                 this.treeEl.replaceChildren(this.renderTreeFolder(root));
                 this.treeEl.scrollTop = previousScrollTop;
                 if (options.revealCurrent) this.revealCurrentTreeItem();
+                this.syncMobileTreeUi();
             }
 
             createTreeNode(name, path = '') {
@@ -3046,7 +3171,10 @@
                     title.textContent = this.fileTitle(file);
                     button.title = file.path;
                     button.append(title);
-                    button.addEventListener('click', () => this.openFile(file.path, { record: true, restoreScroll: true }));
+                    button.addEventListener('click', async () => {
+                        await this.openFile(file.path, { record: true, restoreScroll: true });
+                        if (this.currentPath === file.path) this.setMobileTreeCollapsed(true);
+                    });
                     row.addEventListener('dragstart', (event) => this.startFileDrag(event, file.path));
                     row.addEventListener('dragend', () => { this.draggingPath = ''; });
                     this.bindFileDrop(row, file.path);
@@ -3830,9 +3958,10 @@
                     return {
                         folderOpen: parsed && typeof parsed.folderOpen === 'object' ? parsed.folderOpen : {},
                         scrollTop: Number.isFinite(parsed?.scrollTop) ? parsed.scrollTop : 0,
+                        mobileCollapsed: parsed?.mobileCollapsed === true,
                     };
                 } catch (error) {
-                    return { folderOpen: {}, scrollTop: 0 };
+                    return { folderOpen: {}, scrollTop: 0, mobileCollapsed: false };
                 }
             }
 
@@ -4799,15 +4928,18 @@
             createWikiContent() {
                 return `
                     <div class="wiki-layout">
-                        <aside class="wiki-sidebar">
+                        <aside class="wiki-sidebar" data-wiki-sidebar>
                             <div class="wiki-panel-head">
-                                <h3>文件树</h3>
+                                <h3 class="wiki-tree-title" data-wiki-tree-toggle aria-controls="wikiTree">
+                                    <span>文件树</span>
+                                    <span class="wiki-tree-toggle-icon" aria-hidden="true">▾</span>
+                                </h3>
                                 <button class="wiki-nav-button" type="button" data-wiki-back aria-label="后退" title="后退（左方向键）" disabled>‹</button>
                                 <button class="wiki-nav-button" type="button" data-wiki-forward aria-label="前进" title="前进（右方向键）" disabled>›</button>
                                 <button class="wiki-nav-button wiki-mode-button" type="button" data-wiki-edit-mode aria-pressed="false" title="编辑文件树和正文">编辑</button>
                                 <button class="wiki-nav-button" type="button" data-wiki-refresh aria-label="刷新 wiki" title="刷新 wiki">↻</button>
                             </div>
-                            <nav class="wiki-file-tree" data-wiki-tree aria-label="Wiki 文件树"></nav>
+                            <nav id="wikiTree" class="wiki-file-tree" data-wiki-tree aria-label="Wiki 文件树"></nav>
                         </aside>
                         <article class="wiki-reader">
                             <div class="wiki-reader-head">
