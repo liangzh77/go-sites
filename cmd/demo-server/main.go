@@ -32,9 +32,23 @@ import (
 )
 
 const (
-	cookieName     = "go_sites_demo_session"
-	maxUploadBytes = 25 << 20
+	cookieName       = "go_sites_demo_session"
+	sessionMaxAgeSec = 60 * 60 * 24 * 7
+	maxUploadBytes   = 25 << 20
 )
+
+var appRoutePaths = []string{
+	"/search",
+	"/recommendations",
+	"/ai-tools",
+	"/dev-tools",
+	"/tools",
+	"/fun",
+	"/works",
+	"/private",
+	"/demo",
+	"/wiki",
+}
 
 type app struct {
 	mu            sync.Mutex
@@ -120,6 +134,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	mux := a.routes()
+	addr := envOr("DEMO_SERVER_ADDR", ":9005")
+	log.Printf("demo server listening on %s", addr)
+	log.Fatal(http.ListenAndServe(addr, secureHeaders(mux)))
+}
+
+func (a *app) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/demo/session", a.handleSessionStatus)
 	mux.HandleFunc("POST /api/demo/session", a.handleSession)
@@ -137,13 +158,13 @@ func main() {
 	mux.HandleFunc("POST /api/wiki/folders", a.requireAuth(a.handleCreateWikiFolder))
 	mux.HandleFunc("DELETE /api/wiki/folders/", a.requireAuth(a.handleDeleteWikiFolder))
 	mux.HandleFunc("PATCH /api/wiki/move", a.requireAuth(a.handleMoveWikiEntry))
+	for _, routePath := range appRoutePaths {
+		mux.HandleFunc("GET "+routePath, a.handleStaticFallback)
+	}
 	mux.HandleFunc("/demo/", a.handleServeDemo)
 	mux.HandleFunc("/wiki/", a.requireAuth(a.handleServeWikiAsset))
 	mux.HandleFunc("/", a.handleStaticFallback)
-
-	addr := envOr("DEMO_SERVER_ADDR", ":9005")
-	log.Printf("demo server listening on %s", addr)
-	log.Fatal(http.ListenAndServe(addr, secureHeaders(mux)))
+	return mux
 }
 
 func (a *app) handleSession(w http.ResponseWriter, r *http.Request) {
@@ -171,7 +192,7 @@ func (a *app) handleSession(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		Secure:   r.Header.Get("X-Forwarded-Proto") == "https",
-		MaxAge:   60 * 60 * 24,
+		MaxAge:   sessionMaxAgeSec,
 	})
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }

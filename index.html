@@ -4518,20 +4518,23 @@
                 this.searchPageName = '搜索';
                 this.recommendationPageName = '推荐';
                 this.authSessionKey = 'go-sites:private-visible';
+                this.authSessionDurationMs = 7 * 24 * 60 * 60 * 1000;
                 this.recommendationStorageKey = 'go-sites:recommendations';
-                this.hasStoredAuthSession = sessionStorage.getItem(this.authSessionKey) === 'true';
+                this.hasStoredAuthSession = this.hasValidStoredAuthSession();
                 this.isAuthenticated = false;
                 this.isEditingRecommendations = false;
                 this.searchQuery = '';
                 this.demoItems = [];
                 this.recommendationOverrides = this.loadRecommendationOverrides();
+                this.routePageName = this.getRoutePageName();
                 this.wikiPanel = new WikiPanel(this);
                 this.init();
             }
 
             init() {
-                this.renderVisiblePages();
+                this.renderVisiblePages(this.routePageName || this.currentTab);
                 this.bindAuthEvents();
+                this.bindRouteEvents();
                 this.updateAuthButton();
                 if (this.hasStoredAuthSession) {
                     this.restoreAuthSession();
@@ -4582,6 +4585,58 @@
                 this.bindWikiEvents();
                 this.checkFunctionCellTruncation();
                 this.bindTableScrollEvents();
+            }
+
+            getPagePath(pageName) {
+                return {
+                    [this.searchPageName]: 'search',
+                    [this.recommendationPageName]: 'recommendations',
+                    'AI工具': 'ai-tools',
+                    '开发工具': 'dev-tools',
+                    '实用工具': 'tools',
+                    '娱乐与教育': 'fun',
+                    '张牧作品': 'works',
+                    [this.privatePageName]: 'private',
+                    [this.demoPageName]: 'demo',
+                    [this.wikiPageName]: 'wiki'
+                }[pageName] || encodeURIComponent(this.getTabId(pageName));
+            }
+
+            getRoutePageName() {
+                const parts = window.location.pathname.split('/').filter(Boolean);
+                if (parts.length !== 1) return '';
+
+                const segment = decodeURIComponent(parts[0]).toLowerCase();
+                const visiblePages = this.getVisiblePages();
+                return Object.keys(visiblePages).find(pageName => this.getPagePath(pageName).toLowerCase() === segment) || '';
+            }
+
+            bindRouteEvents() {
+                window.addEventListener('popstate', () => {
+                    const pageName = this.getRoutePageName();
+                    if (pageName) {
+                        this.routePageName = pageName;
+                        this.switchToPage(pageName, { updateHistory: false });
+                        return;
+                    }
+                    this.routePageName = '';
+                    this.renderVisiblePages();
+                });
+            }
+
+            syncUrlToCurrentTab({ replace = false } = {}) {
+                if (!this.currentTab) return;
+
+                const path = this.getPagePath(this.currentTab);
+                const nextUrl = `/${path}`;
+                if (window.location.pathname === nextUrl) return;
+
+                const state = { pageName: this.currentTab };
+                if (replace) {
+                    window.history.replaceState(state, '', nextUrl);
+                } else {
+                    window.history.pushState(state, '', nextUrl);
+                }
             }
 
             // 从数据中生成标签页
@@ -4767,7 +4822,7 @@
             }
 
             // 标签切换逻辑
-            switchTab(button) {
+            switchTab(button, { updateHistory = true } = {}) {
                 const tabId = button.dataset.tab;
 
                 // 隐藏所有内容
@@ -4794,6 +4849,7 @@
 
                 // 更新当前标签页
                 this.currentTab = button.dataset.pageName;
+                this.routePageName = this.currentTab;
 
                 if (this.currentTab === this.searchPageName) {
                     const searchInput = targetContent?.querySelector('.search-input');
@@ -4805,14 +4861,17 @@
 
                 // 切换标签后重新检测功能列截断
                 this.checkFunctionCellTruncation();
+                if (updateHistory) {
+                    this.syncUrlToCurrentTab();
+                }
             }
 
-            switchToPage(pageName) {
+            switchToPage(pageName, options = {}) {
                 const button = Array.from(document.querySelectorAll('.tab-btn')).find(tabButton =>
                     tabButton.dataset.pageName === pageName
                 );
                 if (button) {
-                    this.switchTab(button);
+                    this.switchTab(button, options);
                 }
             }
 
@@ -5264,10 +5323,55 @@
                 if (await this.verifyDemoSession()) {
                     this.isAuthenticated = true;
                     this.updateAuthButton();
-                    await this.loadDemos();
+                    const preferredPage = this.routePageName || this.currentTab || this.privatePageName;
+                    await this.loadDemos({ render: false });
+                    this.renderVisiblePages(preferredPage);
+                    this.syncUrlToCurrentTab({ replace: true });
                     return;
                 }
                 this.handleAuthExpired();
+            }
+
+            hasValidStoredAuthSession() {
+                try {
+                    const raw = localStorage.getItem(this.authSessionKey);
+                    if (raw) {
+                        const stored = JSON.parse(raw);
+                        if (Number(stored.expiresAt) > Date.now()) {
+                            return true;
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Stored auth session is invalid', error);
+                }
+
+                this.clearStoredAuthSession();
+                if (sessionStorage.getItem(this.authSessionKey) === 'true') {
+                    this.storeAuthSession();
+                    sessionStorage.removeItem(this.authSessionKey);
+                    return true;
+                }
+                return false;
+            }
+
+            storeAuthSession() {
+                try {
+                    localStorage.setItem(
+                        this.authSessionKey,
+                        JSON.stringify({ expiresAt: Date.now() + this.authSessionDurationMs })
+                    );
+                } catch (error) {
+                    console.warn('Unable to store auth session', error);
+                }
+            }
+
+            clearStoredAuthSession() {
+                try {
+                    localStorage.removeItem(this.authSessionKey);
+                } catch (error) {
+                    console.warn('Unable to clear stored auth session', error);
+                }
+                sessionStorage.removeItem(this.authSessionKey);
             }
 
             async verifyDemoSession() {
@@ -5285,15 +5389,16 @@
                 this.hasStoredAuthSession = false;
                 this.isEditingRecommendations = false;
                 this.demoItems = [];
-                sessionStorage.removeItem(this.authSessionKey);
+                this.clearStoredAuthSession();
                 this.updateAuthButton();
                 const nextPage = [this.privatePageName, this.demoPageName, this.wikiPageName].includes(this.currentTab)
                     ? this.recommendationPageName
                     : this.currentTab;
                 this.renderVisiblePages(nextPage);
+                this.syncUrlToCurrentTab({ replace: true });
             }
 
-            async loadDemos() {
+            async loadDemos({ render = true } = {}) {
                 if (!this.isAuthenticated) return;
 
                 try {
@@ -5307,7 +5412,9 @@
                     }
                     const payload = await response.json();
                     this.demoItems = Array.isArray(payload.demos) ? payload.demos : [];
-                    this.renderVisiblePages(this.currentTab || this.privatePageName);
+                    if (render) {
+                        this.renderVisiblePages(this.currentTab || this.privatePageName);
+                    }
                 } catch (error) {
                     console.warn('Demo list unavailable', error);
                     this.demoItems = [];
@@ -5942,14 +6049,17 @@
                 this.isAuthenticated = true;
                 this.hasStoredAuthSession = true;
                 this.isEditingRecommendations = false;
-                sessionStorage.setItem(this.authSessionKey, 'true');
+                this.storeAuthSession();
                 await this.establishDemoSession(passwordInput.value);
                 await this.loadDemos();
                 this.closeLogin();
                 this.updateAuthButton();
-                this.renderVisiblePages();
-
-                this.switchToPage(this.privatePageName);
+                const visiblePages = this.getVisiblePages();
+                const targetPage = this.routePageName && visiblePages[this.routePageName]
+                    ? this.routePageName
+                    : this.privatePageName;
+                this.renderVisiblePages(targetPage);
+                this.switchToPage(targetPage, { updateHistory: true });
             }
 
             logout() {
@@ -5957,12 +6067,13 @@
                 this.hasStoredAuthSession = false;
                 this.isEditingRecommendations = false;
                 this.demoItems = [];
-                sessionStorage.removeItem(this.authSessionKey);
+                this.clearStoredAuthSession();
                 this.updateAuthButton();
                 const nextPage = [this.privatePageName, this.demoPageName, this.wikiPageName].includes(this.currentTab)
                     ? this.recommendationPageName
                     : this.currentTab;
                 this.renderVisiblePages(nextPage);
+                this.syncUrlToCurrentTab({ replace: true });
             }
 
             // 站内路径补成线上可直接访问和分享的完整地址。

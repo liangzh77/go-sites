@@ -90,6 +90,30 @@ func TestPublishDemoRequiresAPIKey(t *testing.T) {
 	}
 }
 
+func TestSessionCookieLastsOneWeek(t *testing.T) {
+	a := &app{
+		adminPassword: "test-password",
+		sessionSecret: []byte("test-secret"),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/demo/session", strings.NewReader(`{"password":"test-password"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	a.handleSession(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	cookies := rec.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("cookie count = %d, want 1", len(cookies))
+	}
+	if cookies[0].MaxAge != 60*60*24*7 {
+		t.Fatalf("MaxAge = %d, want one week", cookies[0].MaxAge)
+	}
+}
+
 func TestListWikiFilesReturnsMetadataOnly(t *testing.T) {
 	wikiRoot := t.TempDir()
 	if err := os.WriteFile(filepath.Join(wikiRoot, "note.md"), []byte("# Note\n\nbody"), 0o644); err != nil {
@@ -172,6 +196,49 @@ func TestServeDemoRedirectsSlugToDirectory(t *testing.T) {
 	}
 	if location := rec.Header().Get("Location"); location != "/demo/persona-box/" {
 		t.Fatalf("Location = %q, want /demo/persona-box/", location)
+	}
+}
+
+func TestTopLevelAppRoutesServeIndex(t *testing.T) {
+	staticRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticRoot, "index.html"), []byte("app shell"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := &app{staticRoot: staticRoot}
+	handler := a.routes()
+
+	for _, routePath := range []string{"/wiki", "/search", "/demo"} {
+		req := httptest.NewRequest(http.MethodGet, routePath, nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d", routePath, rec.Code, http.StatusOK)
+		}
+		if body := rec.Body.String(); body != "app shell" {
+			t.Fatalf("%s body = %q, want app shell", routePath, body)
+		}
+	}
+}
+
+func TestWikiAssetRoutesStillRequireAuth(t *testing.T) {
+	staticRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticRoot, "index.html"), []byte("app shell"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := &app{
+		staticRoot:    staticRoot,
+		wikiRoot:      t.TempDir(),
+		sessionSecret: []byte("test-secret"),
+	}
+	handler := a.routes()
+
+	req := httptest.NewRequest(http.MethodGet, "/wiki/asset.png", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
 }
 
