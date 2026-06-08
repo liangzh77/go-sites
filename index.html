@@ -3634,14 +3634,34 @@
                 this.editTextarea = textarea;
                 this.isEditingContent = true;
                 this.syncContentFoldButtons();
-                window.requestAnimationFrame(() => {
-                    this.applyScrollRatio(textarea, options.scrollRatio);
-                    textarea.focus({ preventScroll: true });
-                });
+                this.restoreEditorScroll(textarea, options.scrollRatio, options.focus !== false && this.shouldAutoFocusEditor());
             }
 
             setContentEditingState(editing) {
                 this.contentEl?.classList.toggle('is-editing', Boolean(editing));
+            }
+
+            shouldAutoFocusEditor() {
+                const coarsePointer = window.matchMedia?.('(pointer: coarse)')?.matches;
+                return !coarsePointer;
+            }
+
+            restoreEditorScroll(textarea, ratio, shouldFocus) {
+                const restore = () => this.applyScrollRatio(textarea, ratio);
+                window.requestAnimationFrame(() => {
+                    restore();
+                    if (shouldFocus) {
+                        try {
+                            textarea.focus({ preventScroll: true });
+                        } catch (error) {
+                            textarea.focus();
+                        }
+                        restore();
+                    }
+                    window.requestAnimationFrame(restore);
+                    window.setTimeout(restore, 120);
+                    window.setTimeout(restore, 350);
+                });
             }
 
             async finishContentEdit(options = {}) {
