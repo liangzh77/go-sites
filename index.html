@@ -831,20 +831,6 @@
             opacity: 0.42;
         }
 
-        .wiki-mode-button {
-            width: auto;
-            min-width: 3.4rem;
-            padding: 0 0.65rem;
-            font-size: 0.82rem;
-        }
-
-        .wiki-mode-button[aria-pressed="true"] {
-            border-color: var(--primary-color);
-            background: var(--sage-wash);
-            color: var(--hover-color);
-            font-weight: 700;
-        }
-
         .wiki-file-tree,
         .wiki-markdown {
             flex: 1;
@@ -2876,7 +2862,6 @@
                 this.backBtn = this.root.querySelector('[data-wiki-back]');
                 this.forwardBtn = this.root.querySelector('[data-wiki-forward]');
                 this.refreshBtn = this.root.querySelector('[data-wiki-refresh]');
-                this.editModeBtn = this.root.querySelector('[data-wiki-edit-mode]');
                 this.collapseAllBtn = this.root.querySelector('[data-wiki-collapse-all]');
                 this.expandAllBtn = this.root.querySelector('[data-wiki-expand-all]');
                 this.saveStatusEl = this.root.querySelector('[data-wiki-save-status]');
@@ -2893,7 +2878,6 @@
                 this.backBtn?.addEventListener('click', () => this.goHistory(-1));
                 this.forwardBtn?.addEventListener('click', () => this.goHistory(1));
                 this.refreshBtn?.addEventListener('click', () => this.loadFiles({ force: true }));
-                this.editModeBtn?.addEventListener('click', () => this.toggleEditMode());
                 this.collapseAllBtn?.addEventListener('click', () => this.setAllContentCollapsed(true));
                 this.expandAllBtn?.addEventListener('click', () => this.setAllContentCollapsed(false));
                 this.searchEl?.addEventListener('input', () => {
@@ -3268,10 +3252,7 @@
 
             syncEditModeUi() {
                 this.root?.classList.toggle('wiki-editor-enabled', this.editMode);
-                if (this.editModeBtn) {
-                    this.editModeBtn.setAttribute('aria-pressed', String(this.editMode));
-                    this.editModeBtn.textContent = this.editMode ? '完成' : '编辑';
-                }
+                this.app.updateEditModeButton?.();
                 this.syncContentFoldButtons();
             }
 
@@ -4956,7 +4937,6 @@
                                 </h3>
                                 <button class="wiki-nav-button" type="button" data-wiki-back aria-label="后退" title="后退（左方向键）" disabled>‹</button>
                                 <button class="wiki-nav-button" type="button" data-wiki-forward aria-label="前进" title="前进（右方向键）" disabled>›</button>
-                                <button class="wiki-nav-button wiki-mode-button" type="button" data-wiki-edit-mode aria-pressed="false" title="编辑文件树和正文">编辑</button>
                                 <button class="wiki-nav-button" type="button" data-wiki-refresh aria-label="刷新 wiki" title="刷新 wiki">↻</button>
                             </div>
                             <nav id="wikiTree" class="wiki-file-tree" data-wiki-tree aria-label="Wiki 文件树"></nav>
@@ -5031,6 +5011,7 @@
                 if (this.currentTab === this.wikiPageName) {
                     this.wikiPanel.loadFiles();
                 }
+                this.updateEditModeButton();
 
                 // 切换标签后重新检测功能列截断
                 this.checkFunctionCellTruncation();
@@ -6146,8 +6127,8 @@
                     }
                 });
 
-                document.getElementById('editModeButton').addEventListener('click', () => {
-                    this.toggleEditMode();
+                document.getElementById('editModeButton').addEventListener('click', async () => {
+                    await this.toggleEditMode();
                 });
 
                 document.getElementById('loginForm').addEventListener('submit', (event) => {
@@ -6173,13 +6154,20 @@
             updateEditModeButton() {
                 const editButton = document.getElementById('editModeButton');
                 editButton.classList.toggle('hidden', !this.isAuthenticated);
-                editButton.classList.toggle('is-active', this.isEditingRecommendations);
-                editButton.textContent = this.isEditingRecommendations ? '完成' : '编辑';
-                editButton.setAttribute('aria-pressed', String(this.isEditingRecommendations));
+                const isWikiEditing = this.currentTab === this.wikiPageName && Boolean(this.wikiPanel?.editMode);
+                const isActive = isWikiEditing || (this.currentTab !== this.wikiPageName && this.isEditingRecommendations);
+                editButton.classList.toggle('is-active', isActive);
+                editButton.textContent = isActive ? '完成' : '编辑';
+                editButton.setAttribute('aria-pressed', String(isActive));
             }
 
-            toggleEditMode() {
+            async toggleEditMode() {
                 if (!this.isAuthenticated) return;
+                if (this.currentTab === this.wikiPageName) {
+                    await this.wikiPanel.toggleEditMode();
+                    this.updateEditModeButton();
+                    return;
+                }
 
                 const tabId = this.getTabId(this.currentTab);
                 const activeContent = document.getElementById(tabId);
