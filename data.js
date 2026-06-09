@@ -1110,7 +1110,7 @@ window.WEBPAGES_DATA = {
             },
             {
               "名称": "家庭记账本",
-              "地址": "wallet-liangz77.vercel.app",
+              "地址": "https://wallet.liangz77.cn",
               "备注": "中国 | 直连 | 免费",
               "功能": "记录多人现金和消费"
             }
