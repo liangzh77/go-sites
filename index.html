@@ -4320,8 +4320,7 @@
                 const lines = String(markdown || '').replace(/\r\n/g, '\n').split('\n');
                 const blocks = [];
                 let paragraph = [];
-                let list = [];
-                let orderedList = [];
+                let listItems = [];
                 let blockquote = [];
                 let inCode = false;
                 let code = [];
@@ -4332,15 +4331,9 @@
                     }
                 };
                 const flushList = () => {
-                    if (list.length) {
-                        blocks.push({ type: 'html', html: `<ul>${list.map(item => `<li>${this.renderInline(item)}</li>`).join('')}</ul>` });
-                        list = [];
-                    }
-                };
-                const flushOrderedList = () => {
-                    if (orderedList.length) {
-                        blocks.push({ type: 'html', html: `<ol>${orderedList.map(item => `<li>${this.renderInline(item)}</li>`).join('')}</ol>` });
-                        orderedList = [];
+                    if (listItems.length) {
+                        blocks.push({ type: 'html', html: this.renderMarkdownList(listItems) });
+                        listItems = [];
                     }
                 };
                 const flushBlockquote = () => {
@@ -4352,7 +4345,6 @@
                 const flushBlocks = () => {
                     flushParagraph();
                     flushList();
-                    flushOrderedList();
                     flushBlockquote();
                 };
                 const isTableDivider = line => /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
@@ -4393,7 +4385,6 @@
                     if (trimmed.startsWith('>')) {
                         flushParagraph();
                         flushList();
-                        flushOrderedList();
                         blockquote.push(trimmed.replace(/^>\s?/, ''));
                         continue;
                     }
@@ -4422,27 +4413,69 @@
                         });
                         continue;
                     }
-                    const bullet = /^[-*]\s+(.+)$/.exec(trimmed);
+                    const bullet = /^(\s*)[-*]\s+(.+)$/.exec(line);
                     if (bullet) {
                         flushParagraph();
-                        flushOrderedList();
                         flushBlockquote();
-                        list.push(bullet[1]);
+                        listItems.push({
+                            indent: this.markdownListIndent(bullet[1]),
+                            ordered: false,
+                            text: bullet[2],
+                        });
                         continue;
                     }
-                    const ordered = /^\d+\.\s+(.+)$/.exec(trimmed);
+                    const ordered = /^(\s*)\d+\.\s+(.+)$/.exec(line);
                     if (ordered) {
                         flushParagraph();
-                        flushList();
                         flushBlockquote();
-                        orderedList.push(ordered[1]);
+                        listItems.push({
+                            indent: this.markdownListIndent(ordered[1]),
+                            ordered: true,
+                            text: ordered[2],
+                        });
                         continue;
                     }
+                    flushList();
                     paragraph.push(trimmed);
                 }
                 flushBlocks();
                 if (inCode) blocks.push({ type: 'html', html: `<pre><code>${this.escapeHtml(code.join('\n'))}</code></pre>` });
                 return blocks;
+            }
+
+            markdownListIndent(rawIndent) {
+                return String(rawIndent || '').replace(/\t/g, '    ').length;
+            }
+
+            renderMarkdownList(items) {
+                const renderListFrom = (start, indent, ordered) => {
+                    const tag = ordered ? 'ol' : 'ul';
+                    let html = `<${tag}>`;
+                    let index = start;
+                    while (index < items.length) {
+                        const item = items[index];
+                        if (item.indent < indent || item.indent > indent || item.ordered !== ordered) break;
+                        html += `<li>${this.renderInline(item.text)}`;
+                        index += 1;
+                        while (index < items.length && items[index].indent > indent) {
+                            const child = renderListFrom(index, items[index].indent, items[index].ordered);
+                            html += child.html;
+                            index = child.index;
+                        }
+                        html += '</li>';
+                    }
+                    html += `</${tag}>`;
+                    return { html, index };
+                };
+                let html = '';
+                let index = 0;
+                while (index < items.length) {
+                    const item = items[index];
+                    const rendered = renderListFrom(index, item.indent, item.ordered);
+                    html += rendered.html;
+                    index = rendered.index > index ? rendered.index : index + 1;
+                }
+                return html;
             }
 
             renderCollapsibleBlocks(blocks) {

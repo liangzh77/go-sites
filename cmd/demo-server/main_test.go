@@ -234,6 +234,35 @@ func TestListWikiFilesReturnsMetadataOnly(t *testing.T) {
 	}
 }
 
+func TestUpdateWikiFileReturnsRenderedHTML(t *testing.T) {
+	wikiRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(wikiRoot, "note.md"), []byte("# Old\n\nbody"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := &app{wikiRoot: wikiRoot}
+
+	body := strings.NewReader(`{"content":"# Note\n\n## Parent\n\n- Item\n  - Child"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/wiki/files/note.md", body)
+	rec := httptest.NewRecorder()
+	a.handleUpdateWikiFile(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	var file wikiFileItem
+	if err := json.NewDecoder(rec.Body).Decode(&file); err != nil {
+		t.Fatal(err)
+	}
+	if file.HTML == "" {
+		t.Fatalf("saved wiki file response did not include rendered html: %#v", file)
+	}
+	for _, want := range []string{"<h1", "<h2", "<ul>", "<li>Child</li>"} {
+		if !strings.Contains(file.HTML, want) {
+			t.Fatalf("rendered html missing %q: %s", want, file.HTML)
+		}
+	}
+}
+
 func TestServeDemoRedirectsSlugToDirectory(t *testing.T) {
 	dataDir := t.TempDir()
 	a := &app{

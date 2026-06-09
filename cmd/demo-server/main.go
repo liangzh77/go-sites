@@ -468,6 +468,7 @@ func (a *app) handleUpdateWikiFile(w http.ResponseWriter, r *http.Request) {
 		Path:      cleanPath,
 		Title:     markdownTitleFromContent(input.Content),
 		Content:   input.Content,
+		HTML:      renderMarkdown(input.Content),
 		UpdatedAt: info.ModTime().UTC().Format(time.RFC3339),
 		Size:      info.Size(),
 	})
