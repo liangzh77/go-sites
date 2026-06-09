@@ -4,28 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI入口</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260528">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260609-mist-palette">
     <script src="./site-config.js"></script>
     <script src="./data.js?v=20260606-zhongzhou-law-nav"></script>
     <style>
         /* CSS变量定义 */
         :root {
-            --primary-color: #586758;
-            --hover-color: #34483B;
-            --bg-color: #E7E5DC;
-            --card-bg: #FBFAF4;
-            --border-color: #CFD0C6;
-            --text-color: #252922;
-            --secondary-bg: #F0EFE7;
-            --ink-soft: #5C6258;
-            --sage-pale: #D5DCD1;
-            --sage-wash: #EFF0E8;
-            --clay-color: #756B59;
-            --clay-pale: #DCD8CB;
-            --dusty-blue: #A6B3B0;
-            --mauve-wash: #C8C8BE;
-            --oat-wash: #DDD9CB;
-            --shadow-tint: rgba(48, 52, 43, 0.18);
+            --primary-color: #B8C6CE;
+            --hover-color: #213642;
+            --bg-color: #E9EFEF;
+            --card-bg: #F6FAF9;
+            --border-color: #B8C6CE;
+            --text-color: #213642;
+            --secondary-bg: #DCE5E7;
+            --ink-soft: #526774;
+            --sage-pale: #CAD7DC;
+            --sage-wash: #EDF3F2;
+            --clay-color: #496D8F;
+            --clay-pale: #E1E9EB;
+            --dusty-blue: #496D8F;
+            --mauve-wash: #B8C6CE;
+            --oat-wash: #E9EFEF;
+            --shadow-tint: rgba(33, 54, 66, 0.18);
             --serif-stack: "Iowan Old Style", "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, serif;
             --sans-stack: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
         }
@@ -94,13 +94,13 @@
             font-weight: 500;
             transition: all 0.3s ease;
             margin-right: 0.5rem;
-            color: #4B5563;
+            color: var(--ink-soft);
             border: none;
             background: none;
             cursor: pointer;
         }
 
-        .tab-btn:hover { background-color: #EDF2F7; }
+        .tab-btn:hover { background-color: var(--secondary-bg); }
         .tab-btn.tab-active {
             background-color: var(--primary-color) !important;
             color: white !important;
@@ -133,7 +133,7 @@
             border: 1px solid var(--border-color);
             border-radius: 8px;
             background: white;
-            color: #4B5563;
+            color: var(--ink-soft);
             font-size: 0.9rem;
             cursor: pointer;
         }
@@ -142,7 +142,7 @@
         .edit-mode-btn:hover {
             border-color: var(--primary-color);
             color: var(--primary-color);
-            background: #EFF6FF;
+            background: var(--sage-wash);
         }
 
         .edit-mode-btn.hidden {
@@ -185,7 +185,7 @@
             width: 100%;
             height: 2.75rem;
             padding: 0 0.75rem;
-            border: 1px solid #D1D5DB;
+            border: 1px solid var(--border-color);
             border-radius: 6px;
             font: inherit;
         }
@@ -200,7 +200,7 @@
             min-height: 1.25rem;
             margin: 0.5rem 0 0;
             font-size: 0.8rem;
-            color: #DC2626;
+            color: var(--hover-color);
         }
 
         .login-actions {
@@ -349,7 +349,7 @@
         }
 
         .type-cell.merged {
-            background: #F8FAFC;
+            background: var(--secondary-bg);
             vertical-align: middle;
         }
 
@@ -457,7 +457,7 @@
         }
 
         tr:hover td { background-color: var(--secondary-bg); }
-        tr:hover .type-cell { background-color: #F8FAFC; }
+        tr:hover .type-cell { background-color: var(--secondary-bg); }
 
         a {
             color: var(--primary-color);
@@ -492,9 +492,9 @@
 
         /* 滚动条样式 */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        ::-webkit-scrollbar-track { background: var(--secondary-bg); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: var(--clay-pale); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--clay-color); }
 
         /* 地址列样式 */
         .table-cell-text {
@@ -517,7 +517,7 @@
         }
 
         td.address-cell {
-            color: #6B7280;
+            color: var(--ink-soft);
             cursor: pointer;
             position: relative;
             transition: all 0.2s ease;
@@ -525,8 +525,8 @@
         }
 
         .address-cell:hover {
-            color: #374151;
-            background-color: #F9FAFB;
+            color: var(--text-color);
+            background-color: var(--sage-wash);
         }
 
         .search-panel {
@@ -1996,10 +1996,10 @@
         body {
             font-family: var(--sans-stack);
             background:
-                radial-gradient(circle at 16% 8%, rgba(183, 186, 174, 0.22) 0 13rem, transparent 23rem),
-                radial-gradient(circle at 86% 12%, rgba(159, 174, 171, 0.24) 0 15rem, transparent 26rem),
-                radial-gradient(circle at 52% 105%, rgba(214, 211, 198, 0.28) 0 20rem, transparent 32rem),
-                linear-gradient(135deg, #F0EEE6 0%, #E7E5DC 48%, #DFE2D8 100%);
+                radial-gradient(circle at 16% 8%, rgba(33, 54, 66, 0.12) 0 13rem, transparent 23rem),
+                radial-gradient(circle at 86% 12%, rgba(73, 109, 143, 0.14) 0 15rem, transparent 26rem),
+                radial-gradient(circle at 52% 105%, rgba(184, 198, 206, 0.22) 0 20rem, transparent 32rem),
+                linear-gradient(135deg, #F6FAF9 0%, #E9EFEF 52%, #D4DEE2 100%);
         }
 
         body::before,
@@ -2047,15 +2047,15 @@
             padding: 1.45rem 1.65rem 1.15rem;
             margin-bottom: 1.15rem;
             background:
-                linear-gradient(145deg, rgba(251, 250, 244, 0.99), rgba(241, 240, 232, 0.96)),
-                radial-gradient(circle at 74% 22%, rgba(213, 220, 209, 0.38), transparent 16rem);
-            border: 1px solid rgba(207, 208, 198, 0.94);
+                linear-gradient(145deg, rgba(246, 250, 249, 0.99), rgba(225, 233, 235, 0.96)),
+                radial-gradient(circle at 74% 22%, rgba(73, 109, 143, 0.13), transparent 16rem);
+            border: 1px solid rgba(184, 198, 206, 0.94);
             border-radius: 16px 22px 18px 20px;
             box-shadow:
-                0 1px 0 rgba(255, 255, 251, 0.94) inset,
+                0 1px 0 rgba(255, 255, 255, 0.9) inset,
                 0 18px 42px -32px var(--shadow-tint),
-                10px 12px 0 -7px rgba(199, 201, 190, 0.34),
-                -10px 18px 0 -13px rgba(159, 174, 171, 0.32);
+                10px 12px 0 -7px rgba(184, 198, 206, 0.26),
+                -10px 18px 0 -13px rgba(33, 54, 66, 0.16);
         }
 
         .tabs-container::before {
@@ -2064,8 +2064,8 @@
             inset: 0.65rem 0.8rem auto auto;
             width: 8.5rem;
             height: 4.75rem;
-            border-top: 1px solid rgba(79, 95, 83, 0.22);
-            border-right: 1px solid rgba(79, 95, 83, 0.18);
+            border-top: 1px solid rgba(33, 54, 66, 0.18);
+            border-right: 1px solid rgba(33, 54, 66, 0.14);
             border-radius: 18px 26px 20px 24px;
             transform: rotate(2deg);
             opacity: 0.34;
@@ -2078,7 +2078,7 @@
             bottom: 0.85rem;
             width: 12rem;
             height: 0.55rem;
-            background: rgba(117, 107, 89, 0.08);
+            background: rgba(33, 54, 66, 0.08);
             border-radius: 999px;
             transform: rotate(-0.8deg);
         }
@@ -2104,15 +2104,15 @@
             position: relative;
             width: 3rem;
             height: 3rem;
-            border: 1px solid rgba(117, 107, 89, 0.34);
+            border: 1px solid rgba(33, 54, 66, 0.24);
             border-radius: 55% 45% 58% 42%;
             background:
                 radial-gradient(circle at 42% 38%, rgba(255, 253, 248, 0.4) 0 0.3rem, transparent 0.38rem),
-                radial-gradient(circle at 55% 58%, rgba(117, 107, 89, 0.78), rgba(117, 107, 89, 0.4) 64%, transparent 70%),
+                radial-gradient(circle at 55% 58%, rgba(33, 54, 66, 0.82), rgba(73, 109, 143, 0.46) 64%, transparent 70%),
                 var(--clay-pale);
             box-shadow:
-                0 0 0 7px rgba(235, 216, 207, 0.55),
-                0 12px 25px -19px rgba(94, 69, 52, 0.55);
+                0 0 0 7px rgba(233, 239, 239, 0.8),
+                0 12px 25px -19px rgba(33, 54, 66, 0.5);
             flex-shrink: 0;
         }
 
@@ -2120,7 +2120,7 @@
             content: "";
             position: absolute;
             inset: 0.3rem;
-            border: 1px solid rgba(80, 72, 62, 0.24);
+            border: 1px solid rgba(33, 54, 66, 0.22);
             border-radius: 42% 58% 50% 50%;
             transform: rotate(-18deg);
         }
@@ -2204,8 +2204,8 @@
         }
 
         .tab-btn:hover {
-            background-color: rgba(220, 225, 211, 0.7);
-            border-color: rgba(111, 124, 107, 0.18);
+            background-color: rgba(184, 198, 206, 0.28);
+            border-color: rgba(33, 54, 66, 0.14);
             color: var(--hover-color);
         }
 
@@ -2217,10 +2217,10 @@
         }
 
         .tab-btn.tab-active {
-            background: rgba(213, 220, 209, 0.38) !important;
-            border-color: rgba(79, 95, 83, 0.16);
+            background: rgba(184, 198, 206, 0.42) !important;
+            border-color: rgba(33, 54, 66, 0.18);
             color: var(--hover-color) !important;
-            box-shadow: 0 8px 18px -18px rgba(45, 52, 46, 0.45);
+            box-shadow: 0 8px 18px -18px rgba(33, 54, 66, 0.45);
             font-weight: 600;
         }
 
@@ -2232,7 +2232,7 @@
             bottom: 0.22rem;
             height: 2px;
             border-radius: 999px;
-            background: rgba(52, 72, 59, 0.42);
+            background: rgba(33, 54, 66, 0.46);
             transform: rotate(-1.5deg);
         }
 
