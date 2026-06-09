@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Domain = "liangz77.cn",
-    [string]$RemoteHost = "43.163.98.43",
+    [string]$RemoteHost = "49.232.129.114",
     [string]$User = "root",
     [int]$Port = 22,
     [string]$IdentityFile = "C:\Users\liang\.ssh\keychain_deploy_ed25519",
