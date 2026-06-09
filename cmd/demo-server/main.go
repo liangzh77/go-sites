@@ -32,9 +32,10 @@ import (
 )
 
 const (
-	cookieName       = "go_sites_demo_session"
-	sessionMaxAgeSec = 60 * 60 * 24 * 7
-	maxUploadBytes   = 25 << 20
+	cookieName                 = "go_sites_demo_session"
+	sessionMaxAgeSec           = 60 * 60 * 24 * 7
+	maxUploadBytes             = 25 << 20
+	markdownDemoFaviconVersion = "20260609-mist-palette"
 )
 
 var appRoutePaths = []string{
@@ -130,7 +131,7 @@ func main() {
 	if err := a.normalizeDemoAddresses(); err != nil {
 		log.Fatal(err)
 	}
-	if err := a.pruneStoredMarkdownTemplateTitles(); err != nil {
+	if err := a.refreshStoredMarkdownDemoPages(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -1345,7 +1346,7 @@ func isMarkdownFile(name string) bool {
 	}
 }
 
-func (a *app) pruneStoredMarkdownTemplateTitles() error {
+func (a *app) refreshStoredMarkdownDemoPages() error {
 	m, err := a.loadManifest()
 	if err != nil {
 		return err
@@ -1363,12 +1364,22 @@ func (a *app) pruneStoredMarkdownTemplateTitles() error {
 			return err
 		}
 		oldPage := string(data)
-		templateTitle := "      </div>\n      <h1>" + html.EscapeString(item.Title) + "</h1>\n"
-		nextPage := strings.Replace(oldPage, templateTitle, "      </div>\n", 1)
-		if !strings.Contains(nextPage, `href="/favicon.svg`) {
-			nextPage = strings.Replace(nextPage, "  <title>", `  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260528">
+		body, ok := extractStoredMarkdownDemoBody(oldPage)
+		if !ok {
+			templateTitle := "      </div>\n      <h1>" + html.EscapeString(item.Title) + "</h1>\n"
+			nextPage := strings.Replace(oldPage, templateTitle, "      </div>\n", 1)
+			if !strings.Contains(nextPage, `href="/favicon.svg`) {
+				nextPage = strings.Replace(nextPage, "  <title>", `  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=`+markdownDemoFaviconVersion+`">
   <title>`, 1)
+			}
+			if nextPage != oldPage {
+				if err := os.WriteFile(pagePath, []byte(nextPage), 0o644); err != nil {
+					return err
+				}
+			}
+			continue
 		}
+		nextPage := renderMarkdownPageHTML(item.Title, body)
 		if nextPage != oldPage {
 			if err := os.WriteFile(pagePath, []byte(nextPage), 0o644); err != nil {
 				return err
@@ -1376,6 +1387,23 @@ func (a *app) pruneStoredMarkdownTemplateTitles() error {
 		}
 	}
 	return nil
+}
+
+func extractStoredMarkdownDemoBody(page string) (string, bool) {
+	brandStart := strings.Index(page, `<div class="md-brand"`)
+	if brandStart < 0 {
+		return "", false
+	}
+	brandEndRel := strings.Index(page[brandStart:], "      </div>\n")
+	if brandEndRel < 0 {
+		return "", false
+	}
+	bodyStart := brandStart + brandEndRel + len("      </div>\n")
+	articleEnd := strings.LastIndex(page, "\n    </article>")
+	if articleEnd < bodyStart {
+		return "", false
+	}
+	return page[bodyStart:articleEnd], true
 }
 
 func (a *app) loadManifest() (manifest, error) {
@@ -1642,32 +1670,36 @@ func isAllowedStaticFile(name string) bool {
 }
 
 func renderMarkdownPage(title, source string) string {
-	body := renderMarkdown(source)
+	return renderMarkdownPageHTML(title, renderMarkdown(source))
+}
+
+func renderMarkdownPageHTML(title, body string) string {
 	return `<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>` + html.EscapeString(title) + `</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260528">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=` + markdownDemoFaviconVersion + `">
   <style>
-    :root { color-scheme: light; --ink: #27312b; --soft: #6f766c; --paper: #fbfaf4; --wash: #eff0e8; --line: #d7cfc2; --clay: #a55f49; }
+    :root { color-scheme: light; --ink: #213642; --soft: #526774; --paper: #f6faf9; --wash: #e9efef; --line: #b8c6ce; --accent: #496d8f; --mist: #dce5e7; }
     * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: linear-gradient(180deg, var(--paper), var(--wash)); color: var(--ink); font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; line-height: 1.72; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 16% 8%, rgba(33, 54, 66, 0.12) 0 13rem, transparent 23rem), radial-gradient(circle at 86% 12%, rgba(73, 109, 143, 0.14) 0 15rem, transparent 26rem), linear-gradient(135deg, var(--paper), var(--wash) 54%, #d4dee2); color: var(--ink); font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; line-height: 1.72; }
     main { width: min(860px, calc(100vw - 2rem)); margin: 0 auto; padding: 3rem 0 4rem; }
     .md-brand { display: flex; align-items: center; gap: 0.875rem; margin-bottom: 1.35rem; color: var(--soft); }
-    .md-brand-seal { position: relative; width: 3rem; height: 3rem; border: 1px solid rgba(117, 107, 89, 0.34); border-radius: 55% 45% 58% 42%; background: radial-gradient(circle at 42% 38%, rgba(255, 253, 248, 0.4) 0 0.3rem, transparent 0.38rem), radial-gradient(circle at 55% 58%, rgba(117, 107, 89, 0.78), rgba(117, 107, 89, 0.4) 64%, transparent 70%), rgba(235, 216, 207, 0.82); box-shadow: 0 0 0 7px rgba(235, 216, 207, 0.55), 0 12px 25px -19px rgba(94, 69, 52, 0.55); flex-shrink: 0; }
-    .md-brand-seal::after { content: ""; position: absolute; inset: 0.3rem; border: 1px solid rgba(80, 72, 62, 0.24); border-radius: 42% 58% 50% 50%; transform: rotate(-18deg); }
+    .md-brand-seal { position: relative; width: 3rem; height: 3rem; border: 1px solid rgba(33, 54, 66, 0.24); border-radius: 55% 45% 58% 42%; background: radial-gradient(circle at 42% 38%, rgba(255, 255, 255, 0.48) 0 0.3rem, transparent 0.38rem), radial-gradient(circle at 55% 58%, rgba(33, 54, 66, 0.82), rgba(73, 109, 143, 0.46) 64%, transparent 70%), #e1e9eb; box-shadow: 0 0 0 7px rgba(233, 239, 239, 0.8), 0 12px 25px -19px rgba(33, 54, 66, 0.5); flex-shrink: 0; }
+    .md-brand-seal::after { content: ""; position: absolute; inset: 0.3rem; border: 1px solid rgba(33, 54, 66, 0.22); border-radius: 42% 58% 50% 50%; transform: rotate(-18deg); }
     .md-brand-text { font-size: 0.8rem; letter-spacing: 0.08em; }
-    article { padding: 2rem; border: 1px solid var(--line); border-radius: 18px 24px 17px 21px; background: rgba(255, 255, 251, 0.76); box-shadow: 0 18px 42px -34px rgba(48, 55, 49, 0.45); }
+    article { padding: 2rem; border: 1px solid var(--line); border-radius: 18px 24px 17px 21px; background: rgba(246, 250, 249, 0.82); box-shadow: 0 18px 42px -34px rgba(33, 54, 66, 0.42); }
     h1, h2, h3 { line-height: 1.25; color: var(--ink); }
     h1 { margin-top: 0; font-size: clamp(1.9rem, 5vw, 3.1rem); }
     h2 { margin-top: 2rem; padding-top: 0.5rem; border-top: 1px solid var(--line); }
-    a { color: var(--clay); }
+    a { color: var(--accent); }
     code { padding: 0.12rem 0.35rem; border-radius: 6px; background: var(--wash); }
-    pre { overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 0.9rem 1rem; border: 1px solid var(--line); border-left: 3px solid #8fa5a0; border-radius: 10px; background: #f7f6ef; color: var(--ink); font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; line-height: 1.72; }
+    pre { overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 0.9rem 1rem; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; background: #edf3f2; color: var(--ink); font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; line-height: 1.72; }
     pre code { display: block; padding: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; white-space: inherit; }
-    blockquote { margin: 1rem 0; padding: 0.4rem 1rem; border-left: 3px solid var(--clay); color: var(--soft); background: rgba(239, 240, 232, 0.62); }
+    blockquote { margin: 1rem 0; padding: 0.4rem 1rem; border-left: 3px solid var(--accent); color: var(--soft); background: rgba(220, 229, 231, 0.64); }
+    @media (max-width: 640px) { main { width: min(100vw - 1rem, 860px); padding: 1rem 0 2rem; } article { padding: 1.1rem; border-radius: 14px 18px 13px 17px; } }
   </style>
 </head>
 <body>

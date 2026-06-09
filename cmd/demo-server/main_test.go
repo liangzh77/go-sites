@@ -90,6 +90,71 @@ func TestPublishDemoRequiresAPIKey(t *testing.T) {
 	}
 }
 
+func TestMarkdownDemoPageUsesSitePalette(t *testing.T) {
+	page := renderMarkdownPage("调色测试", "# 标题\n\n正文")
+
+	for _, want := range []string{
+		`href="/favicon.svg?v=20260609-mist-palette"`,
+		`--ink: #213642`,
+		`--line: #b8c6ce`,
+		`class="md-brand-seal"`,
+		`灵感书架`,
+		`>标题</h1>`,
+		`<p>正文</p>`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("rendered markdown page missing %q:\n%s", want, page)
+		}
+	}
+	if strings.Contains(page, "#756b59") || strings.Contains(page, "20260528") {
+		t.Fatalf("rendered markdown page contains old theme values:\n%s", page)
+	}
+}
+
+func TestRefreshStoredMarkdownDemoPagesUpdatesShellAndKeepsBody(t *testing.T) {
+	dataDir := t.TempDir()
+	a := &app{
+		dataDir:      dataDir,
+		demosDir:     filepath.Join(dataDir, "demos"),
+		manifestPath: filepath.Join(dataDir, "manifest.json"),
+		publicOrigin: "https://example.test",
+	}
+	if err := os.MkdirAll(filepath.Join(a.demosDir, "demo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	oldPage := strings.Replace(renderMarkdownPage("演示", "# 保留正文\n\n- one"), markdownDemoFaviconVersion, "20260528", 1)
+	oldPage = strings.ReplaceAll(oldPage, "#213642", "#27312b")
+	if err := os.WriteFile(filepath.Join(a.demosDir, "demo", "index.html"), []byte(oldPage), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.saveManifestLocked(manifest{Demos: []demoItem{{Title: "演示", Slug: "demo", Kind: "markdown"}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.refreshStoredMarkdownDemoPages(); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(a.demosDir, "demo", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextPage := string(data)
+	for _, want := range []string{
+		`href="/favicon.svg?v=20260609-mist-palette"`,
+		`--ink: #213642`,
+		`>保留正文</h1>`,
+		`<li>one</li>`,
+	} {
+		if !strings.Contains(nextPage, want) {
+			t.Fatalf("refreshed page missing %q:\n%s", want, nextPage)
+		}
+	}
+	if strings.Contains(nextPage, "20260528") || strings.Contains(nextPage, "#27312b") {
+		t.Fatalf("refreshed page contains old shell values:\n%s", nextPage)
+	}
+}
+
 func TestSessionCookieLastsOneWeek(t *testing.T) {
 	a := &app{
 		adminPassword: "test-password",
