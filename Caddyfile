@@ -1,8 +1,4 @@
-http://liangz77.cn, http://www.liangz77.cn {
-    redir https://liangz77.cn{uri} permanent
-}
-
-https://liangz77.cn {
+(main_site_routes) {
     handle /api/demo/* {
         reverse_proxy 127.0.0.1:9005
     }
@@ -31,6 +27,18 @@ https://liangz77.cn {
     root * /srv/sites/liangz77.cn/current
     encode zstd gzip
     file_server
+}
+
+http://49.232.129.114 {
+    import main_site_routes
+}
+
+http://liangz77.cn, http://www.liangz77.cn {
+    redir https://liangz77.cn{uri} permanent
+}
+
+https://liangz77.cn {
+    import main_site_routes
 }
 
 https://www.liangz77.cn {
