@@ -20,6 +20,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	rendererhtml "github.com/yuin/goldmark/renderer/html"
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 const (
@@ -1579,9 +1581,15 @@ func extractZipDemo(data []byte, targetDir string) error {
 	if err != nil {
 		return fmt.Errorf("invalid zip file")
 	}
-	prefix := zipSingleRootPrefix(reader.File)
+	entries, err := zipDemoEntries(reader.File)
+	if err != nil {
+		return err
+	}
+	prefix := zipSingleRootPrefix(entries)
 	hasIndex := false
-	for _, file := range reader.File {
+	htmlEntries := []string{}
+	for _, entry := range entries {
+		file := entry.file
 		if file.FileInfo().IsDir() {
 			continue
 		}
@@ -1589,7 +1597,7 @@ func extractZipDemo(data []byte, targetDir string) error {
 			return fmt.Errorf("zip files cannot contain symbolic links")
 		}
 
-		name := strings.TrimPrefix(filepath.ToSlash(file.Name), prefix)
+		name := strings.TrimPrefix(entry.name, prefix)
 		name = strings.TrimPrefix(name, "/")
 		if name == "" {
 			continue
@@ -1600,7 +1608,11 @@ func extractZipDemo(data []byte, targetDir string) error {
 		if !isAllowedStaticFile(name) {
 			return fmt.Errorf("zip contains unsupported file type: %s", name)
 		}
-		if strings.EqualFold(name, "index.html") {
+		ext := strings.ToLower(filepath.Ext(name))
+		if ext == ".html" || ext == ".htm" {
+			htmlEntries = append(htmlEntries, name)
+		}
+		if name == "index.html" {
 			hasIndex = true
 		}
 
@@ -1627,15 +1639,58 @@ func extractZipDemo(data []byte, targetDir string) error {
 		}
 	}
 	if !hasIndex {
-		return fmt.Errorf("zip must contain index.html")
+		if len(htmlEntries) != 1 {
+			return fmt.Errorf("zip must contain index.html or exactly one HTML file")
+		}
+		if err := writeDemoEntryRedirect(targetDir, htmlEntries[0]); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func zipSingleRootPrefix(files []*zip.File) string {
-	root := ""
+type zipDemoEntry struct {
+	file *zip.File
+	name string
+}
+
+func zipDemoEntries(files []*zip.File) ([]zipDemoEntry, error) {
+	entries := make([]zipDemoEntry, 0, len(files))
 	for _, file := range files {
-		name := strings.Trim(filepath.ToSlash(file.Name), "/")
+		name, err := zipEntryName(file)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, zipDemoEntry{file: file, name: name})
+	}
+	return entries, nil
+}
+
+func zipEntryName(file *zip.File) (string, error) {
+	name := file.Name
+	if file.NonUTF8 && hasNonASCIIByte(name) {
+		decoded, err := simplifiedchinese.GB18030.NewDecoder().String(name)
+		if err != nil {
+			return "", fmt.Errorf("zip contains filename that cannot be decoded: %s", file.Name)
+		}
+		name = decoded
+	}
+	return filepath.ToSlash(name), nil
+}
+
+func hasNonASCIIByte(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] >= 0x80 {
+			return true
+		}
+	}
+	return false
+}
+
+func zipSingleRootPrefix(entries []zipDemoEntry) string {
+	root := ""
+	for _, entry := range entries {
+		name := strings.Trim(entry.name, "/")
 		if name == "" {
 			continue
 		}
@@ -1652,6 +1707,33 @@ func zipSingleRootPrefix(files []*zip.File) string {
 		return ""
 	}
 	return root + "/"
+}
+
+func writeDemoEntryRedirect(targetDir, entryPath string) error {
+	targetURL := "./" + escapeRelativeURLPath(entryPath)
+	page := `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="0; url=` + html.EscapeString(targetURL) + `">
+  <title>Opening demo</title>
+</head>
+<body>
+  <script>window.location.replace(` + strconv.Quote(targetURL) + `);</script>
+  <a href="` + html.EscapeString(targetURL) + `">Open demo</a>
+</body>
+</html>
+`
+	return os.WriteFile(filepath.Join(targetDir, "index.html"), []byte(page), 0o644)
+}
+
+func escapeRelativeURLPath(value string) string {
+	segments := strings.Split(filepath.ToSlash(value), "/")
+	for i, segment := range segments {
+		segments[i] = url.PathEscape(segment)
+	}
+	return strings.Join(segments, "/")
 }
 
 func isSafeArchivePath(name string) bool {

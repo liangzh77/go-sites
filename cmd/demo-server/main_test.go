@@ -1,6 +1,8 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -8,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
 func TestPublishDemoOverwritesSameTitle(t *testing.T) {
@@ -293,6 +297,58 @@ func TestServeDemoRedirectsSlugToDirectory(t *testing.T) {
 	}
 }
 
+func TestExtractZipDemoUsesOnlyHTMLFileAsEntry(t *testing.T) {
+	targetDir := t.TempDir()
+	data := zipArchive(t, zipEntry{name: "prototype/手机竖版UI原型.html", body: `<link rel="stylesheet" href="./手机竖版UI原型.css">`}, zipEntry{name: "prototype/手机竖版UI原型.css", body: `body { color: red; }`})
+
+	if err := extractZipDemo(data, targetDir); err != nil {
+		t.Fatal(err)
+	}
+
+	index, err := os.ReadFile(filepath.Join(targetDir, "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(index), "./%E6%89%8B%E6%9C%BA%E7%AB%96%E7%89%88UI%E5%8E%9F%E5%9E%8B.html") {
+		t.Fatalf("generated entry page does not point at the only HTML file:\n%s", string(index))
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "手机竖版UI原型.html")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "手机竖版UI原型.css")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestExtractZipDemoRequiresIndexForMultipleHTMLFiles(t *testing.T) {
+	targetDir := t.TempDir()
+	data := zipArchive(t, zipEntry{name: "a.html", body: `a`}, zipEntry{name: "b.html", body: `b`})
+
+	err := extractZipDemo(data, targetDir)
+	if err == nil || !strings.Contains(err.Error(), "index.html or exactly one HTML file") {
+		t.Fatalf("error = %v, want multiple HTML entry error", err)
+	}
+}
+
+func TestExtractZipDemoDecodesGB18030Names(t *testing.T) {
+	targetDir := t.TempDir()
+	data := zipArchive(t,
+		zipEntry{name: gb18030Name(t, "手机竖版UI原型.html"), body: `<img src="./assets/专业摄影.jpg">`, nonUTF8: true},
+		zipEntry{name: gb18030Name(t, "assets/专业摄影.jpg"), body: `image`, nonUTF8: true},
+	)
+
+	if err := extractZipDemo(data, targetDir); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(filepath.Join(targetDir, "手机竖版UI原型.html")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "assets", "专业摄影.jpg")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestTopLevelAppRoutesServeIndex(t *testing.T) {
 	staticRoot := t.TempDir()
 	if err := os.WriteFile(filepath.Join(staticRoot, "index.html"), []byte("app shell"), 0o644); err != nil {
@@ -344,4 +400,39 @@ func publishDemo(t *testing.T, a *app, body string) *httptest.ResponseRecorder {
 	rec := httptest.NewRecorder()
 	a.requireAPIKey(a.handlePublishDemo)(rec, req)
 	return rec
+}
+
+type zipEntry struct {
+	name    string
+	body    string
+	nonUTF8 bool
+}
+
+func zipArchive(t *testing.T, entries ...zipEntry) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	writer := zip.NewWriter(&buf)
+	for _, entry := range entries {
+		header := &zip.FileHeader{Name: entry.name, Method: zip.Deflate, NonUTF8: entry.nonUTF8}
+		part, err := writer.CreateHeader(header)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := part.Write([]byte(entry.body)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func gb18030Name(t *testing.T, name string) string {
+	t.Helper()
+	encoded, err := simplifiedchinese.GB18030.NewEncoder().String(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return encoded
 }
