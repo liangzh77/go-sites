@@ -4,28 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI入口</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260609-mist-palette">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260618-bulb-logo">
     <script src="./site-config.js"></script>
     <script src="./data.js?v=20260606-zhongzhou-law-nav"></script>
     <style>
         /* CSS变量定义 */
         :root {
-            --primary-color: #B8C6CE;
-            --hover-color: #213642;
-            --bg-color: #E9EFEF;
-            --card-bg: #F6FAF9;
-            --border-color: #B8C6CE;
-            --text-color: #213642;
-            --secondary-bg: #DCE5E7;
-            --ink-soft: #526774;
-            --sage-pale: #CAD7DC;
-            --sage-wash: #EDF3F2;
-            --clay-color: #496D8F;
-            --clay-pale: #E1E9EB;
-            --dusty-blue: #496D8F;
-            --mauve-wash: #B8C6CE;
-            --oat-wash: #E9EFEF;
-            --shadow-tint: rgba(33, 54, 66, 0.18);
+            --primary-color: #0866FF;
+            --hover-color: #075CE5;
+            --bg-color: #F0F2F5;
+            --card-bg: #FFFFFF;
+            --border-color: #DADDE1;
+            --text-color: #1C1E21;
+            --secondary-bg: #F5F6F7;
+            --ink-soft: #65676B;
+            --sage-pale: #E7F3FF;
+            --sage-wash: #F0F2F5;
+            --clay-color: #0866FF;
+            --clay-pale: #E7F3FF;
+            --dusty-blue: #1877F2;
+            --mauve-wash: #DADDE1;
+            --oat-wash: #F0F2F5;
+            --shadow-tint: rgba(28, 30, 33, 0.12);
+            --focus-ring: rgba(8, 102, 255, 0.16);
+            --surface-hover: #F2F3F5;
             --serif-stack: "Iowan Old Style", "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, serif;
             --sans-stack: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
         }
@@ -2720,6 +2722,531 @@
 
             .copy-tooltip {
                 background: var(--hover-color);
+            }
+        }
+
+        /* Facebook-inspired light theme override */
+        body {
+            font-family: var(--sans-stack);
+            background: var(--bg-color);
+        }
+
+        body::before,
+        body::after,
+        .tabs-container::before,
+        .tabs-container::after,
+        .brand-illustration,
+        .type-nav::after,
+        .table-container::before,
+        .table-container::after,
+        .type-nav h3::after {
+            display: none;
+        }
+
+        .main-container {
+            padding: 0 1.5rem 1.5rem;
+        }
+
+        .header-section {
+            padding: 1rem 0 0;
+        }
+
+        .tabs-container {
+            display: block;
+            padding: 0.85rem 1rem 0;
+            margin-bottom: 1rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(28, 30, 33, 0.12);
+        }
+
+        .brand-row {
+            margin-bottom: 0.75rem;
+        }
+
+        .brand-seal {
+            display: grid;
+            place-items: center;
+            width: 2.75rem;
+            height: 2.75rem;
+            border: 0;
+            border-radius: 0;
+            background: transparent url("/favicon.svg?v=20260618-bulb-logo") center / contain no-repeat;
+            box-shadow: none;
+        }
+
+        .brand-seal::before {
+            display: none;
+        }
+
+        .brand-seal::after {
+            display: none;
+        }
+
+        .brand-title {
+            color: var(--text-color);
+            font-size: 1.12rem;
+            font-weight: 700;
+        }
+
+        .brand-note {
+            margin-top: 0.24rem;
+            color: var(--ink-soft);
+            letter-spacing: 0;
+        }
+
+        #tabs {
+            gap: 0.15rem;
+            padding: 0.45rem 0 0;
+            border-top: 1px solid #E4E6EB;
+        }
+
+        .tab-btn {
+            margin: 0;
+            padding: 0.72rem 1rem 0.82rem;
+            border: 1px solid transparent;
+            border-radius: 8px 8px 0 0;
+            color: var(--ink-soft);
+            letter-spacing: 0;
+        }
+
+        .tab-btn:hover {
+            background: var(--surface-hover);
+            border-color: transparent;
+            color: var(--text-color);
+        }
+
+        .tab-btn.tab-active {
+            background: transparent !important;
+            border-color: transparent;
+            color: var(--primary-color) !important;
+            box-shadow: none;
+            font-weight: 700;
+        }
+
+        .tab-btn.tab-active::after {
+            left: 0.7rem;
+            right: 0.7rem;
+            bottom: 0;
+            height: 3px;
+            background: var(--primary-color);
+            transform: none;
+        }
+
+        .auth-btn,
+        .edit-mode-btn {
+            height: 2.35rem;
+            border: 0;
+            border-radius: 999px;
+            background: var(--bg-color);
+            color: var(--ink-soft);
+            font-weight: 600;
+        }
+
+        .auth-btn:hover,
+        .edit-mode-btn:hover {
+            background: #E4E6EB;
+            color: var(--primary-color);
+        }
+
+        .edit-mode-btn.is-active {
+            background: var(--sage-pale);
+            color: var(--primary-color);
+        }
+
+        .content-layout {
+            grid-template-columns: 224px 1fr;
+            gap: 1rem;
+        }
+
+        .type-nav,
+        .table-container,
+        .wiki-sidebar,
+        .wiki-reader {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            box-shadow: 0 1px 2px rgba(28, 30, 33, 0.1);
+        }
+
+        .type-nav h3,
+        .wiki-panel-head,
+        .wiki-reader-head {
+            padding: 0.9rem 1rem;
+            background: var(--card-bg);
+            border-bottom-color: #E4E6EB;
+            color: var(--text-color);
+        }
+
+        .type-nav-list {
+            padding: 0.5rem;
+        }
+
+        .type-nav-item {
+            margin: 0.1rem 0;
+            border-radius: 8px;
+            color: var(--text-color);
+            letter-spacing: 0;
+        }
+
+        .type-nav-item:hover {
+            background: var(--surface-hover);
+            border-color: transparent;
+            color: var(--text-color);
+        }
+
+        .type-nav-item.active,
+        .wiki-page-item[aria-pressed="true"] {
+            background: var(--sage-pale);
+            border-color: transparent;
+            color: var(--primary-color);
+            font-weight: 700;
+        }
+
+        .table-container {
+            overflow: hidden;
+            background: var(--card-bg);
+        }
+
+        table,
+        th,
+        td {
+            background: var(--card-bg);
+        }
+
+        th {
+            padding-top: 0.85rem;
+            padding-bottom: 0.85rem;
+            background: var(--secondary-bg);
+            color: var(--ink-soft);
+            border-bottom-color: #E4E6EB;
+            font-size: 0.78rem;
+            letter-spacing: 0.04em;
+            box-shadow: none;
+        }
+
+        thead .type-cell {
+            background: var(--secondary-bg);
+        }
+
+        td {
+            color: var(--text-color);
+            border-bottom-color: #E4E6EB;
+            line-height: 1.5;
+        }
+
+        .type-cell,
+        .type-cell.merged {
+            background: var(--card-bg);
+            border-right-color: #E4E6EB;
+            color: var(--text-color);
+        }
+
+        .type-cell.merged {
+            background: var(--secondary-bg);
+        }
+
+        tr:hover td,
+        tr:hover .type-cell,
+        .wiki-page-item:hover,
+        .wiki-search-result:hover {
+            background: var(--surface-hover);
+        }
+
+        a,
+        .mobile-card-name {
+            color: var(--primary-color);
+        }
+
+        a:hover,
+        .address-cell:hover {
+            color: var(--hover-color);
+        }
+
+        .address-cell:hover,
+        .wiki-drop-target,
+        .wiki-heading-grip:hover,
+        .wiki-list-grip:hover {
+            background: var(--sage-pale);
+        }
+
+        .search-panel,
+        .demo-panel {
+            background: #F7F8FA;
+            border-color: #E4E6EB;
+        }
+
+        .search-input,
+        .password-input,
+        .demo-title-input,
+        .demo-markdown-input,
+        .demo-name-input,
+        .demo-feature-input,
+        .wiki-search-input,
+        .wiki-markdown-editor {
+            background: var(--card-bg);
+            border-color: #CED0D4;
+            border-radius: 8px;
+        }
+
+        .search-input:focus,
+        .password-input:focus,
+        .demo-drop-zone.is-dragover,
+        .demo-drop-zone:focus,
+        .demo-name-input:focus,
+        .demo-feature-input:focus,
+        .wiki-search-input:focus,
+        .wiki-markdown-editor:focus,
+        .wiki-heading-toggle:focus-visible,
+        .wiki-tree-title:focus-visible {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--focus-ring);
+            outline: none;
+        }
+
+        .demo-drop-zone {
+            border-color: #CED0D4;
+            background: var(--bg-color);
+        }
+
+        .demo-submit-btn,
+        .login-action.primary {
+            border-color: var(--primary-color);
+            background: var(--primary-color);
+            color: #FFFFFF;
+        }
+
+        .demo-submit-btn:hover {
+            background: var(--hover-color);
+        }
+
+        .wiki-folder-children,
+        .wiki-heading-section .wiki-heading-section {
+            border-left-color: #E4E6EB;
+        }
+
+        .wiki-page-tool,
+        .wiki-create-choice,
+        .wiki-markdown pre {
+            background: var(--card-bg);
+            border-color: var(--border-color);
+        }
+
+        .wiki-markdown code,
+        .wiki-markdown blockquote {
+            background: var(--bg-color);
+        }
+
+        .wiki-markdown pre {
+            border-left-color: var(--primary-color);
+        }
+
+        .recommendation-mark,
+        .recommendation-mark.is-active {
+            color: rgba(8, 102, 255, 0.18);
+        }
+
+        .recommendation-toggle.is-active,
+        .mobile-tag.tag-recommended,
+        .mobile-tag.tag-recommended.is-active {
+            border-color: transparent;
+            background: var(--sage-pale);
+            color: var(--primary-color);
+        }
+
+        .recommendation-toggle:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #BCC0C4;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #8A8D91;
+        }
+
+        .hover-tooltip,
+        .copy-tooltip {
+            border-radius: 8px;
+            background: #1C1E21;
+            color: #FFFFFF;
+            box-shadow: 0 8px 20px rgba(28, 30, 33, 0.18);
+        }
+
+        .login-modal-backdrop {
+            background: rgba(240, 242, 245, 0.72);
+            backdrop-filter: blur(4px);
+        }
+
+        .login-dialog {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--card-bg);
+            box-shadow: 0 16px 40px rgba(28, 30, 33, 0.18);
+        }
+
+        .login-action {
+            border-color: transparent;
+            border-radius: 8px;
+            background: var(--bg-color);
+        }
+
+        @media (max-width: 860px) {
+            html,
+            body {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            .main-container {
+                padding: 0;
+                max-width: 100%;
+            }
+
+            .header-section {
+                padding: 0.75rem 0.75rem 0;
+                background: rgba(255, 255, 255, 0.94);
+                border-bottom: 1px solid var(--border-color);
+                backdrop-filter: blur(8px);
+            }
+
+            .tabs-container {
+                padding: 0.75rem 0.75rem 0;
+                border-radius: 8px;
+            }
+
+            .brand-row {
+                margin-bottom: 0.55rem;
+            }
+
+            .brand-seal {
+                width: 2.2rem;
+                height: 2.2rem;
+            }
+
+            .brand-seal::before {
+                display: none;
+            }
+
+            .brand-title {
+                font-size: 1.05rem;
+            }
+
+            .tab-btn {
+                padding: 0.55rem 0.7rem 0.68rem;
+                border-radius: 8px 8px 0 0;
+            }
+
+            .content-section {
+                padding: 0.75rem;
+                max-width: 100%;
+            }
+
+            .type-nav {
+                position: static;
+                margin: 0;
+                border-radius: 8px;
+                background: var(--card-bg);
+                box-shadow: 0 1px 2px rgba(28, 30, 33, 0.1);
+            }
+
+            .type-nav-item {
+                border-radius: 999px;
+                background: var(--bg-color);
+            }
+
+            .type-nav-item.active {
+                background: var(--sage-pale);
+                color: var(--primary-color);
+            }
+
+            .table-container {
+                border: 0;
+                background: transparent;
+                box-shadow: none;
+                max-width: 100%;
+            }
+
+            .mobile-cards {
+                gap: 0.65rem;
+                padding: 0;
+                max-width: 100%;
+            }
+
+            .mobile-card {
+                max-width: 100%;
+                min-width: 0;
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                background: var(--card-bg);
+                box-shadow: 0 1px 2px rgba(28, 30, 33, 0.1);
+            }
+
+            .mobile-card-header {
+                flex-wrap: wrap;
+                align-items: flex-start;
+                row-gap: 0.45rem;
+                min-width: 0;
+            }
+
+            .mobile-card-summary {
+                display: block;
+                flex: 1 1 100%;
+                min-width: 0;
+            }
+
+            .mobile-card-name {
+                display: block;
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .mobile-card-summary .recommendation-mark {
+                display: none;
+            }
+
+            .mobile-card-desc {
+                display: block;
+                width: 100%;
+                min-width: 0;
+                max-width: 100%;
+                margin-top: 0.25rem;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .mobile-card-tags {
+                flex: 1 1 100%;
+                min-width: 0;
+                flex-wrap: wrap;
+                gap: 0.35rem;
+            }
+
+            .mobile-tag,
+            .mobile-tag.tag-paid,
+            .mobile-tag.tag-vpn,
+            .mobile-tag.tag-free {
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                border-radius: 999px;
+                background: var(--bg-color);
+                color: var(--ink-soft);
+            }
+
+            .mobile-tag.tag-recommended,
+            .mobile-tag.tag-recommended.is-active {
+                background: var(--sage-pale);
+                color: var(--primary-color);
+            }
+
+            .mobile-type-header {
+                color: var(--text-color);
             }
         }
     </style>

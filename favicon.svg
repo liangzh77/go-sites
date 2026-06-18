@@ -1,22 +1,51 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <defs>
-    <radialGradient id="sealCore" cx="55%" cy="58%" r="44%">
-      <stop offset="0" stop-color="#213642" stop-opacity="0.84"/>
-      <stop offset="0.68" stop-color="#496D8F" stop-opacity="0.5"/>
-      <stop offset="1" stop-color="#496D8F" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="sealGlint" cx="42%" cy="38%" r="12%">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.7"/>
-      <stop offset="0.58" stop-color="#F6FAF9" stop-opacity="0.46"/>
-      <stop offset="1" stop-color="#F6FAF9" stop-opacity="0"/>
-    </radialGradient>
-    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#213642" flood-opacity="0.22"/>
+    <linearGradient id="bulbGlass" x1="38" y1="20" x2="88" y2="82" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.58" stop-color="#FBFEFD"/>
+      <stop offset="1" stop-color="#EFF8F7"/>
+    </linearGradient>
+    <linearGradient id="metalBase" x1="48" y1="78" x2="80" y2="114" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#AFCFCE"/>
+      <stop offset="1" stop-color="#5D8587"/>
+    </linearGradient>
+    <filter id="softLift" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#1B7480" flood-opacity="0.14"/>
     </filter>
   </defs>
-  <path d="M9 31C9 17 18 8 32 7c15-1 25 9 24 24-1 16-11 26-26 25C16 55 8 45 9 31Z" fill="#E9EFEF" opacity="0.82"/>
-  <path d="M13 30C13 18 21 11 33 11c12 1 21 9 20 21-1 13-10 21-23 20-11-1-18-10-17-22Z" fill="#E1E9EB" stroke="#213642" stroke-opacity="0.26" filter="url(#softShadow)"/>
-  <path d="M13 30C13 18 21 11 33 11c12 1 21 9 20 21-1 13-10 21-23 20-11-1-18-10-17-22Z" fill="url(#sealCore)"/>
-  <path d="M13 30C13 18 21 11 33 11c12 1 21 9 20 21-1 13-10 21-23 20-11-1-18-10-17-22Z" fill="url(#sealGlint)"/>
-  <path d="M20 31C20 22 26 17 34 17c9 1 15 7 14 16-1 9-7 15-16 14-8-1-13-7-12-16Z" fill="none" stroke="#213642" stroke-opacity="0.24" stroke-width="2"/>
+  <path
+    d="M64 8C40.5 8 24 25.9 24 48.2c0 12.9 5.6 24.1 14.5 31.6 4 3.4 6.5 8.1 6.5 13.2v2.2h38V93c0-5.1 2.6-9.8 6.5-13.2C98.4 72.3 104 61.1 104 48.2 104 25.9 87.5 8 64 8Z"
+    fill="url(#bulbGlass)"
+    stroke="#197482"
+    stroke-width="8"
+    stroke-linejoin="round"
+    filter="url(#softLift)"
+  />
+  <path
+    d="M48.5 95h31M47.5 104h33M51 113h26"
+    fill="none"
+    stroke="#197482"
+    stroke-width="7"
+    stroke-linecap="round"
+  />
+  <path
+    d="M49 88h30v27H49z"
+    fill="url(#metalBase)"
+    opacity="0.72"
+  />
+  <path
+    d="M64 88V61M64 61c-9.5 0-16-5.6-16-13.2 0-4.6 2.7-8.1 6.5-8.1 4.6 0 6.8 4.5 7.8 11.2L64 61Zm0 0c9.5 0 16-5.6 16-13.2 0-4.6-2.7-8.1-6.5-8.1-4.6 0-6.8 4.5-7.8 11.2L64 61Z"
+    fill="none"
+    stroke="#F0BE55"
+    stroke-width="7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M49 88h30"
+    fill="none"
+    stroke="#197482"
+    stroke-width="8"
+    stroke-linecap="round"
+  />
 </svg>
