@@ -98,9 +98,10 @@ func TestMarkdownDemoPageUsesSitePalette(t *testing.T) {
 	page := renderMarkdownPage("调色测试", "# 标题\n\n正文")
 
 	for _, want := range []string{
-		`href="/favicon.svg?v=20260609-mist-palette"`,
-		`--ink: #213642`,
-		`--line: #b8c6ce`,
+		`href="/favicon.svg?v=20260618-bulb-logo"`,
+		demoThemeMarker,
+		`--go-site-primary: #0866FF`,
+		`--go-site-bg: #F0F2F5`,
 		`class="md-brand-seal"`,
 		`灵感书架`,
 		`>标题</h1>`,
@@ -110,7 +111,7 @@ func TestMarkdownDemoPageUsesSitePalette(t *testing.T) {
 			t.Fatalf("rendered markdown page missing %q:\n%s", want, page)
 		}
 	}
-	if strings.Contains(page, "#756b59") || strings.Contains(page, "20260528") {
+	if strings.Contains(page, "#756b59") || strings.Contains(page, "20260528") || strings.Contains(page, "#213642") {
 		t.Fatalf("rendered markdown page contains old theme values:\n%s", page)
 	}
 }
@@ -145,8 +146,8 @@ func TestRefreshStoredMarkdownDemoPagesUpdatesShellAndKeepsBody(t *testing.T) {
 	}
 	nextPage := string(data)
 	for _, want := range []string{
-		`href="/favicon.svg?v=20260609-mist-palette"`,
-		`--ink: #213642`,
+		`href="/favicon.svg?v=20260618-bulb-logo"`,
+		`--go-site-primary: #0866FF`,
 		`>保留正文</h1>`,
 		`<li>one</li>`,
 	} {
@@ -154,7 +155,7 @@ func TestRefreshStoredMarkdownDemoPagesUpdatesShellAndKeepsBody(t *testing.T) {
 			t.Fatalf("refreshed page missing %q:\n%s", want, nextPage)
 		}
 	}
-	if strings.Contains(nextPage, "20260528") || strings.Contains(nextPage, "#27312b") {
+	if strings.Contains(nextPage, "20260528") || strings.Contains(nextPage, "#27312b") || strings.Contains(nextPage, "#213642") {
 		t.Fatalf("refreshed page contains old shell values:\n%s", nextPage)
 	}
 }
@@ -294,6 +295,45 @@ func TestServeDemoRedirectsSlugToDirectory(t *testing.T) {
 	}
 	if location := rec.Header().Get("Location"); location != "/demo/persona-box/" {
 		t.Fatalf("Location = %q, want /demo/persona-box/", location)
+	}
+}
+
+func TestServeDemoInjectsSiteThemeIntoHTML(t *testing.T) {
+	dataDir := t.TempDir()
+	a := &app{
+		dataDir:      dataDir,
+		demosDir:     filepath.Join(dataDir, "demos"),
+		manifestPath: filepath.Join(dataDir, "manifest.json"),
+		publicOrigin: "https://example.test",
+	}
+	if err := os.MkdirAll(filepath.Join(a.demosDir, "persona-box"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	page := `<!doctype html><html><head><title>Demo</title></head><body><h1>Demo</h1></body></html>`
+	if err := os.WriteFile(filepath.Join(a.demosDir, "persona-box", "index.html"), []byte(page), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.saveManifestLocked(manifest{Demos: []demoItem{{Title: "Persona Box", Slug: "persona-box"}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/demo/persona-box/", nil)
+	rec := httptest.NewRecorder()
+	a.handleServeDemo(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		demoThemeMarker,
+		`href="/favicon.svg?v=20260618-bulb-logo"`,
+		`--go-site-primary: #0866FF`,
+		`<h1>Demo</h1>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("served demo page missing %q:\n%s", want, body)
+		}
 	}
 }
 

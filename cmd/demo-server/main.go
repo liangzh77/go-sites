@@ -37,7 +37,8 @@ const (
 	cookieName                 = "go_sites_demo_session"
 	sessionMaxAgeSec           = 60 * 60 * 24 * 7
 	maxUploadBytes             = 25 << 20
-	markdownDemoFaviconVersion = "20260609-mist-palette"
+	markdownDemoFaviconVersion = "20260618-bulb-logo"
+	demoThemeMarker            = `id="go-sites-demo-theme"`
 )
 
 var appRoutePaths = []string{
@@ -1022,7 +1023,54 @@ func (a *app) handleServeDemo(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	http.ServeFile(w, r, target)
+	a.serveDemoFile(w, r, target)
+}
+
+func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, target string) {
+	if !isDemoHTMLFile(target) {
+		http.ServeFile(w, r, target)
+		return
+	}
+
+	info, err := os.Stat(target)
+	if err != nil || info.IsDir() {
+		http.NotFound(w, r)
+		return
+	}
+	data, err := os.ReadFile(target)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "READ_FAILED", "Unable to read demo page.")
+		return
+	}
+
+	page := injectDemoThemeHTML(string(data))
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	http.ServeContent(w, r, info.Name(), info.ModTime(), strings.NewReader(page))
+}
+
+func isDemoHTMLFile(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".html", ".htm":
+		return true
+	default:
+		return false
+	}
+}
+
+func injectDemoThemeHTML(page string) string {
+	if strings.Contains(page, demoThemeMarker) {
+		return page
+	}
+
+	injection := demoThemeHeadHTML()
+	lowerPage := strings.ToLower(page)
+	if index := strings.Index(lowerPage, "</head>"); index >= 0 {
+		return page[:index] + injection + page[index:]
+	}
+	if index := strings.Index(lowerPage, "<body"); index >= 0 {
+		return page[:index] + injection + page[index:]
+	}
+	return injection + page
 }
 
 func (a *app) handleServeWikiAsset(w http.ResponseWriter, r *http.Request) {
@@ -1756,6 +1804,253 @@ func renderMarkdownPage(title, source string) string {
 	return renderMarkdownPageHTML(title, renderMarkdown(source))
 }
 
+func demoThemeHeadHTML() string {
+	return `
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=` + markdownDemoFaviconVersion + `">
+  <style ` + demoThemeMarker + `>
+` + demoThemeCSS() + `
+  </style>
+`
+}
+
+func demoThemeCSS() string {
+	return `
+    :root {
+      color-scheme: light;
+      --go-site-primary: #0866FF;
+      --go-site-primary-hover: #075CE5;
+      --go-site-bg: #F0F2F5;
+      --go-site-surface: #FFFFFF;
+      --go-site-surface-soft: #F5F6F7;
+      --go-site-surface-hover: #F2F3F5;
+      --go-site-border: #DADDE1;
+      --go-site-border-soft: #E4E6EB;
+      --go-site-text: #1C1E21;
+      --go-site-muted: #65676B;
+      --go-site-focus: rgba(8, 102, 255, 0.16);
+    }
+
+    html {
+      background: var(--go-site-bg);
+    }
+
+    body {
+      background: var(--go-site-bg) !important;
+      color: var(--go-site-text);
+      font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+    }
+
+    a {
+      color: var(--go-site-primary);
+    }
+
+    a:hover {
+      color: var(--go-site-primary-hover);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font-family: inherit;
+    }
+
+    button,
+    [role="button"],
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    .btn,
+    .button {
+      border-radius: 8px;
+    }
+
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    .btn-primary,
+    .button-primary {
+      border-color: var(--go-site-primary);
+      background-color: var(--go-site-primary);
+      color: #FFFFFF;
+      box-shadow: none;
+    }
+
+    button:hover,
+    input[type="button"]:hover,
+    input[type="submit"]:hover,
+    input[type="reset"]:hover,
+    .btn-primary:hover,
+    .button-primary:hover {
+      background-color: var(--go-site-primary-hover);
+      border-color: var(--go-site-primary-hover);
+    }
+
+    input:not([type]),
+    input[type="email"],
+    input[type="number"],
+    input[type="password"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="text"],
+    input[type="url"],
+    select,
+    textarea {
+      border-color: #CED0D4;
+      background-color: var(--go-site-surface);
+      color: var(--go-site-text);
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus,
+    button:focus-visible,
+    [role="button"]:focus-visible {
+      border-color: var(--go-site-primary);
+      box-shadow: 0 0 0 3px var(--go-site-focus);
+      outline: none;
+    }
+
+    table {
+      background: var(--go-site-surface);
+      border-color: var(--go-site-border);
+    }
+
+    th {
+      background: var(--go-site-surface-soft);
+      color: var(--go-site-muted);
+    }
+
+    td,
+    th {
+      border-color: var(--go-site-border-soft);
+    }
+
+    tr:hover td {
+      background: var(--go-site-surface-hover);
+    }
+
+    ::selection {
+      background: rgba(8, 102, 255, 0.18);
+      color: var(--go-site-text);
+    }
+`
+}
+
+func markdownDemoCSS() string {
+	return `
+    body {
+      margin: 0;
+      min-height: 100vh;
+      line-height: 1.72;
+    }
+
+    main {
+      width: min(900px, calc(100vw - 2rem));
+      margin: 0 auto;
+      padding: 2rem 0 4rem;
+    }
+
+    .md-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.875rem;
+      margin-bottom: 1rem;
+      color: var(--go-site-muted);
+    }
+
+    .md-brand-seal {
+      width: 2.75rem;
+      height: 2.75rem;
+      flex-shrink: 0;
+      background: transparent url("/favicon.svg?v=` + markdownDemoFaviconVersion + `") center / contain no-repeat;
+    }
+
+    .md-brand-text {
+      color: var(--go-site-text);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    article {
+      padding: 2rem;
+      border: 1px solid var(--go-site-border);
+      border-radius: 8px;
+      background: var(--go-site-surface);
+      box-shadow: 0 1px 2px rgba(28, 30, 33, 0.1);
+    }
+
+    h1,
+    h2,
+    h3 {
+      color: var(--go-site-text);
+      line-height: 1.25;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: clamp(1.9rem, 5vw, 3rem);
+    }
+
+    h2 {
+      margin-top: 2rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--go-site-border-soft);
+    }
+
+    code {
+      padding: 0.12rem 0.35rem;
+      border-radius: 6px;
+      background: var(--go-site-bg);
+    }
+
+    pre {
+      overflow-x: auto;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      padding: 0.9rem 1rem;
+      border: 1px solid var(--go-site-border);
+      border-left: 3px solid var(--go-site-primary);
+      border-radius: 8px;
+      background: var(--go-site-surface-soft);
+      color: var(--go-site-text);
+      font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+      line-height: 1.72;
+    }
+
+    pre code {
+      display: block;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      white-space: inherit;
+    }
+
+    blockquote {
+      margin: 1rem 0;
+      padding: 0.4rem 1rem;
+      border-left: 3px solid var(--go-site-primary);
+      color: var(--go-site-muted);
+      background: var(--go-site-bg);
+    }
+
+    @media (max-width: 640px) {
+      main {
+        width: min(100vw - 1rem, 900px);
+        padding: 1rem 0 2rem;
+      }
+
+      article {
+        padding: 1.1rem;
+      }
+    }
+`
+}
+
 func renderMarkdownPageHTML(title, body string) string {
 	return `<!doctype html>
 <html lang="zh-CN">
@@ -1764,25 +2059,8 @@ func renderMarkdownPageHTML(title, body string) string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>` + html.EscapeString(title) + `</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=` + markdownDemoFaviconVersion + `">
-  <style>
-    :root { color-scheme: light; --ink: #213642; --soft: #526774; --paper: #f6faf9; --wash: #e9efef; --line: #b8c6ce; --accent: #496d8f; --mist: #dce5e7; }
-    * { box-sizing: border-box; }
-    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 16% 8%, rgba(33, 54, 66, 0.12) 0 13rem, transparent 23rem), radial-gradient(circle at 86% 12%, rgba(73, 109, 143, 0.14) 0 15rem, transparent 26rem), linear-gradient(135deg, var(--paper), var(--wash) 54%, #d4dee2); color: var(--ink); font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; line-height: 1.72; }
-    main { width: min(860px, calc(100vw - 2rem)); margin: 0 auto; padding: 3rem 0 4rem; }
-    .md-brand { display: flex; align-items: center; gap: 0.875rem; margin-bottom: 1.35rem; color: var(--soft); }
-    .md-brand-seal { position: relative; width: 3rem; height: 3rem; border: 1px solid rgba(33, 54, 66, 0.24); border-radius: 55% 45% 58% 42%; background: radial-gradient(circle at 42% 38%, rgba(255, 255, 255, 0.48) 0 0.3rem, transparent 0.38rem), radial-gradient(circle at 55% 58%, rgba(33, 54, 66, 0.82), rgba(73, 109, 143, 0.46) 64%, transparent 70%), #e1e9eb; box-shadow: 0 0 0 7px rgba(233, 239, 239, 0.8), 0 12px 25px -19px rgba(33, 54, 66, 0.5); flex-shrink: 0; }
-    .md-brand-seal::after { content: ""; position: absolute; inset: 0.3rem; border: 1px solid rgba(33, 54, 66, 0.22); border-radius: 42% 58% 50% 50%; transform: rotate(-18deg); }
-    .md-brand-text { font-size: 0.8rem; letter-spacing: 0.08em; }
-    article { padding: 2rem; border: 1px solid var(--line); border-radius: 18px 24px 17px 21px; background: rgba(246, 250, 249, 0.82); box-shadow: 0 18px 42px -34px rgba(33, 54, 66, 0.42); }
-    h1, h2, h3 { line-height: 1.25; color: var(--ink); }
-    h1 { margin-top: 0; font-size: clamp(1.9rem, 5vw, 3.1rem); }
-    h2 { margin-top: 2rem; padding-top: 0.5rem; border-top: 1px solid var(--line); }
-    a { color: var(--accent); }
-    code { padding: 0.12rem 0.35rem; border-radius: 6px; background: var(--wash); }
-    pre { overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 0.9rem 1rem; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; background: #edf3f2; color: var(--ink); font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; line-height: 1.72; }
-    pre code { display: block; padding: 0; border-radius: 0; background: transparent; color: inherit; font: inherit; white-space: inherit; }
-    blockquote { margin: 1rem 0; padding: 0.4rem 1rem; border-left: 3px solid var(--accent); color: var(--soft); background: rgba(220, 229, 231, 0.64); }
-    @media (max-width: 640px) { main { width: min(100vw - 1rem, 860px); padding: 1rem 0 2rem; } article { padding: 1.1rem; border-radius: 14px 18px 13px 17px; } }
+  <style ` + demoThemeMarker + `>
+` + demoThemeCSS() + markdownDemoCSS() + `
   </style>
 </head>
 <body>
