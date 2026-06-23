@@ -298,7 +298,7 @@ func TestServeDemoRedirectsSlugToDirectory(t *testing.T) {
 	}
 }
 
-func TestServeDemoInjectsSiteThemeIntoHTML(t *testing.T) {
+func TestServeDemoPreservesUploadedHTML(t *testing.T) {
 	dataDir := t.TempDir()
 	a := &app{
 		dataDir:      dataDir,
@@ -325,15 +325,86 @@ func TestServeDemoInjectsSiteThemeIntoHTML(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 	body := rec.Body.String()
+	if body != page {
+		t.Fatalf("served uploaded HTML changed:\n%s", body)
+	}
+	if strings.Contains(body, demoThemeMarker) || strings.Contains(body, `--go-site-primary`) {
+		t.Fatalf("served uploaded HTML should not include site theme:\n%s", body)
+	}
+}
+
+func TestServeMarkdownDemoKeepsSiteTheme(t *testing.T) {
+	dataDir := t.TempDir()
+	a := &app{
+		dataDir:      dataDir,
+		demosDir:     filepath.Join(dataDir, "demos"),
+		manifestPath: filepath.Join(dataDir, "manifest.json"),
+		publicOrigin: "https://example.test",
+	}
+	if err := os.MkdirAll(filepath.Join(a.demosDir, "markdown-demo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	page := renderMarkdownPage("Markdown Demo", "# Demo")
+	if err := os.WriteFile(filepath.Join(a.demosDir, "markdown-demo", "index.html"), []byte(page), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.saveManifestLocked(manifest{Demos: []demoItem{{Title: "Markdown Demo", Slug: "markdown-demo", Kind: "markdown"}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/demo/markdown-demo/", nil)
+	rec := httptest.NewRecorder()
+	a.handleServeDemo(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
 	for _, want := range []string{
 		demoThemeMarker,
 		`href="/favicon.svg?v=20260618-bulb-logo"`,
 		`--go-site-primary: #0866FF`,
-		`<h1>Demo</h1>`,
+		`<h1 id="demo">Demo</h1>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("served demo page missing %q:\n%s", want, body)
 		}
+	}
+}
+
+func TestServeZipDemoHTMLPreservesStyles(t *testing.T) {
+	dataDir := t.TempDir()
+	a := &app{
+		dataDir:      dataDir,
+		demosDir:     filepath.Join(dataDir, "demos"),
+		manifestPath: filepath.Join(dataDir, "manifest.json"),
+		publicOrigin: "https://example.test",
+	}
+	targetDir := filepath.Join(a.demosDir, "zip-demo")
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	page := `<!doctype html><html><head><style>body{background:#111}.btn{border-radius:0}</style></head><body><button class="btn">OK</button></body></html>`
+	if err := os.WriteFile(filepath.Join(targetDir, "index.html"), []byte(page), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.saveManifestLocked(manifest{Demos: []demoItem{{Title: "Zip Demo", Slug: "zip-demo", Kind: "zip"}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/demo/zip-demo/", nil)
+	rec := httptest.NewRecorder()
+	a.handleServeDemo(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if body != page {
+		t.Fatalf("served zip HTML changed:\n%s", body)
+	}
+	if strings.Contains(body, demoThemeMarker) || strings.Contains(body, `--go-site-primary`) {
+		t.Fatalf("served zip HTML should not include site theme:\n%s", body)
 	}
 }
 

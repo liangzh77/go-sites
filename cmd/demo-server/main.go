@@ -1023,11 +1023,11 @@ func (a *app) handleServeDemo(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	a.serveDemoFile(w, r, target)
+	a.serveDemoFile(w, r, target, item.Kind)
 }
 
-func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, target string) {
-	if !isDemoHTMLFile(target) {
+func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, target, kind string) {
+	if !isDemoHTMLFile(target) || !strings.EqualFold(kind, "markdown") {
 		http.ServeFile(w, r, target)
 		return
 	}
