@@ -117,6 +117,43 @@ func TestMarkdownDemoPageUsesSitePalette(t *testing.T) {
 	}
 }
 
+func TestMarkdownDemoPageIncludesMindmapRenderer(t *testing.T) {
+	page := renderMarkdownPage("功能图", "```mermaid\nmindmap\n  root((MagicCut))\n    创作剪辑\n      自由创作\n```")
+
+	for _, want := range []string{
+		`<code class="language-mermaid">mindmap`,
+		markdownMindmapStyleMarker,
+		markdownMindmapScriptMarker,
+		`className = "md-mindmap-node md-mindmap-node--" + kind`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("rendered markdown page missing mindmap enhancement %q:\n%s", want, page)
+		}
+	}
+}
+
+func TestInjectMarkdownMindmapHTMLUpdatesStoredPage(t *testing.T) {
+	page := `<!doctype html><html><head><style ` + demoThemeMarker + `></style></head><body><main><article><pre><code class="language-mermaid">mindmap
+  root((MagicCut))
+    创作剪辑
+      自由创作
+</code></pre></article></main></body></html>`
+
+	enhanced := injectMarkdownMindmapHTML(page)
+	for _, want := range []string{
+		markdownMindmapStyleMarker,
+		markdownMindmapScriptMarker,
+		`document.querySelectorAll("pre > code.language-mermaid")`,
+	} {
+		if !strings.Contains(enhanced, want) {
+			t.Fatalf("enhanced stored markdown page missing %q:\n%s", want, enhanced)
+		}
+	}
+	if strings.Count(enhanced, markdownMindmapScriptMarker) != 1 {
+		t.Fatalf("mindmap script injected more than once:\n%s", enhanced)
+	}
+}
+
 func TestRefreshStoredMarkdownDemoPagesUpdatesShellAndKeepsBody(t *testing.T) {
 	dataDir := t.TempDir()
 	a := &app{
@@ -620,6 +657,9 @@ func TestTopLevelAppRoutesServeIndex(t *testing.T) {
 		}
 		if body := rec.Body.String(); body != "app shell" {
 			t.Fatalf("%s body = %q, want app shell", routePath, body)
+		}
+		if got := rec.Header().Get("Cache-Control"); got != "no-store, max-age=0" {
+			t.Fatalf("%s Cache-Control = %q, want no-store, max-age=0", routePath, got)
 		}
 	}
 }

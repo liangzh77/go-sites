@@ -5341,12 +5341,6 @@
                 const badge = document.getElementById('siteVersionBadge');
                 if (!badge) return;
 
-                if (!this.isHomeRoute()) {
-                    badge.hidden = true;
-                    badge.textContent = '';
-                    return;
-                }
-
                 try {
                     const response = await fetch('/site-version.txt', { cache: 'no-store' });
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -6090,7 +6084,7 @@
             }
 
             async restoreAuthSession() {
-                if (await this.verifyDemoSession()) {
+                if (await this.ensureDemoSession()) {
                     this.isAuthenticated = true;
                     this.updateAuthButton();
                     const preferredPage = this.routePageName || this.currentTab || this.privatePageName;
@@ -6100,6 +6094,18 @@
                     return;
                 }
                 this.handleAuthExpired();
+            }
+
+            async ensureDemoSession() {
+                if (await this.verifyDemoSession()) {
+                    return true;
+                }
+
+                const configuredPassword = window.SITE_CONFIG?.privateArea?.password || '';
+                if (!configuredPassword) {
+                    return false;
+                }
+                return this.establishDemoSession(configuredPassword);
             }
 
             hasValidStoredAuthSession() {
@@ -6203,8 +6209,10 @@
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}`);
                     }
+                    return true;
                 } catch (error) {
                     console.warn('Demo session unavailable', error);
+                    return false;
                 }
             }
 

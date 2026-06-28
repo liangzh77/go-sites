@@ -35,11 +35,13 @@ import (
 )
 
 const (
-	cookieName                 = "go_sites_demo_session"
-	sessionMaxAgeSec           = 60 * 60 * 24 * 7
-	maxUploadBytes             = 25 << 20
-	markdownDemoFaviconVersion = "20260618-bulb-logo"
-	demoThemeMarker            = `id="go-sites-demo-theme"`
+	cookieName                  = "go_sites_demo_session"
+	sessionMaxAgeSec            = 60 * 60 * 24 * 7
+	maxUploadBytes              = 25 << 20
+	markdownDemoFaviconVersion  = "20260618-bulb-logo"
+	demoThemeMarker             = `id="go-sites-demo-theme"`
+	markdownMindmapStyleMarker  = "go-sites-markdown-mindmap-style"
+	markdownMindmapScriptMarker = "data-md-mindmap-script"
 )
 
 var markdownHrefAttributePattern = regexp.MustCompile(`href="([^"]*)"`)
@@ -1065,6 +1067,7 @@ func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, item demoIte
 	}
 
 	page := injectDemoThemeHTML(string(data))
+	page = injectMarkdownMindmapHTML(page)
 	if item.Kind == "markdown-folder" && strings.Contains(string(data), demoThemeMarker) {
 		page = injectMarkdownFolderTreeHTML(page, demoRoot, target, slug)
 	}
@@ -1098,6 +1101,24 @@ func injectDemoThemeHTML(page string) string {
 		return page[:index] + injection + page[index:]
 	}
 	return injection + page
+}
+
+func injectMarkdownMindmapHTML(page string) string {
+	if !markdownPageHasMermaidMindmap(page) {
+		return page
+	}
+	if !strings.Contains(page, markdownMindmapStyleMarker) {
+		page = injectBeforeClosingTag(page, "</style>", markdownMindmapCSS())
+	}
+	if !strings.Contains(page, markdownMindmapScriptMarker) {
+		page = injectBeforeClosingTag(page, "</body>", markdownMindmapScript())
+	}
+	return page
+}
+
+func markdownPageHasMermaidMindmap(page string) bool {
+	lowerPage := strings.ToLower(page)
+	return strings.Contains(lowerPage, "language-mermaid") && strings.Contains(lowerPage, "mindmap")
 }
 
 const markdownFolderTreeMarker = `data-md-folder-tree`
@@ -1503,8 +1524,8 @@ func (a *app) handleServeWikiAsset(w http.ResponseWriter, r *http.Request) {
 
 func (a *app) handleStaticFallback(w http.ResponseWriter, r *http.Request) {
 	cleanPath := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
-	if cleanPath == "" {
-		http.ServeFile(w, r, filepath.Join(a.staticRoot, "index.html"))
+	if cleanPath == "" || strings.EqualFold(cleanPath, "index.html") {
+		a.serveAppShell(w, r)
 		return
 	}
 	target := filepath.Join(a.staticRoot, filepath.FromSlash(cleanPath))
@@ -1516,6 +1537,13 @@ func (a *app) handleStaticFallback(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, target)
 		return
 	}
+	a.serveAppShell(w, r)
+}
+
+func (a *app) serveAppShell(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
 	http.ServeFile(w, r, filepath.Join(a.staticRoot, "index.html"))
 }
 
@@ -2864,7 +2892,351 @@ func markdownDemoCSS() string {
 `
 }
 
+func markdownMindmapCSS() string {
+	return `
+    /* ` + markdownMindmapStyleMarker + ` */
+    .md-mindmap {
+      margin: 1.25rem 0 2rem;
+      overflow-x: auto;
+      border: 1px solid var(--go-site-border-soft);
+      border-radius: 8px;
+      background: #FFFFFF;
+      box-shadow: inset 0 0 0 1px rgba(28, 30, 33, 0.03);
+    }
+
+    .md-mindmap-stage {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      height: 520px;
+      background: #FAFAFA;
+    }
+
+    .md-mindmap-svg {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .md-mindmap-line {
+      stroke: #C4C4C4;
+      stroke-linecap: round;
+      vector-effect: non-scaling-stroke;
+    }
+
+    .md-mindmap-line--branch {
+      stroke-width: 8;
+    }
+
+    .md-mindmap-line--leaf {
+      stroke-width: 5;
+      opacity: 0.9;
+    }
+
+    .md-mindmap-node {
+      position: absolute;
+      z-index: 1;
+      min-width: 5.2rem;
+      max-width: 13rem;
+      padding: 0.24rem 0.82rem 0.28rem;
+      border-radius: 6px;
+      background: #C6C6C6;
+      box-shadow: 0 5px 0 #343434;
+      color: #202124;
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.25;
+      text-align: center;
+      white-space: nowrap;
+      transform: translate(-50%, -50%);
+    }
+
+    .md-mindmap-node--root {
+      display: grid;
+      width: 7.4rem;
+      height: 7.4rem;
+      min-width: 7.4rem;
+      max-width: 7.4rem;
+      place-items: center;
+      padding: 0;
+      border-radius: 999px;
+      background: #BFBFBF;
+      box-shadow: none;
+      font-size: 1.16rem;
+    }
+
+    .md-mindmap-node--category {
+      min-width: 5.8rem;
+      background: #BFBFBF;
+      font-size: 1.08rem;
+    }
+
+    .md-mindmap-node--leaf {
+      background: rgba(198, 198, 198, 0.78);
+    }
+
+    @media (min-width: 760px) {
+      .md-mindmap {
+        margin-left: -1rem;
+        margin-right: -1rem;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .md-mindmap {
+        margin-left: -0.4rem;
+        margin-right: -0.4rem;
+      }
+
+      .md-mindmap-stage {
+        min-width: 820px;
+        height: 500px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .md-mindmap-node {
+        min-width: 5rem;
+        padding: 0.22rem 0.7rem 0.26rem;
+        font-size: 0.95rem;
+      }
+
+      .md-mindmap-node--root {
+        width: 6.8rem;
+        height: 6.8rem;
+        min-width: 6.8rem;
+        max-width: 6.8rem;
+        font-size: 1.05rem;
+      }
+    }
+`
+}
+
+func markdownMindmapScript() string {
+	return `
+  <script ` + markdownMindmapScriptMarker + `>
+    (function () {
+      const rootPosition = { x: 50, y: 47 };
+      const categoryPositions = {
+        "创作剪辑": { x: 30, y: 31 },
+        "素材资产": { x: 29, y: 55 },
+        "渠道投放": { x: 48, y: 27 },
+        "AI能力": { x: 70, y: 34 },
+        "平台管理": { x: 70, y: 58 },
+        "渲染导出": { x: 49, y: 78 }
+      };
+      const leafPositions = {
+        "创作剪辑": {
+          "自由创作": { x: 24, y: 12 },
+          "原片顺剪": { x: 12, y: 22 },
+          "模板管理": { x: 10, y: 37 },
+          "视频裂变": { x: 22, y: 47 }
+        },
+        "素材资产": {
+          "云空间": { x: 10, y: 49 },
+          "短剧下载": { x: 8, y: 63 },
+          "字体/BGM/贴纸": { x: 23, y: 74 },
+          "本地上传": { x: 39, y: 66 },
+          "成片库": { x: 35, y: 44 }
+        },
+        "渠道投放": {
+          "发布账号": { x: 56, y: 9 },
+          "发布任务": { x: 41, y: 15 },
+          "创量对接": { x: 64, y: 24 }
+        },
+        "AI能力": {
+          "剧集分析": { x: 79, y: 13 },
+          "高光识别": { x: 88, y: 24 },
+          "文本/多模态网关": { x: 88, y: 39 },
+          "钩子识别": { x: 80, y: 51 }
+        },
+        "平台管理": {
+          "租户": { x: 65, y: 48 },
+          "用户": { x: 86, y: 55 },
+          "任务监控": { x: 85, y: 70 },
+          "配额": { x: 73, y: 79 },
+          "RBAC": { x: 60, y: 72 }
+        },
+        "渲染导出": {
+          "Worker执行": { x: 28, y: 78 },
+          "成片上传/下载": { x: 37, y: 90 },
+          "混剪组合": { x: 53, y: 94 },
+          "任务提交": { x: 65, y: 85 }
+        }
+      };
+
+      function leadingWidth(line) {
+        const match = line.match(/^[\t ]*/);
+        return match ? match[0].replace(/\t/g, "  ").length : 0;
+      }
+
+      function cleanMindmapLabel(raw) {
+        let label = raw.replace(/:::.*$/, "").trim();
+        label = label.replace(/^root\s*/i, "").trim();
+        let changed = true;
+        while (changed) {
+          changed = false;
+          const wrapped = [
+            /^\(\((.*)\)\)$/,
+            /^\[(.*)\]$/,
+            /^\((.*)\)$/
+          ];
+          for (const pattern of wrapped) {
+            const match = label.match(pattern);
+            if (match) {
+              label = match[1].trim();
+              changed = true;
+            }
+          }
+        }
+        return label || raw.trim();
+      }
+
+      function parseMindmap(source) {
+        const lines = source.replace(/\r\n?/g, "\n").split("\n").filter(line => line.trim());
+        const stack = [];
+        let root = null;
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || /^mindmap\b/i.test(trimmed)) continue;
+          const indent = leadingWidth(line);
+          const node = { label: cleanMindmapLabel(trimmed), children: [] };
+          while (stack.length && stack[stack.length - 1].indent >= indent) {
+            stack.pop();
+          }
+          if (stack.length) {
+            stack[stack.length - 1].node.children.push(node);
+          } else {
+            root = node;
+          }
+          stack.push({ indent, node });
+        }
+        return root;
+      }
+
+      function flattenDescendants(node) {
+        const labels = [];
+        for (const child of node.children || []) {
+          labels.push(child.label);
+          labels.push.apply(labels, flattenDescendants(child));
+        }
+        return labels;
+      }
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function fallbackCategoryPosition(index, total) {
+        const angle = -Math.PI / 2 + (Math.PI * 2 * index) / Math.max(total, 1);
+        return {
+          x: 50 + Math.cos(angle) * 29,
+          y: 48 + Math.sin(angle) * 33
+        };
+      }
+
+      function fallbackLeafPosition(categoryPosition, index, total) {
+        const dx = categoryPosition.x - rootPosition.x;
+        const dy = categoryPosition.y - rootPosition.y;
+        const length = Math.hypot(dx, dy) || 1;
+        const radialX = dx / length;
+        const radialY = dy / length;
+        const tangentX = -radialY;
+        const tangentY = radialX;
+        const offset = index - (Math.max(total, 1) - 1) / 2;
+        return {
+          x: clamp(categoryPosition.x + radialX * 17 + tangentX * offset * 9, 7, 93),
+          y: clamp(categoryPosition.y + radialY * 16 + tangentY * offset * 8, 8, 94)
+        };
+      }
+
+      function line(svg, from, to, kind) {
+        const element = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        element.setAttribute("x1", from.x);
+        element.setAttribute("y1", from.y);
+        element.setAttribute("x2", to.x);
+        element.setAttribute("y2", to.y);
+        element.setAttribute("class", "md-mindmap-line md-mindmap-line--" + kind);
+        element.setAttribute("vector-effect", "non-scaling-stroke");
+        svg.appendChild(element);
+      }
+
+      function node(stage, label, position, kind) {
+        const element = document.createElement("div");
+        element.className = "md-mindmap-node md-mindmap-node--" + kind;
+        element.textContent = label;
+        element.style.left = position.x + "%";
+        element.style.top = position.y + "%";
+        stage.appendChild(element);
+      }
+
+      function renderMindmap(pre, root) {
+        if (!root || !root.label) return;
+        const figure = document.createElement("figure");
+        figure.className = "md-mindmap";
+        figure.setAttribute("role", "img");
+        figure.setAttribute("aria-label", root.label + " 功能分层图");
+
+        const stage = document.createElement("div");
+        stage.className = "md-mindmap-stage";
+
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("class", "md-mindmap-svg");
+        svg.setAttribute("viewBox", "0 0 100 100");
+        svg.setAttribute("preserveAspectRatio", "none");
+        stage.appendChild(svg);
+
+        const categories = root.children || [];
+        categories.forEach((category, index) => {
+          const categoryPosition = categoryPositions[category.label] || fallbackCategoryPosition(index, categories.length);
+          line(svg, rootPosition, categoryPosition, "branch");
+          const leaves = flattenDescendants(category);
+          leaves.forEach((labelText, childIndex) => {
+            const position = (leafPositions[category.label] && leafPositions[category.label][labelText]) ||
+              fallbackLeafPosition(categoryPosition, childIndex, leaves.length);
+            line(svg, categoryPosition, position, "leaf");
+            node(stage, labelText, position, "leaf");
+          });
+          node(stage, category.label, categoryPosition, "category");
+        });
+
+        node(stage, root.label, rootPosition, "root");
+        figure.appendChild(stage);
+        pre.replaceWith(figure);
+      }
+
+      function renderAll() {
+        document.querySelectorAll("pre > code.language-mermaid").forEach(code => {
+          const source = code.textContent || "";
+          if (!/^\s*mindmap\b/i.test(source)) return;
+          const pre = code.closest("pre");
+          const root = parseMindmap(source);
+          if (pre && root) {
+            renderMindmap(pre, root);
+          }
+        });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", renderAll, { once: true });
+      } else {
+        renderAll();
+      }
+    })();
+  </script>
+`
+}
+
 func renderMarkdownPageHTML(title, body string) string {
+	mindmapCSS := ""
+	mindmapScript := ""
+	if markdownPageHasMermaidMindmap(body) {
+		mindmapCSS = markdownMindmapCSS()
+		mindmapScript = markdownMindmapScript()
+	}
 	return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -2873,7 +3245,7 @@ func renderMarkdownPageHTML(title, body string) string {
   <title>` + html.EscapeString(title) + `</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=` + markdownDemoFaviconVersion + `">
   <style ` + demoThemeMarker + `>
-` + demoThemeCSS() + markdownDemoCSS() + `
+` + demoThemeCSS() + markdownDemoCSS() + mindmapCSS + `
   </style>
 </head>
 <body>
@@ -2886,6 +3258,7 @@ func renderMarkdownPageHTML(title, body string) string {
 ` + body + `
     </article>
   </main>
+` + mindmapScript + `
 </body>
 </html>`
 }
