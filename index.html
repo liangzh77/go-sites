@@ -2137,6 +2137,16 @@
             line-height: 1.2;
         }
 
+        .site-version {
+            margin-left: 0.45rem;
+            color: var(--ink-soft);
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0;
+            opacity: 0.58;
+            vertical-align: baseline;
+        }
+
         .brand-note {
             margin: 0.32rem 0 0;
             color: var(--ink-soft);
@@ -3260,7 +3270,7 @@
                     <div class="brand-lockup">
                         <span class="brand-seal" aria-hidden="true"></span>
                         <div>
-                            <h1 class="brand-title">灵感书架</h1>
+                            <h1 class="brand-title">灵感书架 <span id="siteVersionBadge" class="site-version" hidden></span></h1>
                             <p class="brand-note">今天也慢慢挑一件顺手的</p>
                         </div>
                     </div>
@@ -5241,6 +5251,7 @@
                 this.renderVisiblePages(this.routePageName || this.currentTab);
                 this.bindAuthEvents();
                 this.bindRouteEvents();
+                this.updateSiteVersionBadge();
                 this.updateAuthButton();
                 if (this.hasStoredAuthSession) {
                     this.restoreAuthSession();
@@ -5321,6 +5332,35 @@
                 return Object.keys(routes).find(pageName => routes[pageName].toLowerCase() === segment) || '';
             }
 
+            isHomeRoute() {
+                const path = window.location.pathname.replace(/\/+$/, '') || '/';
+                return path === '/' || path.toLowerCase() === '/index.html';
+            }
+
+            async updateSiteVersionBadge() {
+                const badge = document.getElementById('siteVersionBadge');
+                if (!badge) return;
+
+                if (!this.isHomeRoute()) {
+                    badge.hidden = true;
+                    badge.textContent = '';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/site-version.txt', { cache: 'no-store' });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const version = (await response.text()).trim();
+                    if (!version) throw new Error('Empty version');
+                    badge.textContent = `v${version}`;
+                    badge.hidden = false;
+                } catch (error) {
+                    badge.hidden = true;
+                    badge.textContent = '';
+                    console.warn('Site version unavailable', error);
+                }
+            }
+
             bindRouteEvents() {
                 window.addEventListener('popstate', () => {
                     const pageName = this.getRoutePageName();
@@ -5331,11 +5371,15 @@
                     }
                     this.routePageName = '';
                     this.renderVisiblePages();
+                    this.updateSiteVersionBadge();
                 });
             }
 
-            syncUrlToCurrentTab({ replace = false } = {}) {
+            syncUrlToCurrentTab({ replace = false, preserveHome = false } = {}) {
                 if (!this.currentTab) return;
+                if (preserveHome && this.isHomeRoute() && this.currentTab === this.recommendationPageName) {
+                    return;
+                }
 
                 const path = this.getPagePath(this.currentTab);
                 const nextUrl = `/${path}`;
@@ -5578,6 +5622,7 @@
                 if (updateHistory) {
                     this.syncUrlToCurrentTab();
                 }
+                this.updateSiteVersionBadge();
                 this.scrollActiveTabIntoView();
             }
 
@@ -6051,7 +6096,7 @@
                     const preferredPage = this.routePageName || this.currentTab || this.privatePageName;
                     await this.loadDemos({ render: false });
                     this.renderVisiblePages(preferredPage);
-                    this.syncUrlToCurrentTab({ replace: true });
+                    this.syncUrlToCurrentTab({ replace: true, preserveHome: true });
                     return;
                 }
                 this.handleAuthExpired();
@@ -6120,7 +6165,7 @@
                     ? this.recommendationPageName
                     : this.currentTab;
                 this.renderVisiblePages(nextPage);
-                this.syncUrlToCurrentTab({ replace: true });
+                this.syncUrlToCurrentTab({ replace: true, preserveHome: true });
             }
 
             async loadDemos({ render = true } = {}) {
@@ -6965,7 +7010,7 @@
                     ? this.recommendationPageName
                     : this.currentTab;
                 this.renderVisiblePages(nextPage);
-                this.syncUrlToCurrentTab({ replace: true });
+                this.syncUrlToCurrentTab({ replace: true, preserveHome: true });
             }
 
             // 站内路径补成线上可直接访问和分享的完整地址。

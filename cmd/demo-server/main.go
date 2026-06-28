@@ -40,13 +40,9 @@ const (
 	maxUploadBytes             = 25 << 20
 	markdownDemoFaviconVersion = "20260618-bulb-logo"
 	demoThemeMarker            = `id="go-sites-demo-theme"`
-	siteVersionFile            = "site-version.txt"
-	siteVersionDefault         = "1.0.0"
-	demoVersionStyleMarker     = "go-sites-demo-version-style"
 )
 
 var markdownHrefAttributePattern = regexp.MustCompile(`href="([^"]*)"`)
-var markdownBrandVersionPattern = regexp.MustCompile(`<span class="md-brand-version">[^<]*</span>`)
 
 var appRoutePaths = []string{
 	"/search",
@@ -149,21 +145,6 @@ func main() {
 	addr := envOr("DEMO_SERVER_ADDR", ":9005")
 	log.Printf("demo server listening on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, secureHeaders(mux)))
-}
-
-func loadSiteVersion(staticRoot string) string {
-	if value := strings.TrimSpace(firstEnv("GO_SITES_VERSION", "SITE_VERSION")); value != "" {
-		return value
-	}
-	data, err := os.ReadFile(filepath.Join(staticRoot, siteVersionFile))
-	if err != nil {
-		return siteVersionDefault
-	}
-	value := strings.TrimSpace(string(data))
-	if value == "" {
-		return siteVersionDefault
-	}
-	return value
 }
 
 func (a *app) routes() http.Handler {
@@ -1084,7 +1065,6 @@ func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, item demoIte
 	}
 
 	page := injectDemoThemeHTML(string(data))
-	page = injectDemoVersionHTML(page, loadSiteVersion(a.staticRoot))
 	if item.Kind == "markdown-folder" && strings.Contains(string(data), demoThemeMarker) {
 		page = injectMarkdownFolderTreeHTML(page, demoRoot, target, slug)
 	}
@@ -1118,42 +1098,6 @@ func injectDemoThemeHTML(page string) string {
 		return page[:index] + injection + page[index:]
 	}
 	return injection + page
-}
-
-func injectDemoVersionHTML(page, version string) string {
-	version = strings.TrimSpace(version)
-	if version == "" {
-		version = siteVersionDefault
-	}
-
-	versionHTML := markdownBrandVersionHTML(version)
-	if markdownBrandVersionPattern.MatchString(page) {
-		page = markdownBrandVersionPattern.ReplaceAllString(page, versionHTML)
-	} else {
-		brandHTML := `<span class="md-brand-text">灵感书架</span>`
-		page = strings.Replace(page, brandHTML, brandHTML+"\n        "+versionHTML, 1)
-	}
-	if !strings.Contains(page, demoVersionStyleMarker) {
-		page = injectBeforeClosingTag(page, "</style>", markdownBrandVersionCSS())
-	}
-	return page
-}
-
-func markdownBrandVersionHTML(version string) string {
-	return `<span class="md-brand-version">v` + html.EscapeString(version) + `</span>`
-}
-
-func markdownBrandVersionCSS() string {
-	return `
-    /* ` + demoVersionStyleMarker + ` */
-    .md-brand-version {
-      color: var(--go-site-muted);
-      font-size: 0.78rem;
-      font-weight: 600;
-      letter-spacing: 0;
-      opacity: 0.58;
-    }
-`
 }
 
 const markdownFolderTreeMarker = `data-md-folder-tree`
@@ -2843,8 +2787,6 @@ func markdownDemoCSS() string {
       font-weight: 700;
       letter-spacing: 0;
     }
-` + markdownBrandVersionCSS() + `
-
     article {
       padding: 2rem;
       border: 1px solid var(--go-site-border);
@@ -2940,7 +2882,6 @@ func renderMarkdownPageHTML(title, body string) string {
       <div class="md-brand" aria-hidden="true">
         <span class="md-brand-seal"></span>
         <span class="md-brand-text">灵感书架</span>
-        ` + markdownBrandVersionHTML(siteVersionDefault) + `
       </div>
 ` + body + `
     </article>

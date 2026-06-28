@@ -105,8 +105,6 @@ func TestMarkdownDemoPageUsesSitePalette(t *testing.T) {
 		`--go-site-bg: #F0F2F5`,
 		`class="md-brand-seal"`,
 		`灵感书架`,
-		`class="md-brand-version">v1.0.0</span>`,
-		demoVersionStyleMarker,
 		`>标题</h1>`,
 		`<p>正文</p>`,
 	} {
@@ -160,49 +158,6 @@ func TestRefreshStoredMarkdownDemoPagesUpdatesShellAndKeepsBody(t *testing.T) {
 	}
 	if strings.Contains(nextPage, "20260528") || strings.Contains(nextPage, "#27312b") || strings.Contains(nextPage, "#213642") {
 		t.Fatalf("refreshed page contains old shell values:\n%s", nextPage)
-	}
-}
-
-func TestServeMarkdownDemoInjectsSiteVersionFromFile(t *testing.T) {
-	dataDir := t.TempDir()
-	staticRoot := t.TempDir()
-	if err := os.WriteFile(filepath.Join(staticRoot, siteVersionFile), []byte("2.4.9"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	a := &app{
-		dataDir:      dataDir,
-		demosDir:     filepath.Join(dataDir, "demos"),
-		manifestPath: filepath.Join(dataDir, "manifest.json"),
-		staticRoot:   staticRoot,
-		publicOrigin: "https://example.test",
-	}
-	demoRoot := filepath.Join(a.demosDir, "demo")
-	if err := os.MkdirAll(demoRoot, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(demoRoot, "index.html"), []byte(renderMarkdownPageHTML("Demo", "<h1>Demo</h1>")), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := a.saveManifestLocked(manifest{Demos: []demoItem{{Title: "Demo", Slug: "demo", Kind: "markdown"}}}); err != nil {
-		t.Fatal(err)
-	}
-
-	req := httptest.NewRequest(http.MethodGet, "/demo/demo/", nil)
-	rec := httptest.NewRecorder()
-	a.handleServeDemo(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
-	}
-	if got := rec.Header().Get("Cache-Control"); got != "no-store, max-age=0" {
-		t.Fatalf("Cache-Control = %q, want no-store, max-age=0", got)
-	}
-	body := rec.Body.String()
-	if !strings.Contains(body, `class="md-brand-version">v2.4.9</span>`) {
-		t.Fatalf("served markdown page missing current site version:\n%s", body)
-	}
-	if strings.Contains(body, `class="md-brand-version">v1.0.0</span>`) {
-		t.Fatalf("served markdown page kept stale site version:\n%s", body)
 	}
 }
 
@@ -405,6 +360,9 @@ func TestServeMarkdownDemoKeepsSiteTheme(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
 	}
+	if got := rec.Header().Get("Cache-Control"); got != "no-store, max-age=0" {
+		t.Fatalf("Cache-Control = %q, want no-store, max-age=0", got)
+	}
 	body := rec.Body.String()
 	for _, want := range []string{
 		demoThemeMarker,
@@ -418,6 +376,9 @@ func TestServeMarkdownDemoKeepsSiteTheme(t *testing.T) {
 	}
 	if strings.Contains(body, markdownFolderTreeMarker) {
 		t.Fatalf("plain html demo should not include markdown folder tree:\n%s", body)
+	}
+	if strings.Contains(body, `md-brand-version`) {
+		t.Fatalf("markdown demo page should not include site version badge:\n%s", body)
 	}
 }
 
@@ -471,6 +432,9 @@ func TestServeMarkdownFolderDemoInjectsResponsiveTree(t *testing.T) {
 	}
 	if strings.Contains(body, `>index</a>`) || strings.Contains(body, `>Open demo</`) {
 		t.Fatalf("redirect entry page should not appear in the tree:\n%s", body)
+	}
+	if strings.Contains(body, `md-brand-version`) {
+		t.Fatalf("markdown folder page should not include site version badge:\n%s", body)
 	}
 }
 
