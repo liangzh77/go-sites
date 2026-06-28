@@ -5442,7 +5442,7 @@
                             <div class="demo-panel">
                                 <input id="${tabId}DemoFileInput" class="hidden" type="file" accept=".html,.htm,.md,.markdown,.zip">
                                 <div id="${tabId}DemoDropZone" class="demo-drop-zone" role="button" tabindex="0">
-                                    添加文件：MD | html | zip
+                                    添加文件/文件夹：MD | HTML | ZIP
                                 </div>
                                 <div class="demo-controls">
                                     <label class="sr-only" for="${tabId}DemoTitleInput">演示名称</label>
@@ -5964,12 +5964,13 @@
                 dropZone.addEventListener('dragleave', () => {
                     dropZone.classList.remove('is-dragover');
                 });
-                dropZone.addEventListener('drop', (event) => {
+                dropZone.addEventListener('drop', async (event) => {
                     event.preventDefault();
                     dropZone.classList.remove('is-dragover');
-                    const file = event.dataTransfer?.files?.[0];
-                    if (file) {
-                        this.uploadDemoFile(file);
+                    try {
+                        await this.handleDemoDrop(event.dataTransfer);
+                    } catch (error) {
+                        this.setDemoStatus(error.message || '读取文件夹失败');
                     }
                 });
                 fileInput.addEventListener('change', () => {
@@ -6162,6 +6163,126 @@
                 }
             }
 
+            async handleDemoDrop(dataTransfer) {
+                const upload = await this.collectDemoDropUpload(dataTransfer);
+                if (upload?.files?.length) {
+                    await this.uploadDemoFolder(upload.files, upload.sourceName);
+                    return;
+                }
+
+                const file = upload?.file || dataTransfer?.files?.[0];
+                if (file) {
+                    await this.uploadDemoFile(file);
+                }
+            }
+
+            async collectDemoDropUpload(dataTransfer) {
+                const items = Array.from(dataTransfer?.items || []).filter(item => item.kind === 'file');
+                if (!items.length) {
+                    return { file: dataTransfer?.files?.[0] || null };
+                }
+
+                if (items.some(item => typeof item.getAsFileSystemHandle === 'function')) {
+                    const handlePromises = items.map(item =>
+                        typeof item.getAsFileSystemHandle === 'function'
+                            ? item.getAsFileSystemHandle().catch(() => null)
+                            : Promise.resolve(null)
+                    );
+                    const handles = (await Promise.all(handlePromises)).filter(Boolean);
+                    const files = [];
+                    let hasDirectory = false;
+                    for (const handle of handles) {
+                        hasDirectory = hasDirectory || handle.kind === 'directory';
+                        await this.walkDemoFileSystemHandle(handle, handle.name, files);
+                    }
+                    if (files.length && (hasDirectory || files.length > 1)) {
+                        return { files: this.filterDemoFolderFiles(files), sourceName: this.demoDropSourceName(handles) };
+                    }
+                }
+
+                const entries = items.map(item => item.webkitGetAsEntry?.()).filter(Boolean);
+                if (entries.length) {
+                    const files = [];
+                    let hasDirectory = false;
+                    for (const entry of entries) {
+                        hasDirectory = hasDirectory || entry.isDirectory;
+                        await this.walkDemoFileEntry(entry, entry.name, files);
+                    }
+                    if (files.length && (hasDirectory || files.length > 1)) {
+                        return { files: this.filterDemoFolderFiles(files), sourceName: this.demoDropSourceName(entries) };
+                    }
+                }
+
+                return { file: dataTransfer?.files?.[0] || null };
+            }
+
+            async walkDemoFileSystemHandle(handle, relativePath, files) {
+                if (handle.kind === 'file') {
+                    const file = await handle.getFile();
+                    files.push({ file, path: this.normalizeDemoUploadPath(relativePath || file.name) });
+                    return;
+                }
+                if (handle.kind !== 'directory') return;
+
+                for await (const [name, childHandle] of handle.entries()) {
+                    await this.walkDemoFileSystemHandle(childHandle, `${relativePath}/${name}`, files);
+                }
+            }
+
+            async walkDemoFileEntry(entry, relativePath, files) {
+                if (entry.isFile) {
+                    const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+                    files.push({ file, path: this.normalizeDemoUploadPath(relativePath || file.name) });
+                    return;
+                }
+                if (!entry.isDirectory) return;
+
+                const reader = entry.createReader();
+                const children = await this.readAllDemoDirectoryEntries(reader);
+                for (const child of children) {
+                    await this.walkDemoFileEntry(child, `${relativePath}/${child.name}`, files);
+                }
+            }
+
+            async readAllDemoDirectoryEntries(reader) {
+                const entries = [];
+                for (;;) {
+                    const chunk = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+                    if (!chunk.length) break;
+                    entries.push(...chunk);
+                }
+                return entries;
+            }
+
+            filterDemoFolderFiles(files) {
+                return files.filter(item => {
+                    const path = item.path || item.file?.webkitRelativePath || item.file?.name || '';
+                    if (!path || !item.file) return false;
+                    return !/(^|\/)(__MACOSX|\.DS_Store)(\/|$)/.test(path);
+                });
+            }
+
+            demoDropSourceName(entries) {
+                if (entries.length === 1) return entries[0]?.name || '';
+                return entries.map(entry => entry?.name).filter(Boolean).join(', ');
+            }
+
+            normalizeDemoUploadPath(value) {
+                const parts = String(value || '')
+                    .replace(/\\/g, '/')
+                    .split('/')
+                    .filter(part => part && part !== '.');
+                const clean = [];
+                for (const part of parts) {
+                    if (part === '..') {
+                        clean.pop();
+                    } else {
+                        clean.push(part);
+                    }
+                }
+                return clean.join('/');
+            }
+
             async uploadDemoFile(file) {
                 const demoTabId = this.getTabId(this.demoPageName);
                 const titleInput = document.getElementById(`${demoTabId}DemoTitleInput`);
@@ -6184,6 +6305,44 @@
                     }
                     if (titleInput) titleInput.value = '';
                     this.setDemoStatus('已添加演示');
+                    await this.loadDemos();
+                    this.switchToPage(this.demoPageName);
+                } catch (error) {
+                    this.setDemoStatus(error.message || '上传失败');
+                }
+            }
+
+            async uploadDemoFolder(files, sourceName = '') {
+                const demoTabId = this.getTabId(this.demoPageName);
+                const titleInput = document.getElementById(`${demoTabId}DemoTitleInput`);
+                const title = titleInput?.value.trim() || '';
+                const cleanFiles = this.filterDemoFolderFiles(files).filter(item => item.path);
+
+                if (!cleanFiles.length) {
+                    this.setDemoStatus('文件夹里没有可上传的文件');
+                    return;
+                }
+
+                const formData = new FormData();
+                if (title) formData.append('title', title);
+                if (sourceName) formData.append('sourceName', sourceName);
+                cleanFiles.forEach(item => {
+                    formData.append('files', item.file, item.file.name);
+                    formData.append('paths', item.path);
+                });
+
+                this.setDemoStatus(`正在上传文件夹（${cleanFiles.length} 个文件）...`);
+                try {
+                    const response = await fetch('/api/demos', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        body: formData
+                    });
+                    if (!response.ok) {
+                        throw new Error(await this.readErrorMessage(response));
+                    }
+                    if (titleInput) titleInput.value = '';
+                    this.setDemoStatus('已添加文件夹演示');
                     await this.loadDemos();
                     this.switchToPage(this.demoPageName);
                 } catch (error) {
@@ -6367,7 +6526,9 @@
                 const labels = {
                     html: 'HTML',
                     markdown: 'Markdown',
-                    zip: 'ZIP'
+                    zip: 'ZIP',
+                    folder: '文件夹',
+                    'markdown-folder': 'Markdown 文件夹'
                 };
                 return labels[kind] || '演示';
             }

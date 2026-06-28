@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,6 +41,8 @@ const (
 	markdownDemoFaviconVersion = "20260618-bulb-logo"
 	demoThemeMarker            = `id="go-sites-demo-theme"`
 )
+
+var markdownHrefAttributePattern = regexp.MustCompile(`href="([^"]*)"`)
 
 var appRoutePaths = []string{
 	"/search",
@@ -644,15 +647,27 @@ func (a *app) handleCreateDemo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	title := strings.TrimSpace(r.FormValue("title"))
-	file, header, err := r.FormFile("file")
+	sourceName := strings.TrimSpace(r.FormValue("sourceName"))
+	folderFiles, err := demoFolderUploadFiles(r.MultipartForm)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "FILE_REQUIRED", "A demo file is required.")
+		writeError(w, http.StatusBadRequest, "INVALID_UPLOAD", err.Error())
 		return
 	}
-	defer file.Close()
 
-	if title == "" {
-		title = strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))
+	var file multipart.File
+	var header *multipart.FileHeader
+	if len(folderFiles) == 0 {
+		file, header, err = r.FormFile("file")
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "FILE_REQUIRED", "A demo file is required.")
+			return
+		}
+		defer file.Close()
+		if title == "" {
+			title = strings.TrimSuffix(header.Filename, filepath.Ext(header.Filename))
+		}
+	} else if title == "" {
+		title = demoFolderUploadTitle(sourceName, folderFiles)
 	}
 	baseSlug := slugify(title)
 	if baseSlug == "" {
@@ -678,7 +693,12 @@ func (a *app) handleCreateDemo(w http.ResponseWriter, r *http.Request) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	kind, err := materializeUpload(file, header, tempDir, title)
+	var kind string
+	if len(folderFiles) > 0 {
+		kind, err = materializeFolderUpload(folderFiles, tempDir, title)
+	} else {
+		kind, err = materializeUpload(file, header, tempDir, title)
+	}
 	if err != nil {
 		writeError(w, http.StatusUnprocessableEntity, "INVALID_UPLOAD", err.Error())
 		return
@@ -1018,16 +1038,17 @@ func (a *app) handleServeDemo(w http.ResponseWriter, r *http.Request) {
 	if cleanSubPath == "/" {
 		cleanSubPath = "/index.html"
 	}
-	target := filepath.Join(a.demosDir, slug, filepath.FromSlash(strings.TrimPrefix(cleanSubPath, "/")))
-	if !isWithin(filepath.Join(a.demosDir, slug), target) {
+	demoRoot := filepath.Join(a.demosDir, slug)
+	target := filepath.Join(demoRoot, filepath.FromSlash(strings.TrimPrefix(cleanSubPath, "/")))
+	if !isWithin(demoRoot, target) {
 		http.NotFound(w, r)
 		return
 	}
-	a.serveDemoFile(w, r, target, item.Kind)
+	a.serveDemoFile(w, r, item, demoRoot, target, slug)
 }
 
-func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, target, kind string) {
-	if !isDemoHTMLFile(target) || !strings.EqualFold(kind, "markdown") {
+func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, item demoItem, demoRoot, target, slug string) {
+	if !isDemoHTMLFile(target) || (!strings.EqualFold(item.Kind, "markdown") && !strings.EqualFold(item.Kind, "markdown-folder")) {
 		http.ServeFile(w, r, target)
 		return
 	}
@@ -1044,6 +1065,9 @@ func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, target, kind
 	}
 
 	page := injectDemoThemeHTML(string(data))
+	if item.Kind == "markdown-folder" && strings.Contains(string(data), demoThemeMarker) {
+		page = injectMarkdownFolderTreeHTML(page, demoRoot, target, slug)
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	http.ServeContent(w, r, info.Name(), info.ModTime(), strings.NewReader(page))
 }
@@ -1071,6 +1095,381 @@ func injectDemoThemeHTML(page string) string {
 		return page[:index] + injection + page[index:]
 	}
 	return injection + page
+}
+
+const markdownFolderTreeMarker = `data-md-folder-tree`
+
+type markdownFolderTreeFile struct {
+	Path  string
+	Label string
+}
+
+type markdownFolderTreeNode struct {
+	Folders map[string]*markdownFolderTreeNode
+	Files   []markdownFolderTreeFile
+}
+
+func injectMarkdownFolderTreeHTML(page, demoRoot, currentTarget, slug string) string {
+	if strings.Contains(page, markdownFolderTreeMarker) {
+		return page
+	}
+
+	files, err := markdownFolderTreeFiles(demoRoot)
+	if err != nil || len(files) == 0 {
+		return page
+	}
+	currentRel, err := filepath.Rel(demoRoot, currentTarget)
+	if err != nil {
+		return page
+	}
+	currentRel = filepath.ToSlash(currentRel)
+	treeHTML := renderMarkdownFolderTree(files, currentRel, slug)
+	page = injectBeforeClosingTag(page, "</style>", markdownFolderTreeCSS())
+	page = injectAfterOpeningBody(page, treeHTML)
+	page = injectBeforeClosingTag(page, "</body>", markdownFolderTreeScript())
+	return page
+}
+
+func markdownFolderTreeFiles(demoRoot string) ([]markdownFolderTreeFile, error) {
+	files := []markdownFolderTreeFile{}
+	err := filepath.WalkDir(demoRoot, func(filePath string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if filePath == demoRoot {
+			return nil
+		}
+		if entry.IsDir() {
+			if strings.HasPrefix(entry.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !isDemoHTMLFile(filePath) {
+			return nil
+		}
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(string(data), demoThemeMarker) {
+			return nil
+		}
+		rel, err := filepath.Rel(demoRoot, filePath)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		files = append(files, markdownFolderTreeFile{
+			Path:  rel,
+			Label: markdownFolderTreeLabel(rel),
+		})
+		return nil
+	})
+	sort.Slice(files, func(i, j int) bool {
+		return markdownFolderTreeSortKey(files[i].Path) < markdownFolderTreeSortKey(files[j].Path)
+	})
+	return files, err
+}
+
+func markdownFolderTreeLabel(relPath string) string {
+	name := path.Base(relPath)
+	ext := path.Ext(name)
+	name = strings.TrimSuffix(name, ext)
+	if name == "" {
+		return "Untitled"
+	}
+	return name
+}
+
+func markdownFolderTreeSortKey(relPath string) string {
+	lower := strings.ToLower(relPath)
+	if lower == "readme.html" || lower == "index.html" {
+		return " " + lower
+	}
+	return lower
+}
+
+func renderMarkdownFolderTree(files []markdownFolderTreeFile, currentRel, slug string) string {
+	root := &markdownFolderTreeNode{Folders: map[string]*markdownFolderTreeNode{}}
+	for _, file := range files {
+		addMarkdownFolderTreeFile(root, file)
+	}
+
+	var b strings.Builder
+	b.WriteString(`<button class="md-folder-tree-toggle" type="button" aria-expanded="false" aria-controls="mdFolderTree" data-md-folder-tree-toggle>目录</button>`)
+	b.WriteString(`<div class="md-folder-tree-backdrop" data-md-folder-tree-backdrop></div>`)
+	b.WriteString(`<aside id="mdFolderTree" class="md-folder-tree" data-md-folder-tree>`)
+	b.WriteString(`<div class="md-folder-tree-head">文档目录</div>`)
+	b.WriteString(`<nav aria-label="文档目录"><ul class="md-folder-tree-list">`)
+	renderMarkdownFolderTreeNode(&b, root, currentRel, slug)
+	b.WriteString(`</ul></nav></aside>`)
+	return b.String()
+}
+
+func addMarkdownFolderTreeFile(root *markdownFolderTreeNode, file markdownFolderTreeFile) {
+	parts := strings.Split(file.Path, "/")
+	node := root
+	for _, part := range parts[:len(parts)-1] {
+		if node.Folders == nil {
+			node.Folders = map[string]*markdownFolderTreeNode{}
+		}
+		child := node.Folders[part]
+		if child == nil {
+			child = &markdownFolderTreeNode{Folders: map[string]*markdownFolderTreeNode{}}
+			node.Folders[part] = child
+		}
+		node = child
+	}
+	node.Files = append(node.Files, file)
+}
+
+func renderMarkdownFolderTreeNode(b *strings.Builder, node *markdownFolderTreeNode, currentRel, slug string) {
+	folderNames := make([]string, 0, len(node.Folders))
+	for name := range node.Folders {
+		folderNames = append(folderNames, name)
+	}
+	sort.Strings(folderNames)
+	for _, name := range folderNames {
+		child := node.Folders[name]
+		b.WriteString(`<li class="md-folder-tree-folder"><details open><summary>`)
+		b.WriteString(html.EscapeString(name))
+		b.WriteString(`</summary><ul>`)
+		renderMarkdownFolderTreeNode(b, child, currentRel, slug)
+		b.WriteString(`</ul></details></li>`)
+	}
+
+	sort.Slice(node.Files, func(i, j int) bool {
+		return markdownFolderTreeSortKey(node.Files[i].Path) < markdownFolderTreeSortKey(node.Files[j].Path)
+	})
+	for _, file := range node.Files {
+		active := strings.EqualFold(file.Path, currentRel)
+		b.WriteString(`<li class="md-folder-tree-file"><a href="/demo/`)
+		b.WriteString(escapeRelativeURLPath(slug))
+		b.WriteString(`/`)
+		b.WriteString(escapeRelativeURLPath(file.Path))
+		b.WriteString(`"`)
+		if active {
+			b.WriteString(` aria-current="page"`)
+		}
+		b.WriteString(`>`)
+		b.WriteString(html.EscapeString(file.Label))
+		b.WriteString(`</a></li>`)
+	}
+}
+
+func injectBeforeClosingTag(page, tag, value string) string {
+	index := strings.LastIndex(strings.ToLower(page), strings.ToLower(tag))
+	if index < 0 {
+		return page + value
+	}
+	return page[:index] + value + page[index:]
+}
+
+func injectAfterOpeningBody(page, value string) string {
+	lower := strings.ToLower(page)
+	index := strings.Index(lower, "<body")
+	if index < 0 {
+		return value + page
+	}
+	closeIndex := strings.Index(page[index:], ">")
+	if closeIndex < 0 {
+		return value + page
+	}
+	closeIndex += index
+	bodyTag := page[index : closeIndex+1]
+	if !strings.Contains(strings.ToLower(bodyTag), "md-folder-page") {
+		if strings.Contains(strings.ToLower(bodyTag), "class=") {
+			bodyTag = strings.Replace(bodyTag, `class="`, `class="md-folder-page `, 1)
+		} else {
+			bodyTag = strings.TrimSuffix(bodyTag, ">") + ` class="md-folder-page">`
+		}
+	}
+	return page[:index] + bodyTag + value + page[closeIndex+1:]
+}
+
+func markdownFolderTreeCSS() string {
+	return `
+
+    body.md-folder-page {
+      display: grid;
+      grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
+      align-items: start;
+    }
+
+    body.md-folder-page > main {
+      grid-column: 2;
+      width: min(920px, calc(100vw - 3rem));
+    }
+
+    .md-folder-tree {
+      grid-column: 1;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      padding: 1rem 0.85rem 1.5rem;
+      border-right: 1px solid var(--go-site-border);
+      background: var(--go-site-surface);
+      color: var(--go-site-text);
+    }
+
+    .md-folder-tree-head {
+      margin: 0.25rem 0.45rem 0.75rem;
+      color: var(--go-site-muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .md-folder-tree ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .md-folder-tree li {
+      margin: 0;
+      padding: 0;
+    }
+
+    .md-folder-tree details {
+      margin: 0.15rem 0;
+    }
+
+    .md-folder-tree summary {
+      min-height: 2rem;
+      display: flex;
+      align-items: center;
+      padding: 0 0.45rem;
+      border-radius: 8px;
+      color: var(--go-site-muted);
+      cursor: pointer;
+      font-size: 0.84rem;
+      font-weight: 700;
+    }
+
+    .md-folder-tree summary:hover,
+    .md-folder-tree a:hover {
+      background: var(--go-site-surface-hover);
+      color: var(--go-site-primary-hover);
+    }
+
+    .md-folder-tree details > ul {
+      padding-left: 0.65rem;
+      border-left: 1px solid var(--go-site-border-soft);
+      margin-left: 0.45rem;
+    }
+
+    .md-folder-tree a {
+      min-height: 2rem;
+      display: flex;
+      align-items: center;
+      padding: 0.2rem 0.45rem;
+      border-radius: 8px;
+      color: var(--go-site-text);
+      font-size: 0.84rem;
+      line-height: 1.3;
+      text-decoration: none;
+      overflow-wrap: anywhere;
+    }
+
+    .md-folder-tree a[aria-current="page"] {
+      background: var(--go-site-focus);
+      color: var(--go-site-primary);
+      font-weight: 700;
+    }
+
+    .md-folder-tree-toggle,
+    .md-folder-tree-backdrop {
+      display: none;
+    }
+
+    @media (orientation: portrait), (max-width: 700px) {
+      body.md-folder-page {
+        display: block;
+      }
+
+      body.md-folder-page > main {
+        width: min(900px, calc(100vw - 1rem));
+        padding-top: 4.4rem;
+      }
+
+      .md-folder-tree-toggle {
+        position: fixed;
+        top: 0.75rem;
+        left: 0.75rem;
+        z-index: 41;
+        min-width: 3.6rem;
+        height: 2.25rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 0.85rem;
+        border: 1px solid var(--go-site-border);
+        border-radius: 8px;
+        background: var(--go-site-surface);
+        color: var(--go-site-text);
+        font-size: 0.88rem;
+        box-shadow: 0 2px 8px rgba(28, 30, 33, 0.12);
+      }
+
+      .md-folder-tree {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 40;
+        width: min(84vw, 20rem);
+        height: 100vh;
+        transform: translateX(-100%);
+        transition: transform 180ms ease;
+        box-shadow: 8px 0 24px rgba(28, 30, 33, 0.18);
+      }
+
+      body.md-tree-open .md-folder-tree {
+        transform: translateX(0);
+      }
+
+      .md-folder-tree-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 39;
+        background: rgba(28, 30, 33, 0.28);
+      }
+
+      body.md-tree-open .md-folder-tree-backdrop {
+        display: block;
+      }
+    }
+`
+}
+
+func markdownFolderTreeScript() string {
+	return `
+  <script data-md-folder-tree-script>
+    (() => {
+      const body = document.body;
+      const toggle = document.querySelector('[data-md-folder-tree-toggle]');
+      const tree = document.querySelector('[data-md-folder-tree]');
+      const backdrop = document.querySelector('[data-md-folder-tree-backdrop]');
+      const isNarrow = () => window.matchMedia('(orientation: portrait), (max-width: 700px)').matches;
+      const setOpen = (open) => {
+        body.classList.toggle('md-tree-open', open);
+        toggle?.setAttribute('aria-expanded', String(open));
+      };
+      toggle?.addEventListener('click', () => setOpen(!body.classList.contains('md-tree-open')));
+      backdrop?.addEventListener('click', () => setOpen(false));
+      tree?.addEventListener('click', (event) => {
+        const link = event.target.closest('a');
+        if (link && isNarrow()) setOpen(false);
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') setOpen(false);
+      });
+      window.addEventListener('resize', () => {
+        if (!isNarrow()) setOpen(false);
+      });
+    })();
+  </script>
+`
 }
 
 func (a *app) handleServeWikiAsset(w http.ResponseWriter, r *http.Request) {
@@ -1597,6 +1996,61 @@ func demoSlugInUse(demos []demoItem, slug string) bool {
 	return false
 }
 
+type demoUploadFile struct {
+	path   string
+	header *multipart.FileHeader
+}
+
+func demoFolderUploadFiles(form *multipart.Form) ([]demoUploadFile, error) {
+	if form == nil {
+		return nil, nil
+	}
+	headers := form.File["files"]
+	if len(headers) == 0 {
+		return nil, nil
+	}
+	paths := form.Value["paths"]
+	if len(paths) != len(headers) {
+		return nil, fmt.Errorf("folder upload paths do not match files")
+	}
+
+	files := make([]demoUploadFile, 0, len(headers))
+	for index, header := range headers {
+		if header == nil {
+			continue
+		}
+		relPath := strings.TrimSpace(paths[index])
+		if relPath == "" {
+			relPath = strings.TrimSpace(header.Filename)
+		}
+		if relPath == "" {
+			continue
+		}
+		files = append(files, demoUploadFile{path: relPath, header: header})
+	}
+	return files, nil
+}
+
+func demoFolderUploadTitle(sourceName string, files []demoUploadFile) string {
+	sourceName = strings.TrimSpace(filepath.Base(filepath.ToSlash(sourceName)))
+	if sourceName != "" && sourceName != "." && sourceName != "/" {
+		return strings.TrimSuffix(sourceName, filepath.Ext(sourceName))
+	}
+
+	prefix := uploadSingleRootPrefix(files)
+	if prefix != "" {
+		root := strings.TrimSuffix(prefix, "/")
+		if root != "" {
+			return root
+		}
+	}
+	if len(files) > 0 {
+		name := filepath.Base(filepath.ToSlash(files[0].path))
+		return strings.TrimSuffix(name, filepath.Ext(name))
+	}
+	return "文件夹演示"
+}
+
 func materializeUpload(file multipart.File, header *multipart.FileHeader, targetDir, title string) (string, error) {
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	switch ext {
@@ -1624,6 +2078,351 @@ func materializeUpload(file multipart.File, header *multipart.FileHeader, target
 	}
 }
 
+func materializeFolderUpload(files []demoUploadFile, targetDir, title string) (string, error) {
+	entries, err := normalizedDemoUploadFiles(files)
+	if err != nil {
+		return "", err
+	}
+	if len(entries) == 0 {
+		return "", fmt.Errorf("folder does not contain supported files")
+	}
+
+	hasIndex := false
+	hasHTML := false
+	hasMarkdown := false
+	htmlEntries := []string{}
+	for _, entry := range entries {
+		ext := strings.ToLower(path.Ext(entry.path))
+		switch ext {
+		case ".html", ".htm":
+			hasHTML = true
+			htmlEntries = append(htmlEntries, entry.path)
+			if entry.path == "index.html" {
+				hasIndex = true
+			}
+		case ".md", ".markdown":
+			hasMarkdown = true
+		}
+	}
+
+	if hasHTML {
+		if err := copyDemoUploadFiles(entries, targetDir); err != nil {
+			return "", err
+		}
+		if !hasIndex {
+			if len(htmlEntries) != 1 {
+				return "", fmt.Errorf("folder must contain index.html or exactly one HTML file")
+			}
+			if err := writeDemoEntryRedirect(targetDir, htmlEntries[0]); err != nil {
+				return "", err
+			}
+		}
+		return "folder", nil
+	}
+
+	if hasMarkdown {
+		return "markdown-folder", materializeMarkdownFolder(entries, targetDir, title)
+	}
+
+	return "", fmt.Errorf("folder must contain index.html, exactly one HTML file, or Markdown files")
+}
+
+func normalizedDemoUploadFiles(files []demoUploadFile) ([]demoUploadFile, error) {
+	prefix := uploadSingleRootPrefix(files)
+	entries := make([]demoUploadFile, 0, len(files))
+	for _, file := range files {
+		if file.header == nil {
+			continue
+		}
+		rawName := strings.TrimSpace(file.path)
+		if strings.Contains(rawName, "\\") {
+			return nil, fmt.Errorf("folder contains unsafe path: %s", file.path)
+		}
+		name := filepath.ToSlash(rawName)
+		name = strings.TrimPrefix(name, prefix)
+		name = strings.TrimPrefix(name, "/")
+		if name == "" || isIgnoredArchivePath(name) {
+			continue
+		}
+		if !isSafeArchivePath(name) {
+			return nil, fmt.Errorf("folder contains unsafe path: %s", file.path)
+		}
+		if !isAllowedStaticFile(name) {
+			return nil, fmt.Errorf("folder contains unsupported file type: %s", name)
+		}
+		entries = append(entries, demoUploadFile{path: name, header: file.header})
+	}
+	return entries, nil
+}
+
+func uploadSingleRootPrefix(files []demoUploadFile) string {
+	names := make([]string, 0, len(files))
+	for _, file := range files {
+		name := strings.Trim(filepath.ToSlash(strings.TrimSpace(file.path)), "/")
+		if name == "" {
+			continue
+		}
+		names = append(names, name)
+	}
+	return singleRootPrefix(names)
+}
+
+func singleRootPrefix(names []string) string {
+	root := ""
+	for _, name := range names {
+		name = strings.Trim(name, "/")
+		if name == "" {
+			continue
+		}
+		part := strings.SplitN(name, "/", 2)[0]
+		if root == "" {
+			root = part
+			continue
+		}
+		if root != part {
+			return ""
+		}
+	}
+	if root == "" {
+		return ""
+	}
+	return root + "/"
+}
+
+func copyDemoUploadFiles(files []demoUploadFile, targetDir string) error {
+	for _, file := range files {
+		target := filepath.Join(targetDir, filepath.FromSlash(file.path))
+		if !isWithin(targetDir, target) {
+			return fmt.Errorf("folder contains unsafe path: %s", file.path)
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		src, err := file.header.Open()
+		if err != nil {
+			return err
+		}
+		dst, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+		if err != nil {
+			_ = src.Close()
+			return err
+		}
+		_, copyErr := io.Copy(dst, io.LimitReader(src, maxUploadBytes))
+		closeErr := errors.Join(src.Close(), dst.Close())
+		if copyErr != nil || closeErr != nil {
+			return errors.Join(copyErr, closeErr)
+		}
+	}
+	return nil
+}
+
+func materializeMarkdownFolder(entries []demoUploadFile, targetDir, title string) error {
+	pages := map[string]string{}
+	contents := map[string]string{}
+	assets := []demoUploadFile{}
+	for _, entry := range entries {
+		ext := strings.ToLower(path.Ext(entry.path))
+		switch ext {
+		case ".md", ".markdown":
+			htmlPath := markdownFolderHTMLPath(entry.path)
+			if existing := findCaseInsensitiveKeyByValue(pages, htmlPath); existing != "" {
+				return fmt.Errorf("markdown files produce duplicate page path: %s and %s", existing, entry.path)
+			}
+			content, err := readUploadFileString(entry.header)
+			if err != nil {
+				return err
+			}
+			pages[entry.path] = htmlPath
+			contents[entry.path] = content
+		default:
+			assets = append(assets, entry)
+		}
+	}
+	if len(pages) == 0 {
+		return fmt.Errorf("folder does not contain Markdown files")
+	}
+	if err := copyDemoUploadFiles(assets, targetDir); err != nil {
+		return err
+	}
+
+	mdPaths := make([]string, 0, len(pages))
+	for mdPath := range pages {
+		mdPaths = append(mdPaths, mdPath)
+	}
+	sort.Strings(mdPaths)
+	for _, mdPath := range mdPaths {
+		content := contents[mdPath]
+		pageTitle := markdownTitleFromContent(content)
+		if pageTitle == "" {
+			pageTitle = strings.TrimSuffix(path.Base(mdPath), path.Ext(mdPath))
+		}
+		if pageTitle == "" {
+			pageTitle = title
+		}
+		body := rewriteMarkdownFolderLinks(renderMarkdown(content), mdPath, pages)
+		target := filepath.Join(targetDir, filepath.FromSlash(pages[mdPath]))
+		if !isWithin(targetDir, target) {
+			return fmt.Errorf("folder contains unsafe path: %s", pages[mdPath])
+		}
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(target, []byte(renderMarkdownPageHTML(pageTitle, body)), 0o644); err != nil {
+			return err
+		}
+	}
+
+	entryPath := markdownFolderEntryPath(pages)
+	if entryHTML := pages[entryPath]; entryHTML != "" && entryHTML != "index.html" {
+		return writeDemoEntryRedirect(targetDir, entryHTML)
+	}
+	return nil
+}
+
+func readUploadFileString(header *multipart.FileHeader) (string, error) {
+	file, err := header.Open()
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, maxUploadBytes))
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func markdownFolderHTMLPath(mdPath string) string {
+	ext := path.Ext(mdPath)
+	return strings.TrimSuffix(mdPath, ext) + ".html"
+}
+
+func markdownFolderEntryPath(pages map[string]string) string {
+	for _, want := range []string{"index.md", "index.markdown", "README.md", "README.markdown"} {
+		if path := findCaseInsensitiveKey(pages, want); path != "" {
+			return path
+		}
+	}
+
+	paths := make([]string, 0, len(pages))
+	for path := range pages {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	if len(paths) == 0 {
+		return ""
+	}
+	return paths[0]
+}
+
+func findCaseInsensitiveKey(values map[string]string, want string) string {
+	for key := range values {
+		if strings.EqualFold(key, want) {
+			return key
+		}
+	}
+	return ""
+}
+
+func findCaseInsensitiveKeyByValue(values map[string]string, want string) string {
+	for key, value := range values {
+		if strings.EqualFold(value, want) {
+			return key
+		}
+	}
+	return ""
+}
+
+func rewriteMarkdownFolderLinks(rendered, currentPath string, pages map[string]string) string {
+	return markdownHrefAttributePattern.ReplaceAllStringFunc(rendered, func(attr string) string {
+		match := markdownHrefAttributePattern.FindStringSubmatch(attr)
+		if len(match) != 2 {
+			return attr
+		}
+		if href, ok := markdownFolderHref(currentPath, match[1], pages); ok {
+			return `href="` + html.EscapeString(href) + `"`
+		}
+		return attr
+	})
+}
+
+func markdownFolderHref(currentPath, rawHref string, pages map[string]string) (string, bool) {
+	href := html.UnescapeString(strings.TrimSpace(rawHref))
+	if href == "" || strings.HasPrefix(href, "#") || strings.HasPrefix(href, "//") {
+		return "", false
+	}
+	if parsed, err := url.Parse(href); err == nil && parsed.Scheme != "" {
+		return "", false
+	}
+
+	pathPart, suffix := splitURLSuffix(href)
+	if pathPart == "" {
+		return "", false
+	}
+	if decoded, err := url.PathUnescape(pathPart); err == nil {
+		pathPart = decoded
+	}
+	switch strings.ToLower(path.Ext(pathPart)) {
+	case ".md", ".markdown":
+	default:
+		return "", false
+	}
+
+	targetPath := resolveMarkdownFolderPath(currentPath, pathPart)
+	targetHTML, ok := pages[targetPath]
+	if !ok {
+		targetPath = findCaseInsensitiveKey(pages, targetPath)
+		targetHTML, ok = pages[targetPath]
+	}
+	if !ok {
+		return "", false
+	}
+
+	currentHTML := pages[currentPath]
+	fromDir := path.Dir(currentHTML)
+	if fromDir == "." {
+		fromDir = ""
+	}
+	return relativeDemoURLPath(fromDir, targetHTML) + suffix, true
+}
+
+func splitURLSuffix(value string) (string, string) {
+	index := strings.IndexAny(value, "?#")
+	if index < 0 {
+		return value, ""
+	}
+	return value[:index], value[index:]
+}
+
+func resolveMarkdownFolderPath(currentPath, targetPath string) string {
+	var resolved string
+	if strings.HasPrefix(targetPath, "/") {
+		resolved = path.Clean(targetPath)
+	} else {
+		base := path.Dir(currentPath)
+		if base == "." {
+			base = ""
+		}
+		resolved = path.Clean(path.Join(base, targetPath))
+	}
+	if resolved == "." || resolved == "/" {
+		return ""
+	}
+	return strings.TrimPrefix(resolved, "/")
+}
+
+func relativeDemoURLPath(fromDir, targetPath string) string {
+	base := "."
+	if fromDir != "" {
+		base = filepath.FromSlash(fromDir)
+	}
+	rel, err := filepath.Rel(base, filepath.FromSlash(targetPath))
+	if err != nil {
+		rel = filepath.FromSlash(targetPath)
+	}
+	return escapeRelativeURLPath(filepath.ToSlash(rel))
+}
+
 func extractZipDemo(data []byte, targetDir string) error {
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
@@ -1648,6 +2447,9 @@ func extractZipDemo(data []byte, targetDir string) error {
 		name := strings.TrimPrefix(entry.name, prefix)
 		name = strings.TrimPrefix(name, "/")
 		if name == "" {
+			continue
+		}
+		if isIgnoredArchivePath(name) {
 			continue
 		}
 		if !isSafeArchivePath(name) {
@@ -1782,6 +2584,15 @@ func escapeRelativeURLPath(value string) string {
 		segments[i] = url.PathEscape(segment)
 	}
 	return strings.Join(segments, "/")
+}
+
+func isIgnoredArchivePath(name string) bool {
+	for _, segment := range strings.Split(strings.Trim(filepath.ToSlash(name), "/"), "/") {
+		if segment == "__MACOSX" || segment == ".DS_Store" {
+			return true
+		}
+	}
+	return false
 }
 
 func isSafeArchivePath(name string) bool {

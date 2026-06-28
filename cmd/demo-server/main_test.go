@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -370,6 +371,62 @@ func TestServeMarkdownDemoKeepsSiteTheme(t *testing.T) {
 			t.Fatalf("served demo page missing %q:\n%s", want, body)
 		}
 	}
+	if strings.Contains(body, markdownFolderTreeMarker) {
+		t.Fatalf("plain html demo should not include markdown folder tree:\n%s", body)
+	}
+}
+
+func TestServeMarkdownFolderDemoInjectsResponsiveTree(t *testing.T) {
+	dataDir := t.TempDir()
+	a := &app{
+		dataDir:      dataDir,
+		demosDir:     filepath.Join(dataDir, "demos"),
+		manifestPath: filepath.Join(dataDir, "manifest.json"),
+		publicOrigin: "https://example.test",
+	}
+	demoRoot := filepath.Join(a.demosDir, "docs")
+	if err := os.MkdirAll(filepath.Join(demoRoot, "guide"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(demoRoot, "index.html"), []byte(`<!doctype html><title>Opening demo</title><body>Open demo</body>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(demoRoot, "README.html"), []byte(renderMarkdownPageHTML("Readme", "<h1>Readme</h1>")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(demoRoot, "guide", "Intro.html"), []byte(renderMarkdownPageHTML("Intro", "<h1>Intro</h1>")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.saveManifestLocked(manifest{Demos: []demoItem{{Title: "Docs", Slug: "docs", Kind: "markdown-folder"}}}); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/demo/docs/README.html", nil)
+	rec := httptest.NewRecorder()
+	a.handleServeDemo(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`class="md-folder-page"`,
+		markdownFolderTreeMarker,
+		`data-md-folder-tree-toggle`,
+		`aria-current="page">README</a>`,
+		`href="/demo/docs/guide/Intro.html">Intro</a>`,
+		`<summary>guide</summary>`,
+		`@media (orientation: portrait), (max-width: 700px)`,
+		`data-md-folder-tree-script`,
+		`window.matchMedia`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("markdown folder page missing %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, `>index</a>`) || strings.Contains(body, `>Open demo</`) {
+		t.Fatalf("redirect entry page should not appear in the tree:\n%s", body)
+	}
 }
 
 func TestServeZipDemoHTMLPreservesStyles(t *testing.T) {
@@ -460,6 +517,82 @@ func TestExtractZipDemoDecodesGB18030Names(t *testing.T) {
 	}
 }
 
+func TestMaterializeFolderUploadUsesOnlyHTMLFileAsEntry(t *testing.T) {
+	targetDir := t.TempDir()
+	files := folderUploadFiles(t,
+		folderUploadEntry{path: "prototype/手机竖版UI原型.html", body: `<link rel="stylesheet" href="./手机竖版UI原型.css">`},
+		folderUploadEntry{path: "prototype/手机竖版UI原型.css", body: `body { color: red; }`},
+		folderUploadEntry{path: "prototype/.DS_Store", body: `metadata`},
+	)
+
+	kind, err := materializeFolderUpload(files, targetDir, "Prototype")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kind != "folder" {
+		t.Fatalf("kind = %q, want folder", kind)
+	}
+
+	index, err := os.ReadFile(filepath.Join(targetDir, "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(index), "./%E6%89%8B%E6%9C%BA%E7%AB%96%E7%89%88UI%E5%8E%9F%E5%9E%8B.html") {
+		t.Fatalf("generated entry page does not point at the only HTML file:\n%s", string(index))
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "手机竖版UI原型.html")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "手机竖版UI原型.css")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, ".DS_Store")); !os.IsNotExist(err) {
+		t.Fatalf(".DS_Store should be ignored, stat err = %v", err)
+	}
+}
+
+func TestMaterializeFolderUploadBuildsMarkdownSiteLinks(t *testing.T) {
+	targetDir := t.TempDir()
+	files := folderUploadFiles(t,
+		folderUploadEntry{path: "notes/index.md", body: "# Home\n\n[Next](next.md)\n\n[Deep](sub/deep.md#part)\n\n[External](https://example.com)\n\n![Logo](assets/logo.png)"},
+		folderUploadEntry{path: "notes/next.md", body: "# Next\n\n[Home](index.md)"},
+		folderUploadEntry{path: "notes/sub/deep.md", body: "# Deep\n\n[Home](../index.md)"},
+		folderUploadEntry{path: "notes/assets/logo.png", body: "image"},
+	)
+
+	kind, err := materializeFolderUpload(files, targetDir, "Notes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kind != "markdown-folder" {
+		t.Fatalf("kind = %q, want markdown-folder", kind)
+	}
+
+	home := readTestFile(t, filepath.Join(targetDir, "index.html"))
+	for _, want := range []string{
+		`<a href="next.html">Next</a>`,
+		`<a href="sub/deep.html#part">Deep</a>`,
+		`href="https://example.com"`,
+		`src="assets/logo.png"`,
+	} {
+		if !strings.Contains(home, want) {
+			t.Fatalf("home page missing %q:\n%s", want, home)
+		}
+	}
+
+	next := readTestFile(t, filepath.Join(targetDir, "next.html"))
+	if !strings.Contains(next, `<a href="index.html">Home</a>`) {
+		t.Fatalf("next page did not link back home:\n%s", next)
+	}
+	deep := readTestFile(t, filepath.Join(targetDir, "sub", "deep.html"))
+	if !strings.Contains(deep, `<a href="../index.html">Home</a>`) {
+		t.Fatalf("nested page did not link back home:\n%s", deep)
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "assets", "logo.png")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestTopLevelAppRoutesServeIndex(t *testing.T) {
 	staticRoot := t.TempDir()
 	if err := os.WriteFile(filepath.Join(staticRoot, "index.html"), []byte("app shell"), 0o644); err != nil {
@@ -511,6 +644,58 @@ func publishDemo(t *testing.T, a *app, body string) *httptest.ResponseRecorder {
 	rec := httptest.NewRecorder()
 	a.requireAPIKey(a.handlePublishDemo)(rec, req)
 	return rec
+}
+
+type folderUploadEntry struct {
+	path string
+	body string
+}
+
+func folderUploadFiles(t *testing.T, entries ...folderUploadEntry) []demoUploadFile {
+	t.Helper()
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	for _, entry := range entries {
+		part, err := writer.CreateFormFile("files", filepath.Base(entry.path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := part.Write([]byte(entry.body)); err != nil {
+			t.Fatal(err)
+		}
+		if err := writer.WriteField("paths", entry.path); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/demos", &buf)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if err := req.ParseMultipartForm(maxUploadBytes); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if req.MultipartForm != nil {
+			_ = req.MultipartForm.RemoveAll()
+		}
+	})
+
+	files, err := demoFolderUploadFiles(req.MultipartForm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return files
+}
+
+func readTestFile(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
 }
 
 type zipEntry struct {
