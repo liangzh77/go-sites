@@ -6,6 +6,7 @@ param(
     [int]$Port = 22,
     [string]$IdentityFile = "C:\Users\liang\.ssh\keychain_deploy_ed25519",
     [string]$LocalBuildDir = "",
+    [string]$Version = "",
     [switch]$Rollback
 )
 
@@ -71,7 +72,7 @@ function New-StagingDir {
             return
         }
 
-        if ($_.Extension -in @(".md", ".txt") -and $_.Name -ne "5768f25008cb6868cb00692e18a72154.txt") {
+        if ($_.Extension -in @(".md", ".txt") -and $_.Name -notin @("5768f25008cb6868cb00692e18a72154.txt", "site-version.txt")) {
             return
         }
 
@@ -104,6 +105,52 @@ function Invoke-RemoteScript {
     if ($LASTEXITCODE -ne 0) {
         throw "Remote script execution failed."
     }
+}
+
+function Get-Next-SiteVersion {
+    param([string]$CurrentVersion)
+
+    $trimmed = $CurrentVersion.Trim()
+    if ($trimmed -match '^(\d+)\.(\d+)\.(\d+)$') {
+        $major = [int]$Matches[1]
+        $minor = [int]$Matches[2]
+        $patch = [int]$Matches[3] + 1
+        return "$major.$minor.$patch"
+    }
+    else {
+        throw "Invalid current site version: $CurrentVersion. Expected semantic version like 1.0.0."
+    }
+}
+
+function Update-SiteVersion {
+    param(
+        [string]$SourceDir,
+        [string]$RequestedVersion
+    )
+
+    $versionFile = Join-Path $SourceDir "site-version.txt"
+    $nextVersion = $RequestedVersion.Trim()
+    if ($nextVersion) {
+        if ($nextVersion -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Invalid requested site version: $nextVersion. Expected semantic version like 1.0.0."
+        }
+    }
+    else {
+        $currentVersion = ""
+        if (Test-Path -LiteralPath $versionFile) {
+            $currentVersion = (Get-Content -LiteralPath $versionFile -Raw).Trim()
+        }
+        if ($currentVersion) {
+            $nextVersion = Get-Next-SiteVersion -CurrentVersion $currentVersion
+        }
+        else {
+            $nextVersion = "1.0.0"
+        }
+    }
+
+    Set-Content -LiteralPath $versionFile -Value $nextVersion -NoNewline -Encoding utf8
+    Write-Host "Site version: $nextVersion"
+    return $nextVersion
 }
 
 Require-Command "ssh"
@@ -151,6 +198,7 @@ echo "Rollback completed: $previous_target"
 }
 
 $sourceDir = Get-SourceDir -RequestedDir $LocalBuildDir
+$siteVersion = Update-SiteVersion -SourceDir $sourceDir -RequestedVersion $Version
 $stagingDir = New-StagingDir -SourceDir $sourceDir
 $releaseId = Get-Date -Format "yyyyMMdd-HHmmss"
 $archivePath = Join-Path ([System.IO.Path]::GetTempPath()) "$Domain-$releaseId.tgz"
