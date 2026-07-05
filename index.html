@@ -6217,6 +6217,7 @@
             }
 
             async handleDemoDrop(dataTransfer) {
+                this.setDemoStatus('正在读取拖入的文件...');
                 const upload = await this.collectDemoDropUpload(dataTransfer);
                 if (upload?.files?.length) {
                     await this.uploadDemoFolder(upload.files, upload.sourceName);
@@ -6326,6 +6327,72 @@
                 });
             }
 
+            prepareDemoFolderUpload(files) {
+                const cleanFiles = this.filterDemoFolderFiles(files).filter(item => item.path);
+                if (this.isDemoHTMLFolderUpload(cleanFiles)) {
+                    return { files: cleanFiles, ignoredCount: 0, mode: 'html' };
+                }
+
+                const markdownFiles = cleanFiles.filter(item => this.isDemoMarkdownPath(item.path));
+                if (markdownFiles.length) {
+                    return {
+                        files: markdownFiles,
+                        ignoredCount: cleanFiles.length - markdownFiles.length,
+                        mode: 'markdown'
+                    };
+                }
+
+                return { files: [], ignoredCount: cleanFiles.length, mode: 'empty' };
+            }
+
+            isDemoHTMLFolderUpload(files) {
+                const normalizedPaths = this.demoFolderRelativePaths(files);
+                const htmlPaths = normalizedPaths.filter(path => /\.html?$/i.test(path));
+                return htmlPaths.some(path => path.toLowerCase() === 'index.html') || htmlPaths.length === 1;
+            }
+
+            demoFolderRelativePaths(files) {
+                const paths = files
+                    .map(item => this.normalizeDemoUploadPath(item.path || item.file?.webkitRelativePath || item.file?.name || ''))
+                    .filter(Boolean);
+                const prefix = this.singleDemoRootPrefix(paths);
+                return paths.map(path => prefix && path.startsWith(prefix) ? path.slice(prefix.length) : path);
+            }
+
+            singleDemoRootPrefix(paths) {
+                let root = '';
+                for (const path of paths) {
+                    const first = path.split('/')[0] || '';
+                    if (!first) continue;
+                    if (!root) {
+                        root = first;
+                        continue;
+                    }
+                    if (root !== first) return '';
+                }
+                return root ? `${root}/` : '';
+            }
+
+            isDemoMarkdownPath(path) {
+                return /\.(md|markdown)$/i.test(path || '');
+            }
+
+            demoUploadTotalSize(files) {
+                return files.reduce((total, item) => total + (Number(item.file?.size) || 0), 0);
+            }
+
+            formatDemoBytes(bytes) {
+                if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+                const units = ['B', 'KB', 'MB', 'GB'];
+                let value = bytes;
+                let unitIndex = 0;
+                while (value >= 1024 && unitIndex < units.length - 1) {
+                    value /= 1024;
+                    unitIndex += 1;
+                }
+                return `${value >= 10 || unitIndex === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
+            }
+
             demoDropSourceName(entries) {
                 if (entries.length === 1) return entries[0]?.name || '';
                 return entries.map(entry => entry?.name).filter(Boolean).join(', ');
@@ -6380,10 +6447,15 @@
                 const demoTabId = this.getTabId(this.demoPageName);
                 const titleInput = document.getElementById(`${demoTabId}DemoTitleInput`);
                 const title = titleInput?.value.trim() || '';
-                const cleanFiles = this.filterDemoFolderFiles(files).filter(item => item.path);
+                const prepared = this.prepareDemoFolderUpload(files);
+                const cleanFiles = prepared.files;
 
                 if (!cleanFiles.length) {
-                    this.setDemoStatus('文件夹里没有可上传的文件');
+                    this.setDemoStatus(
+                        prepared.mode === 'empty'
+                            ? '不是 HTML 入口文件夹，也没有 Markdown 文件'
+                            : '文件夹里没有可上传的文件'
+                    );
                     return;
                 }
 
@@ -6395,7 +6467,11 @@
                     formData.append('paths', item.path);
                 });
 
-                this.setDemoStatus(`正在上传文件夹（${cleanFiles.length} 个文件）...`);
+                const ignoredText = prepared.ignoredCount
+                    ? `，已忽略 ${prepared.ignoredCount} 个非 Markdown 文件`
+                    : '';
+                const sizeText = this.formatDemoBytes(this.demoUploadTotalSize(cleanFiles));
+                this.setDemoStatus(`正在上传文件夹（${cleanFiles.length} 个文件，${sizeText}${ignoredText}）...`);
                 try {
                     const response = await fetch('/api/demos', {
                         method: 'POST',

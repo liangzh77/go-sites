@@ -2118,32 +2118,17 @@ func materializeFolderUpload(files []demoUploadFile, targetDir, title string) (s
 		return "", fmt.Errorf("folder does not contain supported files")
 	}
 
-	hasIndex := false
-	hasHTML := false
-	hasMarkdown := false
-	htmlEntries := []string{}
-	for _, entry := range entries {
-		ext := strings.ToLower(path.Ext(entry.path))
-		switch ext {
-		case ".html", ".htm":
-			hasHTML = true
-			htmlEntries = append(htmlEntries, entry.path)
-			if entry.path == "index.html" {
-				hasIndex = true
-			}
-		case ".md", ".markdown":
-			hasMarkdown = true
-		}
-	}
+	htmlEntries, hasIndex := demoHTMLUploadEntries(entries)
 
-	if hasHTML {
-		if err := copyDemoUploadFiles(entries, targetDir); err != nil {
+	if hasIndex || len(htmlEntries) == 1 {
+		staticEntries, err := demoStaticUploadFiles(entries)
+		if err != nil {
+			return "", err
+		}
+		if err := copyDemoUploadFiles(staticEntries, targetDir); err != nil {
 			return "", err
 		}
 		if !hasIndex {
-			if len(htmlEntries) != 1 {
-				return "", fmt.Errorf("folder must contain index.html or exactly one HTML file")
-			}
 			if err := writeDemoEntryRedirect(targetDir, htmlEntries[0]); err != nil {
 				return "", err
 			}
@@ -2151,11 +2136,52 @@ func materializeFolderUpload(files []demoUploadFile, targetDir, title string) (s
 		return "folder", nil
 	}
 
-	if hasMarkdown {
-		return "markdown-folder", materializeMarkdownFolder(entries, targetDir, title)
+	markdownEntries := demoMarkdownUploadFiles(entries)
+	if len(markdownEntries) > 0 {
+		return "markdown-folder", materializeMarkdownFolder(markdownEntries, targetDir, title)
 	}
 
+	if len(htmlEntries) > 1 {
+		return "", fmt.Errorf("folder must contain index.html or exactly one HTML file")
+	}
 	return "", fmt.Errorf("folder must contain index.html, exactly one HTML file, or Markdown files")
+}
+
+func demoHTMLUploadEntries(files []demoUploadFile) ([]string, bool) {
+	htmlEntries := []string{}
+	hasIndex := false
+	for _, file := range files {
+		ext := strings.ToLower(path.Ext(file.path))
+		if ext != ".html" && ext != ".htm" {
+			continue
+		}
+		htmlEntries = append(htmlEntries, file.path)
+		if strings.EqualFold(file.path, "index.html") {
+			hasIndex = true
+		}
+	}
+	return htmlEntries, hasIndex
+}
+
+func demoMarkdownUploadFiles(files []demoUploadFile) []demoUploadFile {
+	markdownFiles := make([]demoUploadFile, 0, len(files))
+	for _, file := range files {
+		if isMarkdownFile(file.path) {
+			markdownFiles = append(markdownFiles, file)
+		}
+	}
+	return markdownFiles
+}
+
+func demoStaticUploadFiles(files []demoUploadFile) ([]demoUploadFile, error) {
+	staticFiles := make([]demoUploadFile, 0, len(files))
+	for _, file := range files {
+		if !isAllowedStaticFile(file.path) {
+			return nil, fmt.Errorf("folder contains unsupported file type: %s", file.path)
+		}
+		staticFiles = append(staticFiles, file)
+	}
+	return staticFiles, nil
 }
 
 func normalizedDemoUploadFiles(files []demoUploadFile) ([]demoUploadFile, error) {
@@ -2177,9 +2203,6 @@ func normalizedDemoUploadFiles(files []demoUploadFile) ([]demoUploadFile, error)
 		}
 		if !isSafeArchivePath(name) {
 			return nil, fmt.Errorf("folder contains unsafe path: %s", file.path)
-		}
-		if !isAllowedStaticFile(name) {
-			return nil, fmt.Errorf("folder contains unsupported file type: %s", name)
 		}
 		entries = append(entries, demoUploadFile{path: name, header: file.header})
 	}
@@ -2250,30 +2273,23 @@ func copyDemoUploadFiles(files []demoUploadFile, targetDir string) error {
 func materializeMarkdownFolder(entries []demoUploadFile, targetDir, title string) error {
 	pages := map[string]string{}
 	contents := map[string]string{}
-	assets := []demoUploadFile{}
 	for _, entry := range entries {
-		ext := strings.ToLower(path.Ext(entry.path))
-		switch ext {
-		case ".md", ".markdown":
-			htmlPath := markdownFolderHTMLPath(entry.path)
-			if existing := findCaseInsensitiveKeyByValue(pages, htmlPath); existing != "" {
-				return fmt.Errorf("markdown files produce duplicate page path: %s and %s", existing, entry.path)
-			}
-			content, err := readUploadFileString(entry.header)
-			if err != nil {
-				return err
-			}
-			pages[entry.path] = htmlPath
-			contents[entry.path] = content
-		default:
-			assets = append(assets, entry)
+		if !isMarkdownFile(entry.path) {
+			continue
 		}
+		htmlPath := markdownFolderHTMLPath(entry.path)
+		if existing := findCaseInsensitiveKeyByValue(pages, htmlPath); existing != "" {
+			return fmt.Errorf("markdown files produce duplicate page path: %s and %s", existing, entry.path)
+		}
+		content, err := readUploadFileString(entry.header)
+		if err != nil {
+			return err
+		}
+		pages[entry.path] = htmlPath
+		contents[entry.path] = content
 	}
 	if len(pages) == 0 {
 		return fmt.Errorf("folder does not contain Markdown files")
-	}
-	if err := copyDemoUploadFiles(assets, targetDir); err != nil {
-		return err
 	}
 
 	mdPaths := make([]string, 0, len(pages))

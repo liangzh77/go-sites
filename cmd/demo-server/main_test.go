@@ -604,6 +604,7 @@ func TestMaterializeFolderUploadBuildsMarkdownSiteLinks(t *testing.T) {
 		folderUploadEntry{path: "notes/next.md", body: "# Next\n\n[Home](index.md)"},
 		folderUploadEntry{path: "notes/sub/deep.md", body: "# Deep\n\n[Home](../index.md)"},
 		folderUploadEntry{path: "notes/assets/logo.png", body: "image"},
+		folderUploadEntry{path: "notes/reference.pdf", body: "pdf"},
 	)
 
 	kind, err := materializeFolderUpload(files, targetDir, "Notes")
@@ -634,8 +635,11 @@ func TestMaterializeFolderUploadBuildsMarkdownSiteLinks(t *testing.T) {
 	if !strings.Contains(deep, `<a href="../index.html">Home</a>`) {
 		t.Fatalf("nested page did not link back home:\n%s", deep)
 	}
-	if _, err := os.Stat(filepath.Join(targetDir, "assets", "logo.png")); err != nil {
-		t.Fatal(err)
+	if _, err := os.Stat(filepath.Join(targetDir, "assets", "logo.png")); !os.IsNotExist(err) {
+		t.Fatalf("non-Markdown asset should be ignored, stat err = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(targetDir, "reference.pdf")); !os.IsNotExist(err) {
+		t.Fatalf("non-Markdown file should be ignored, stat err = %v", err)
 	}
 }
 
