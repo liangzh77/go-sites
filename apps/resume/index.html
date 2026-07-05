@@ -1,0 +1,1373 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>张亮 | AI 工具与应用工程化</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='32' fill='%231d2529'/%3E%3Ctext x='32' y='39' text-anchor='middle' font-family='Arial,sans-serif' font-size='22' font-weight='700' fill='white'%3ELZ%3C/text%3E%3C/svg%3E"
+    />
+    <meta
+      name="description"
+      content="张亮的个人简历网页：专注 AI 工具、AI 应用工程化、自动化工作流、计算机视觉与独立产品开发。"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #f2f4f0;
+        --muted: #a5ada9;
+        --subtle: #777f7c;
+        --line: rgba(255, 255, 255, 0.12);
+        --paper: #010101;
+        --surface: rgba(18, 20, 19, 0.82);
+        --surface-2: #101211;
+        --accent: #8fbcae;
+        --accent-2: #d9a15f;
+        --accent-soft: rgba(143, 188, 174, 0.12);
+        --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        --sans: "Aptos", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC",
+          "PingFang SC", system-ui, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 16px;
+        line-height: 1.7;
+      }
+
+      a {
+        color: inherit;
+        text-decoration-color: rgba(217, 161, 95, 0.58);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 4px;
+      }
+
+      a:hover {
+        color: var(--accent);
+      }
+
+      .page {
+        min-height: 100dvh;
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 16px;
+        line-height: 1.7;
+        background:
+          radial-gradient(circle at 14% 16%, rgba(143, 188, 174, 0.08), transparent 25rem),
+          radial-gradient(circle at 30% 82%, rgba(217, 161, 95, 0.045), transparent 28rem),
+          var(--paper);
+      }
+
+      .page a {
+        color: inherit;
+        text-decoration-color: rgba(217, 161, 95, 0.58);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 4px;
+      }
+
+      .page a:hover {
+        color: var(--accent);
+      }
+
+      .shell {
+        width: min(1180px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        border-bottom: 1px solid var(--line);
+        background: rgba(7, 8, 7, 0.78);
+        backdrop-filter: blur(16px);
+      }
+
+      .topbar-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 64px;
+        gap: 24px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        letter-spacing: 0;
+      }
+
+      .brand-mark {
+        display: grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        border: 1px solid var(--ink);
+        border-radius: 50%;
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        margin-left: auto;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .nav a {
+        color: var(--muted);
+        padding: 8px 10px;
+        border-radius: 6px;
+        text-decoration: none;
+      }
+
+      .nav a:hover {
+        background: var(--accent-soft);
+        color: var(--ink);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: clamp(44px, 7vw, 92px);
+        align-items: center;
+        padding: 46px 0 46px;
+      }
+
+      .hero-copy {
+        grid-column: 1;
+      }
+
+      .eyebrow {
+        margin: 0 0 18px;
+        color: var(--accent);
+        font-family: var(--mono);
+        font-size: 13px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 780px;
+        margin-bottom: 22px;
+        color: var(--ink);
+        font-size: clamp(48px, 7.2vw, 86px);
+        line-height: 0.94;
+        letter-spacing: 0;
+      }
+
+      h1 span {
+        display: block;
+      }
+
+      h1 span:first-child {
+        white-space: nowrap;
+      }
+
+      h1 span:nth-child(2) {
+        position: relative;
+        margin-top: 20px;
+        padding-top: 18px;
+        color: #d7ddd9;
+        font-size: clamp(22px, 3.15vw, 38px);
+        font-weight: 650;
+        line-height: 1.1;
+        white-space: nowrap;
+      }
+
+      h1 span:nth-child(2)::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: min(220px, 36%);
+        height: 1px;
+        background: linear-gradient(90deg, var(--accent-2), transparent);
+      }
+
+      .lead {
+        max-width: 760px;
+        margin-bottom: 28px;
+        color: #c7cfcb;
+        font-size: clamp(18px, 2vw, 22px);
+        line-height: 1.75;
+      }
+
+      .lead p {
+        margin: 0 0 14px;
+      }
+
+      .lead p:last-child {
+        margin-bottom: 0;
+      }
+
+      .emphasis {
+        color: var(--accent-2);
+        font-weight: 800;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 0 16px;
+        border: 1px solid var(--accent-2);
+        border-radius: 6px;
+        background: var(--accent-2);
+        color: var(--paper);
+        font-weight: 700;
+        text-decoration: none;
+        transition:
+          transform 180ms ease,
+          background 180ms ease,
+          color 180ms ease,
+          border-color 180ms ease;
+      }
+
+      .page a.button,
+      .page a.button:visited,
+      .page a.button:focus {
+        border-color: var(--accent-2);
+        background: var(--accent-2);
+        color: var(--paper);
+        text-decoration: none;
+      }
+
+      .button.secondary {
+        background: transparent;
+        color: var(--ink);
+      }
+
+      .page a.button.secondary,
+      .page a.button.secondary:visited,
+      .page a.button.secondary:focus {
+        border-color: rgba(242, 244, 240, 0.72);
+        background: transparent;
+        color: var(--ink);
+      }
+
+      .button:hover {
+        transform: translateY(-1px);
+      }
+
+      .button.secondary:hover {
+        background: rgba(242, 244, 240, 0.1);
+        color: var(--ink);
+      }
+
+      .page a.button:hover {
+        border-color: var(--ink);
+        background: var(--ink);
+        color: var(--paper);
+      }
+
+      .page a.button.secondary:hover {
+        border-color: var(--ink);
+        background: rgba(242, 244, 240, 0.1);
+        color: var(--ink);
+      }
+
+      .page a.button:focus-visible {
+        outline: 2px solid var(--accent-2);
+        outline-offset: 3px;
+      }
+
+      .page a.button:active {
+        transform: translateY(0);
+      }
+
+      .profile-panel {
+        position: relative;
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+        width: min(100%, 340px);
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        overflow: hidden;
+      }
+
+      .profile-image {
+        display: block;
+        width: 100%;
+        aspect-ratio: 3 / 4;
+        object-fit: cover;
+        object-position: center 20%;
+      }
+
+      .profile-meta {
+        padding: 18px 0 0;
+      }
+
+      .profile-meta strong {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--ink);
+        font-size: 20px;
+      }
+
+      .profile-meta p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        background: rgba(0, 0, 0, 0.24);
+      }
+
+      .stat {
+        padding: 22px 18px;
+        border-right: 1px solid var(--line);
+      }
+
+      .stat:last-child {
+        border-right: 0;
+      }
+
+      .stat-value {
+        display: block;
+        color: var(--ink);
+        font-family: var(--mono);
+        font-size: 24px;
+        font-weight: 700;
+      }
+
+      .stat-label {
+        display: block;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      main {
+        padding: 54px 0 90px;
+      }
+
+      .section {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        gap: 52px;
+        padding: 58px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .section > * {
+        min-width: 0;
+      }
+
+      .section:last-child {
+        border-bottom: 0;
+      }
+
+      .section-kicker {
+        position: sticky;
+        top: 94px;
+        align-self: start;
+      }
+
+      .section-kicker h2 {
+        margin-bottom: 10px;
+        color: var(--ink);
+        font-size: 28px;
+        line-height: 1.2;
+      }
+
+      .section-kicker p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 24px;
+      }
+
+      .summary-text {
+        padding: 28px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+      }
+
+      .summary-text p:last-child {
+        margin-bottom: 0;
+      }
+
+      .skill-wall {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 9px;
+        align-content: start;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 32px;
+        padding: 0 10px;
+        border: 1px solid rgba(143, 188, 174, 0.22);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.045);
+        color: #b8d5cc;
+        font-family: var(--mono);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .project-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .project-card {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-width: 0;
+        min-height: 250px;
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+      }
+
+      .project-card.featured {
+        grid-column: span 2;
+        background:
+          linear-gradient(135deg, rgba(143, 188, 174, 0.11), transparent 44%),
+          var(--surface);
+      }
+
+      .project-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .project-card h3 {
+        margin-bottom: 0;
+        color: var(--ink);
+        font-size: 22px;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+      }
+
+      .page .project-card h3 a,
+      .page .project-card h3 a:visited,
+      .page .project-card h3 a:hover,
+      .page .project-card h3 a:focus {
+        color: var(--ink);
+        text-decoration-color: rgba(217, 161, 95, 0.58);
+      }
+
+      .project-card p {
+        margin-bottom: 0;
+        color: #c1c9c5;
+        overflow-wrap: anywhere;
+      }
+
+      .project-card .tech {
+        margin-top: auto;
+        color: var(--muted);
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.65;
+      }
+
+      .project-index {
+        color: var(--accent-2);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+
+      .timeline {
+        border-left: 1px solid var(--line);
+      }
+
+      .role {
+        position: relative;
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 28px;
+        padding: 0 0 42px 28px;
+      }
+
+      .role:last-child {
+        padding-bottom: 0;
+      }
+
+      .role::before {
+        content: "";
+        position: absolute;
+        left: -5px;
+        top: 7px;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 5px var(--paper);
+      }
+
+      .role-time {
+        color: var(--accent-2);
+        font-family: var(--mono);
+        font-size: 13px;
+      }
+
+      .role h3 {
+        margin-bottom: 6px;
+        color: var(--ink);
+        font-size: 22px;
+      }
+
+      .role-company {
+        margin-bottom: 16px;
+        color: var(--muted);
+      }
+
+      .role-focus {
+        margin: 0 0 22px;
+        padding: 18px 20px 18px 22px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-left: 2px solid var(--accent-2);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      .role-focus-title {
+        margin: 0 0 10px;
+        color: var(--accent-2);
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+      }
+
+      .role-summary {
+        margin: 0;
+        color: #d7ddd9;
+        line-height: 1.78;
+      }
+
+      .role-summary .emphasis {
+        font-weight: 800;
+      }
+
+      .role-list-title {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .role ul {
+        display: grid;
+        gap: 14px;
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      .role li::marker {
+        color: var(--accent);
+      }
+
+      .education-list,
+      .paper-list {
+        display: grid;
+        gap: 16px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .education-item,
+      .paper-list li {
+        padding: 18px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .education-item:first-child,
+      .paper-list li:first-child {
+        border-top: 0;
+        padding-top: 0;
+      }
+
+      .education-item strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--ink);
+        font-size: 19px;
+      }
+
+      .education-item span,
+      .paper-list li {
+        color: #c1c9c5;
+        overflow-wrap: anywhere;
+      }
+
+      .footer {
+        padding: 32px 0 48px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .footer-inner {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .page .footer a,
+      .page .footer a:visited,
+      .page .footer a:hover,
+      .page .footer a:focus {
+        color: var(--muted);
+      }
+
+      @media (max-width: 920px) {
+        .nav {
+          display: none;
+        }
+
+        .hero,
+        .section,
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-copy,
+        .profile-panel {
+          grid-column: auto;
+          grid-row: auto;
+        }
+
+        .hero {
+          padding-top: 48px;
+          gap: 34px;
+        }
+
+        .profile-panel {
+          justify-self: start;
+          width: min(100%, 360px);
+        }
+
+        .section-kicker {
+          position: static;
+        }
+
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .stat:nth-child(2) {
+          border-right: 0;
+        }
+
+        .stat:nth-child(1),
+        .stat:nth-child(2) {
+          border-bottom: 1px solid var(--line);
+        }
+
+        .project-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .project-card.featured {
+          grid-column: span 1;
+        }
+
+        .role {
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
+      }
+
+      @media (max-width: 560px) {
+        .shell {
+          width: min(100% - 28px, 1180px);
+        }
+
+        .page {
+          background: var(--paper);
+        }
+
+        .topbar-inner {
+          min-height: 12px;
+        }
+
+        .topbar {
+          display: none;
+        }
+
+        .hero {
+          padding: 28px 0 30px;
+          gap: 22px;
+        }
+
+        .eyebrow {
+          margin-bottom: 12px;
+          font-size: 11px;
+          line-height: 1.6;
+        }
+
+        h1 {
+          margin-bottom: 16px;
+          font-size: 35px;
+          line-height: 1.02;
+        }
+
+        h1 span:nth-child(2) {
+          margin-top: 12px;
+          padding-top: 12px;
+          font-size: clamp(17px, 4.55vw, 24px);
+        }
+
+        h1 span:nth-child(2)::before {
+          width: 128px;
+        }
+
+        .lead {
+          margin-bottom: 20px;
+          font-size: 15.5px;
+          line-height: 1.72;
+        }
+
+        .lead p {
+          margin-bottom: 10px;
+        }
+
+        .hero-actions {
+          align-items: stretch;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+
+        .button {
+          width: 100%;
+          min-height: 40px;
+          padding: 0 10px;
+          font-size: 14px;
+        }
+
+        .profile-panel {
+          display: grid;
+          grid-template-columns: 112px minmax(0, 1fr);
+          align-items: stretch;
+          width: 100%;
+          max-width: none;
+          min-height: 148px;
+          background: var(--paper);
+        }
+
+        .profile-panel::after {
+          content: none;
+        }
+
+        .profile-image {
+          display: block;
+          height: 100%;
+          min-height: 148px;
+          aspect-ratio: auto;
+          background: var(--paper);
+          object-position: center 18%;
+        }
+
+        .profile-meta {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          background: var(--paper);
+          padding: 16px;
+        }
+
+        .profile-meta strong {
+          margin-bottom: 6px;
+          font-size: 19px;
+        }
+
+        .profile-meta p {
+          font-size: 13px;
+          line-height: 1.6;
+        }
+
+        .section {
+          gap: 22px;
+          padding: 42px 0;
+        }
+
+        .summary-text,
+        .project-card {
+          padding: 18px;
+        }
+
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .stat {
+          padding: 16px 14px;
+          border-right: 1px solid var(--line);
+          border-bottom: 1px solid var(--line);
+        }
+
+        .stat:nth-child(2n) {
+          border-right: 0;
+        }
+
+        .stat:nth-last-child(-n + 2) {
+          border-bottom: 0;
+        }
+
+        .stat:last-child {
+          border-bottom: 0;
+        }
+
+        .stat-value {
+          font-size: 21px;
+        }
+
+        .stat-label {
+          font-size: 12px;
+        }
+
+        .section-kicker h2 {
+          font-size: 25px;
+        }
+
+        .summary-text {
+          font-size: 15px;
+          line-height: 1.72;
+        }
+
+        .skill-wall {
+          gap: 7px;
+        }
+
+        .tag {
+          min-height: 29px;
+          padding: 0 8px;
+          font-size: 11px;
+        }
+
+        .project-card {
+          min-height: 0;
+          gap: 12px;
+        }
+
+        .project-card h3 {
+          font-size: 20px;
+        }
+
+        .project-card p {
+          font-size: 15px;
+          line-height: 1.72;
+        }
+
+        .project-card .tech {
+          font-size: 11px;
+        }
+
+        .role {
+          padding-left: 20px;
+        }
+
+        .role h3 {
+          font-size: 20px;
+        }
+
+        .role ul {
+          gap: 10px;
+          padding-left: 18px;
+          font-size: 15px;
+          line-height: 1.72;
+        }
+
+        .role-focus {
+          padding: 16px 16px 16px 18px;
+        }
+
+        .role-focus-title {
+          font-size: 12px;
+        }
+
+        .role-summary {
+          font-size: 15px;
+          line-height: 1.74;
+        }
+
+        .footer-inner {
+          flex-direction: column;
+        }
+      }
+
+      @media print {
+        .topbar,
+        .hero-actions,
+        .profile-panel,
+        body {
+          background: #fff;
+          color: #111;
+          font-size: 12px;
+        }
+
+        .page {
+          background: #fff;
+        }
+
+        .shell {
+          width: 100%;
+        }
+
+        .hero,
+        main,
+        .section {
+          display: block;
+          padding: 0;
+        }
+
+        .stats,
+        .summary-grid,
+        .project-grid,
+        .project-card.featured,
+        .role {
+          display: block;
+        }
+
+        .project-card,
+        .summary-text {
+          border: 0;
+          padding: 0;
+          min-height: 0;
+        }
+
+        .project-card {
+          margin-bottom: 14px;
+        }
+
+        .section {
+          border-bottom: 1px solid #bbb;
+          margin-bottom: 18px;
+          padding-bottom: 18px;
+        }
+
+        h1 {
+          font-size: 34px;
+        }
+
+        h2 {
+          font-size: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="topbar">
+        <div class="shell topbar-inner">
+          <nav class="nav" aria-label="页面导航">
+            <a href="#summary">概览</a>
+            <a href="#projects">项目</a>
+            <a href="#experience">经历</a>
+            <a href="#education">教育与论文</a>
+          </nav>
+        </div>
+      </header>
+
+      <section class="shell hero" id="top">
+        <div class="hero-copy">
+          <p class="eyebrow">AI Tools · Product Engineering · Automation</p>
+          <h1>
+            <span>AI 落地实践者</span>
+            <span>将前沿构想转化为生产力系统</span>
+          </h1>
+          <div class="lead">
+            <p>
+              在 AI 生产力呈指数级爆发的时代，我致力于用 AI 重新定义个人与工程的边界。我不仅关注底层<span
+                class="emphasis"
+                >模型</span
+              >的单一能力，更聚焦于<span class="emphasis">AI智能体</span>思维、前沿<span
+                class="emphasis"
+                >工具调用</span
+              >与<span class="emphasis">自动化工作流</span>的深度融合。
+            </p>
+            <p>
+              我擅长将大模型、自动化脚本、高并发数据管道与现代化 UI
+              缝合在一起，构建端到端的智能闭环系统。我主张以 AI
+              为杠杆，实现从构想到生产级系统的超高速迭代，用技术连接断点，交付真正能解决具体业务痛点的<span
+                class="emphasis"
+                >全栈智能</span
+              >系统。
+            </p>
+          </div>
+          <div class="hero-actions">
+            <a class="button" href="#projects">近期项目</a>
+            <a class="button secondary" href="#experience">工作经历</a>
+          </div>
+        </div>
+        <aside class="profile-panel" aria-label="个人信息">
+          <img
+            class="profile-image"
+            src="./portrait.jpg?v=2"
+            alt="张亮的个人照片"
+          />
+          <div class="profile-meta">
+            <strong>张亮</strong>
+            <p>AI 工具 / 应用工程化 / 自动化工作流</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="stats" aria-label="关键数据">
+        <div class="shell" style="display: contents">
+          <div class="stat">
+            <span class="stat-value">18+</span>
+            <span class="stat-label">年研发经验</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">10</span>
+            <span class="stat-label">个近期 GitHub 项目</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">6</span>
+            <span class="stat-label">篇国际论文</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">CV/AI</span>
+            <span class="stat-label">核心技术方向</span>
+          </div>
+        </div>
+      </section>
+
+      <main class="shell">
+        <section class="section" id="summary">
+          <div class="section-kicker">
+            <h2>概览</h2>
+            <p>从算法研究到产品交付，覆盖视觉、医学信号、AI 工作流和后台系统。</p>
+          </div>
+          <div class="summary-grid">
+            <div class="summary-text">
+              <p>
+                我长期做算法研发，熟悉机器学习、计算机视觉、医学信号分析和嵌入式实时处理；这些经历让我在面对新问题时，能把数据、模型、工程约束和产品目标放在一起判断。
+              </p>
+              <p>
+                近年的重点转向 AI 工具和端到端应用落地：用 Go 与 SQLite 构建轻量服务，用 Python 完成自动化抓取、图像/视频处理、模型训练和 AI 调用，
+                用 Electron、Vue、React、Uni-app 搭建桌面端、Web 端和大屏端产品。
+              </p>
+            </div>
+            <div class="skill-wall" aria-label="技能标签">
+              <span class="tag">AI Tools</span>
+              <span class="tag">AI Workflow</span>
+              <span class="tag">Automation</span>
+              <span class="tag">Product Engineering</span>
+              <span class="tag">Computer Vision</span>
+              <span class="tag">Machine Learning</span>
+              <span class="tag">1D-CNN</span>
+              <span class="tag">ECG Analysis</span>
+              <span class="tag">OpenCV</span>
+              <span class="tag">PyTorch</span>
+              <span class="tag">YOLO</span>
+              <span class="tag">nnUNet</span>
+              <span class="tag">FastAPI</span>
+              <span class="tag">Go</span>
+              <span class="tag">SQLite WAL</span>
+              <span class="tag">Playwright</span>
+              <span class="tag">Electron</span>
+              <span class="tag">React</span>
+              <span class="tag">Vue 3</span>
+              <span class="tag">TypeScript</span>
+              <span class="tag">FFmpeg</span>
+              <span class="tag">Whisper</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="projects">
+          <div class="section-kicker">
+            <h2>近期项目</h2>
+            <p>近期 GitHub 项目，体现 AI 产品化、自动化、数据系统和全栈交付能力。</p>
+          </div>
+          <div class="project-grid">
+            <article class="project-card featured">
+              <div class="project-head">
+                <h3><a href="https://github.com/liangzh77/video_cloud">video_cloud</a></h3>
+                <span class="project-index">01</span>
+              </div>
+              <p>
+                面向用户端和管理端的视频生成云服务，整合素材管理、克隆声音、语音生成、首帧图生成、RunningHub
+                Infinitetalk 视频生成、腾讯云 COS 存储和后台管理。
+              </p>
+              <p class="tech">Go / SQLite WAL / 原生 Web / 腾讯云 COS / RunningHub / 多厂商语音 API</p>
+            </article>
+
+            <article class="project-card">
+              <div class="project-head">
+                <h3><a href="https://github.com/liangzh77/go-global">go-global</a></h3>
+                <span class="project-index">02</span>
+              </div>
+              <p>
+                中洲企业出海服务平台，提供政策、案例、IP 等内容检索，企业画像、订阅套餐、后台内容管理、导入审核和 AI 辅助整理。
+              </p>
+              <p class="tech">Go / SQLite FTS5 / DeepSeek / SiliconFlow / 原生 Web</p>
+            </article>
+
+            <article class="project-card">
+              <div class="project-head">
+                <h3><a href="https://github.com/liangzh77/media-content-remix">media-content-remix</a></h3>
+                <span class="project-index">03</span>
+              </div>
+              <p>
+                面向 YouTube 行业博主素材采集和二次内容生产的半自动系统，支持字幕下载、Whisper 转录、素材池管理和口播文案生成流程。
+              </p>
+              <p class="tech">Go / Python / SQLite / yt-dlp / Whisper / FFmpeg / openpyxl</p>
+            </article>
+
+            <article class="project-card">
+              <div class="project-head">
+                <h3><a href="https://github.com/liangzh77/ai_video_maker">ai_video_maker</a></h3>
+                <span class="project-index">04</span>
+              </div>
+              <p>
+                视频制作流程管理桌面应用，管理视频切分、高清化、图像生成、文本生成、语音识别、视频合成等流程。
+              </p>
+              <p class="tech">Electron / React / TypeScript / Ant Design / Python / FFmpeg / PyInstaller</p>
+            </article>
+
+            <article class="project-card">
+              <div class="project-head">
+                <h3><a href="https://github.com/liangzh77/ultrasound_recog">ultrasound_recog</a></h3>
+                <span class="project-index">05</span>
+              </div>
+              <p>
+                膝关节超声图像 AI 识别项目，支持标注与 ROI 编辑、数据格式转换、模型训练、评估和演示。
+              </p>
+              <p class="tech">Python / PyTorch / YOLO / nnUNet / MONAI / Segment Anything / OpenCV</p>
+            </article>
+
+            <article class="project-card">
+              <div class="project-head">
+                <h3><a href="https://github.com/liangzh77/oceanengine_fetch">oceanengine_fetch</a></h3>
+                <span class="project-index">06</span>
+              </div>
+              <p>
+                巨量引擎广告投放数据抓取工具，登录后切换组织和应用，抓取账户、项目、单元数据，入库后按规则检测并飞书通知。
+              </p>
+              <p class="tech">Python / Playwright / SQLite / YAML / requests / 飞书 Webhook</p>
+            </article>
+
+            <article class="project-card">
+              <div class="project-head">
+                <h3><a href="https://github.com/liangzh77/mr_gunking_user_system_spec">mr_gunking_user_system_spec</a></h3>
+                <span class="project-index">07</span>
+              </div>
+              <p>
+                MR/VR 游戏运营管理系统，提供实时游戏授权、按玩家数计费、运营商充值与账单、统计分析、管理员后台和 SDK 接入。
+              </p>
+              <p class="tech">FastAPI / PostgreSQL / Redis / Vue 3 / TypeScript / Docker Compose</p>
+            </article>
+
+            <article class="project-card">
+              <div class="project-head">
+                <h3><a href="https://github.com/liangzh77/olife-scoreboard">olife-scoreboard</a></h3>
+                <span class="project-index">08</span>
+              </div>
+              <p>
+                赛场信息屏项目，用于赛事现场实时展示成绩排名、出发时刻、赞助商轮播和事件跑马灯，适配安卓设备外接 HDMI 大屏。
+              </p>
+              <p class="tech">Uni-app / uni-ui / TypeScript OpenAPI Client / HTTP Web API / Android</p>
+            </article>
+
+            <article class="project-card">
+              <div class="project-head">
+                <h3><a href="https://github.com/liangzh77/douyin_filter">douyin_filter</a></h3>
+                <span class="project-index">09</span>
+              </div>
+              <p>
+                抖音主页和线索筛选自动化工具，从主页、评论、截图等数据中抽取信息，按城市、性别、年龄和关键词规则筛选目标用户。
+              </p>
+              <p class="tech">Python / Flask / Selenium / Airtest / MySQL / SQLite / openpyxl</p>
+            </article>
+
+            <article class="project-card">
+              <div class="project-head">
+                <h3><a href="https://github.com/liangzh77/auto_greeting">auto_greeting</a></h3>
+                <span class="project-index">10</span>
+              </div>
+              <p>
+                抖音自动打招呼脚本，基于 Airtest 执行评论截图、主页访问和打招呼流程，按配置控制执行间隔、每日数量和启动时间。
+              </p>
+              <p class="tech">Python / Airtest / JSON 配置 / 移动端与浏览器自动化</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="experience">
+          <div class="section-kicker">
+            <h2>工作经历</h2>
+            <p>长期算法研发经历，覆盖科研、工程实现、产品集成和团队研发。</p>
+          </div>
+          <div class="timeline">
+            <article class="role">
+              <div class="role-time">2010 至今</div>
+              <div>
+                <h3>算法研发，全面 AI 化</h3>
+                <p class="role-company">北京触角科技有限公司</p>
+                <div class="role-focus">
+                  <p class="role-focus-title">近期重点：AI 工具与业务系统落地</p>
+                  <p class="role-summary">
+                    近年来，我的工作重心进一步转向<span class="emphasis">AI 工具</span
+                    >与业务系统的快速落地：围绕内容生产、视频生成、广告投放、医疗影像识别、赛事信息展示、MR/VR
+                    授权计费等场景，独立设计并实现了一系列<span class="emphasis">端到端工具和系统</span>。项目覆盖
+                    Go/Python/TypeScript 技术栈，包含 AI 视频工作流、自动化数据抓取与规则通知、YouTube
+                    素材采集与 Whisper
+                    转录、超声图像识别实验平台、轻量级业务后台、桌面端工具和移动端/大屏应用。整体目标是把大模型、自动化脚本、数据管道和产品界面连接起来，将具体业务问题快速转化为可运行、可迭代的<span
+                      class="emphasis"
+                      >生产力系统</span
+                    >。
+                  </p>
+                </div>
+                <p class="role-list-title">早期算法研发：</p>
+                <ul>
+                  <li>
+                    依托深度相机，识别追踪人体轮廓动作，同步光学视频，支撑 AR 虚拟试衣。
+                  </li>
+                  <li>
+                    融合 3D 人脸特征点与光流追踪，实时识别追踪三维人脸，落地虚拟试镜方案。
+                  </li>
+                  <li>
+                    研发小型识别标识，精准稳定追踪，适配虚拟戒指、耳饰等首饰试戴场景。
+                  </li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="role">
+              <div class="role-time">2014 - 2025</div>
+              <div>
+                <h3>算法研发，植入业务、流程改造、人机交互</h3>
+                <p class="role-company">北京康博众联电子科技有限公司</p>
+                <ul>
+                  <li>
+                    基于 AI 技术进行动态心电图分析，采用一维卷积神经网络研发心电信号 PQRST 波检测、波形聚类、多种心率异常检测算法。
+                  </li>
+                  <li>
+                    相关算法系列在识别率、识别种类、噪声检测率上超过当时医院使用的 CFDA 认证同类仪器，并已申请专利。
+                  </li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="role">
+              <div class="role-time">2007 - 2010</div>
+              <div>
+                <h3>算法研发，工程落地</h3>
+                <p class="role-company">北京海鑫科金高科技股份有限公司</p>
+                <ul>
+                  <li>
+                    带领团队研发 ATM 机监控算法，实时检测粘贴假告示、换键盘、安装读卡器、遮挡摄像头等恶意行为，应用于 8 个城市近 1000 台 ATM 机。
+                  </li>
+                  <li>
+                    研发新的指纹拼接与质量判断算法，提升运行速度和拼接质量；研发红外图像人眼定位算法，降低嵌入式系统 CPU 消耗。
+                  </li>
+                  <li>
+                    研发道路车辆跟踪算法，包括夜晚车辆的车灯检测、跟踪、配对；开发基于 HOG 的嵌入式人脸跟踪算法，保证实时性。
+                  </li>
+                </ul>
+              </div>
+            </article>
+
+            <article class="role">
+              <div class="role-time">2006 - 2007</div>
+              <div>
+                <h3>算法研发</h3>
+                <p class="role-company">信雅达系统工程股份有限公司</p>
+                <ul>
+                  <li>
+                    进行数字水印研发，用于票据、文档数字图像防伪，防止图像在生成、传输、处理、保存过程中被非法使用和修改。
+                  </li>
+                </ul>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" id="education">
+          <div class="section-kicker">
+            <h2>教育与论文</h2>
+            <p>机器学习、遗传编程与故障检测方向的研究背景。</p>
+          </div>
+          <div>
+            <ul class="education-list">
+              <li class="education-item">
+                <strong>博士，电子工程系，利物浦大学</strong>
+                <span>2002 - 2006。研究方向为机器学习算法及其应用，主要研究课题为遗传编程算法，并将其应用于滚动轴承故障检测、乳癌诊断等模式识别问题。</span>
+              </li>
+              <li class="education-item">
+                <strong>本科，电子信息与控制工程学院，北京工业大学</strong>
+                <span>1997 - 2002。电子工程系。</span>
+              </li>
+            </ul>
+
+            <ul class="paper-list" aria-label="发表论文">
+              <li>L. B. Jack, L. Zhang and A. K. Nandi (2003), Genetic programming for automated fault detection. In Proceedings of Condition Monitoring and Diagnostic Engineering Management, 125-134.</li>
+              <li>L. Zhang, L. B. Jack and A. K. Nandi (2004), Extending Genetic Programming for multi-class classification by combining K-Nearest Neighbour. In Proceedings of the IEEE International Conference on Acoustics, Speech, and Signal Processing (ICASSP), Philadelphia, US.</li>
+              <li>L. Zhang, L. B. Jack and A. K. Nandi (2005), Fault detection using genetic programming. Mechanical Systems and Signal Processing, 19(3), 447-466.</li>
+              <li>L. Zhang and A. K. Nandi (2007) Fault classification using genetic programming. Mechanical Systems and Signal Processing, 21(3), 1273-1284.</li>
+              <li>L. Zhang and A. K. Nandi (2007), Neutral offspring controlling operators in genetic programming. Pattern Recognition, 40(10), 2696-2705.</li>
+              <li>L. Zhang and A. K. Nandi (2009), Diversity-preserving non-destructive operators in genetic programming. Transactions of the Institute of Measurement and Control. 31 (6): 533 SAGE.</li>
+            </ul>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <div class="shell footer-inner">
+          <span>张亮 · AI Tools and Application Engineering</span>
+          <a href="https://github.com/liangzh77">github.com/liangzh77</a>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

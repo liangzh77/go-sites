@@ -6,7 +6,7 @@
     <title>AI入口</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260618-bulb-logo">
     <script src="./site-config.js"></script>
-    <script src="./data.js?v=20260606-zhongzhou-law-nav"></script>
+    <script src="./data.js?v=20260704-resume"></script>
     <style>
         /* CSS变量定义 */
         :root {
@@ -6226,13 +6226,16 @@
                 const file = upload?.file || dataTransfer?.files?.[0];
                 if (file) {
                     await this.uploadDemoFile(file);
+                    return;
                 }
+                this.setDemoStatus('没有读取到文件，请点击选择文件重试');
             }
 
             async collectDemoDropUpload(dataTransfer) {
+                const fallbackFile = dataTransfer?.files?.[0] || null;
                 const items = Array.from(dataTransfer?.items || []).filter(item => item.kind === 'file');
                 if (!items.length) {
-                    return { file: dataTransfer?.files?.[0] || null };
+                    return { file: fallbackFile };
                 }
 
                 if (items.some(item => typeof item.getAsFileSystemHandle === 'function')) {
@@ -6248,8 +6251,12 @@
                         hasDirectory = hasDirectory || handle.kind === 'directory';
                         await this.walkDemoFileSystemHandle(handle, handle.name, files);
                     }
-                    if (files.length && (hasDirectory || files.length > 1)) {
-                        return { files: this.filterDemoFolderFiles(files), sourceName: this.demoDropSourceName(handles) };
+                    const cleanFiles = this.filterDemoFolderFiles(files);
+                    if (cleanFiles.length && (hasDirectory || cleanFiles.length > 1)) {
+                        return { files: cleanFiles, sourceName: this.demoDropSourceName(handles) };
+                    }
+                    if (cleanFiles.length === 1) {
+                        return { file: cleanFiles[0].file };
                     }
                 }
 
@@ -6261,12 +6268,16 @@
                         hasDirectory = hasDirectory || entry.isDirectory;
                         await this.walkDemoFileEntry(entry, entry.name, files);
                     }
-                    if (files.length && (hasDirectory || files.length > 1)) {
-                        return { files: this.filterDemoFolderFiles(files), sourceName: this.demoDropSourceName(entries) };
+                    const cleanFiles = this.filterDemoFolderFiles(files);
+                    if (cleanFiles.length && (hasDirectory || cleanFiles.length > 1)) {
+                        return { files: cleanFiles, sourceName: this.demoDropSourceName(entries) };
+                    }
+                    if (cleanFiles.length === 1) {
+                        return { file: cleanFiles[0].file };
                     }
                 }
 
-                return { file: dataTransfer?.files?.[0] || null };
+                return { file: fallbackFile };
             }
 
             async walkDemoFileSystemHandle(handle, relativePath, files) {

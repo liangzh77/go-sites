@@ -44,3 +44,13 @@ https://liangz77.cn {
 https://www.liangz77.cn {
     redir https://liangz77.cn{uri} permanent
 }
+
+http://resume.liangz77.cn {
+    redir https://resume.liangz77.cn{uri} permanent
+}
+
+https://resume.liangz77.cn {
+    root * /srv/sites/liangz77.cn/current/apps/resume
+    encode zstd gzip
+    file_server
+}
