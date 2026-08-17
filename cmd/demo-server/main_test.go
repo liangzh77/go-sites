@@ -96,7 +96,8 @@ func TestPublishDemoRequiresAPIKey(t *testing.T) {
 }
 
 func TestMarkdownDemoPageUsesSitePalette(t *testing.T) {
-	page := renderMarkdownPage("调色测试", "# 标题\n\n正文")
+	markdown := "# 标题\n\n正文"
+	page := renderMarkdownPage("调色测试", markdown)
 
 	for _, want := range []string{
 		`href="/favicon.svg?v=20260618-bulb-logo"`,
@@ -105,6 +106,8 @@ func TestMarkdownDemoPageUsesSitePalette(t *testing.T) {
 		`--go-site-bg: #F0F2F5`,
 		`class="md-brand-seal"`,
 		`灵感书架`,
+		`data-md-copy-button`,
+		`复制 Markdown`,
 		`>标题</h1>`,
 		`<p>正文</p>`,
 	} {
@@ -112,8 +115,47 @@ func TestMarkdownDemoPageUsesSitePalette(t *testing.T) {
 			t.Fatalf("rendered markdown page missing %q:\n%s", want, page)
 		}
 	}
+	if source, ok := extractStoredMarkdownDemoSource(page); !ok || source != markdown {
+		t.Fatalf("stored Markdown source = %q, %v; want %q, true", source, ok, markdown)
+	}
 	if strings.Contains(page, "#756b59") || strings.Contains(page, "20260528") || strings.Contains(page, "#213642") {
 		t.Fatalf("rendered markdown page contains old theme values:\n%s", page)
+	}
+}
+
+func TestMarkdownDemoCopySourcePreservesExactAndUnsafeText(t *testing.T) {
+	markdown := "  # 标题\n\n- **加粗**\n\n<script>alert('x')</script>\n\n```html\n</script>\n```\n"
+	page := renderMarkdownPage("复制测试", markdown)
+
+	if strings.Contains(page, `<script>alert('x')</script>`) {
+		t.Fatalf("raw Markdown escaped out of its JSON payload:\n%s", page)
+	}
+	if source, ok := extractStoredMarkdownDemoSource(page); !ok || source != markdown {
+		t.Fatalf("stored Markdown source = %q, %v; want exact source %q, true", source, ok, markdown)
+	}
+	for _, want := range []string{
+		`aria-label="复制全部 Markdown 内容"`,
+		`navigator.clipboard.writeText(markdown)`,
+		`document.execCommand('copy')`,
+		`label.textContent = '已复制'`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("copy-enabled page missing %q:\n%s", want, page)
+		}
+	}
+}
+
+func TestPublishedMarkdownDemoPreservesOuterWhitespace(t *testing.T) {
+	markdown := "\n  # 标题\n\n正文\n"
+	kind, page, err := publishedDemoPage("演示", publishDemoInput{Markdown: markdown})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if kind != "markdown" {
+		t.Fatalf("kind = %q, want markdown", kind)
+	}
+	if source, ok := extractStoredMarkdownDemoSource(page); !ok || source != markdown {
+		t.Fatalf("stored Markdown source = %q, %v; want exact source %q, true", source, ok, markdown)
 	}
 }
 
@@ -188,10 +230,14 @@ func TestRefreshStoredMarkdownDemoPagesUpdatesShellAndKeepsBody(t *testing.T) {
 		`--go-site-primary: #0866FF`,
 		`>保留正文</h1>`,
 		`<li>one</li>`,
+		`data-md-copy-button`,
 	} {
 		if !strings.Contains(nextPage, want) {
 			t.Fatalf("refreshed page missing %q:\n%s", want, nextPage)
 		}
+	}
+	if source, ok := extractStoredMarkdownDemoSource(nextPage); !ok || source != "# 保留正文\n\n- one" {
+		t.Fatalf("refreshed page lost Markdown source: %q, %v", source, ok)
 	}
 	if strings.Contains(nextPage, "20260528") || strings.Contains(nextPage, "#27312b") || strings.Contains(nextPage, "#213642") {
 		t.Fatalf("refreshed page contains old shell values:\n%s", nextPage)
@@ -621,10 +667,14 @@ func TestMaterializeFolderUploadBuildsMarkdownSiteLinks(t *testing.T) {
 		`<a href="sub/deep.html#part">Deep</a>`,
 		`href="https://example.com"`,
 		`src="assets/logo.png"`,
+		`data-md-copy-button`,
 	} {
 		if !strings.Contains(home, want) {
 			t.Fatalf("home page missing %q:\n%s", want, home)
 		}
+	}
+	if source, ok := extractStoredMarkdownDemoSource(home); !ok || source != "# Home\n\n[Next](next.md)\n\n[Deep](sub/deep.md#part)\n\n[External](https://example.com)\n\n![Logo](assets/logo.png)" {
+		t.Fatalf("home page lost its Markdown source: %q, %v", source, ok)
 	}
 
 	next := readTestFile(t, filepath.Join(targetDir, "next.html"))

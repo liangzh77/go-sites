@@ -42,6 +42,7 @@ const (
 	demoThemeMarker             = `id="go-sites-demo-theme"`
 	markdownMindmapStyleMarker  = "go-sites-markdown-mindmap-style"
 	markdownMindmapScriptMarker = "data-md-mindmap-script"
+	markdownSourceMarker        = `id="markdown-source"`
 )
 
 var markdownHrefAttributePattern = regexp.MustCompile(`href="([^"]*)"`)
@@ -1860,7 +1861,11 @@ func (a *app) refreshStoredMarkdownDemoPages() error {
 			}
 			continue
 		}
+		source, hasSource := extractStoredMarkdownDemoSource(oldPage)
 		nextPage := renderMarkdownPageHTML(item.Title, body)
+		if hasSource {
+			nextPage = renderMarkdownPageHTMLWithSource(item.Title, body, source)
+		}
 		if nextPage != oldPage {
 			if err := os.WriteFile(pagePath, []byte(nextPage), 0o644); err != nil {
 				return err
@@ -1885,6 +1890,24 @@ func extractStoredMarkdownDemoBody(page string) (string, bool) {
 		return "", false
 	}
 	return page[bodyStart:articleEnd], true
+}
+
+func extractStoredMarkdownDemoSource(page string) (string, bool) {
+	marker := `<script ` + markdownSourceMarker + ` type="application/json">`
+	start := strings.Index(page, marker)
+	if start < 0 {
+		return "", false
+	}
+	start += len(marker)
+	endRel := strings.Index(page[start:], "</script>")
+	if endRel < 0 {
+		return "", false
+	}
+	var source string
+	if err := json.Unmarshal([]byte(page[start:start+endRel]), &source); err != nil {
+		return "", false
+	}
+	return source, true
 }
 
 func (a *app) loadManifest() (manifest, error) {
@@ -1993,11 +2016,11 @@ func publishedDemoPage(title string, input publishDemoInput) (string, string, er
 		return "html", input.HTML, nil
 	}
 
-	markdown := strings.TrimSpace(input.Markdown)
-	if markdown == "" && strings.EqualFold(strings.TrimSpace(input.Kind), "markdown") {
-		markdown = strings.TrimSpace(input.Content)
+	markdown := input.Markdown
+	if strings.TrimSpace(markdown) == "" && strings.EqualFold(strings.TrimSpace(input.Kind), "markdown") {
+		markdown = input.Content
 	}
-	if markdown != "" {
+	if strings.TrimSpace(markdown) != "" {
 		return "markdown", renderMarkdownPage(title, markdown), nil
 	}
 
@@ -2314,7 +2337,7 @@ func materializeMarkdownFolder(entries []demoUploadFile, targetDir, title string
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 			return err
 		}
-		if err := os.WriteFile(target, []byte(renderMarkdownPageHTML(pageTitle, body)), 0o644); err != nil {
+		if err := os.WriteFile(target, []byte(renderMarkdownPageHTMLWithSource(pageTitle, body, content)), 0o644); err != nil {
 			return err
 		}
 	}
@@ -2659,7 +2682,7 @@ func isAllowedStaticFile(name string) bool {
 }
 
 func renderMarkdownPage(title, source string) string {
-	return renderMarkdownPageHTML(title, renderMarkdown(source))
+	return renderMarkdownPageHTMLWithSource(title, renderMarkdown(source), source)
 }
 
 func demoThemeHeadHTML() string {
@@ -2813,9 +2836,17 @@ func markdownDemoCSS() string {
     .md-brand {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 0.875rem;
       margin-bottom: 1rem;
       color: var(--go-site-muted);
+    }
+
+    .md-brand-identity {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.875rem;
     }
 
     .md-brand-seal {
@@ -2831,6 +2862,52 @@ func markdownDemoCSS() string {
       font-weight: 700;
       letter-spacing: 0;
     }
+
+    .md-copy-button {
+      min-height: 2.5rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      flex-shrink: 0;
+      padding: 0.45rem 0.75rem;
+      border: 1px solid var(--go-site-border);
+      border-radius: 8px;
+      background: var(--go-site-surface-soft);
+      color: var(--go-site-text);
+      font-size: 0.875rem;
+      font-weight: 650;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .md-copy-button:hover {
+      border-color: #BCC0C4;
+      background: var(--go-site-surface-hover);
+      color: var(--go-site-text);
+    }
+
+    .md-copy-button:disabled {
+      cursor: wait;
+      opacity: 0.72;
+    }
+
+    .md-copy-button[data-copy-state="success"] {
+      border-color: rgba(8, 102, 255, 0.45);
+      background: var(--go-site-focus);
+      color: var(--go-site-primary);
+    }
+
+    .md-copy-button svg {
+      width: 1rem;
+      height: 1rem;
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.8;
+    }
+
     article {
       padding: 2rem;
       border: 1px solid var(--go-site-border);
@@ -2899,6 +2976,10 @@ func markdownDemoCSS() string {
       main {
         width: min(100vw - 1rem, 900px);
         padding: 1rem 0 2rem;
+      }
+
+      .md-brand-text {
+        display: none;
       }
 
       article {
@@ -3247,11 +3328,32 @@ func markdownMindmapScript() string {
 }
 
 func renderMarkdownPageHTML(title, body string) string {
+	return renderMarkdownPageHTMLDocument(title, body, "", false)
+}
+
+func renderMarkdownPageHTMLWithSource(title, body, source string) string {
+	return renderMarkdownPageHTMLDocument(title, body, source, true)
+}
+
+func renderMarkdownPageHTMLDocument(title, body, source string, includeSource bool) string {
 	mindmapCSS := ""
 	mindmapScript := ""
 	if markdownPageHasMermaidMindmap(body) {
 		mindmapCSS = markdownMindmapCSS()
 		mindmapScript = markdownMindmapScript()
+	}
+	copyButton := ""
+	copyPayload := ""
+	copyScript := ""
+	if includeSource {
+		sourceJSON, _ := json.Marshal(source)
+		copyButton = `<button class="md-copy-button" type="button" data-md-copy-button aria-label="复制全部 Markdown 内容">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+          <span data-md-copy-label aria-live="polite">复制 Markdown</span>
+        </button>`
+		copyPayload = `
+  <script ` + markdownSourceMarker + ` type="application/json">` + string(sourceJSON) + `</script>`
+		copyScript = markdownCopyScript()
 	}
 	return `<!doctype html>
 <html lang="zh-CN">
@@ -3267,16 +3369,76 @@ func renderMarkdownPageHTML(title, body string) string {
 <body>
   <main>
     <article>
-      <div class="md-brand" aria-hidden="true">
-        <span class="md-brand-seal"></span>
-        <span class="md-brand-text">灵感书架</span>
+      <div class="md-brand">
+        <span class="md-brand-identity" aria-hidden="true">
+          <span class="md-brand-seal"></span>
+          <span class="md-brand-text">灵感书架</span>
+        </span>
+        ` + copyButton + `
       </div>
 ` + body + `
     </article>
   </main>
-` + mindmapScript + `
+` + copyPayload + mindmapScript + copyScript + `
 </body>
 </html>`
+}
+
+func markdownCopyScript() string {
+	return `
+  <script data-md-copy-script>
+    (() => {
+      const button = document.querySelector('[data-md-copy-button]');
+      const label = button?.querySelector('[data-md-copy-label]');
+      const sourceNode = document.getElementById('markdown-source');
+      if (!button || !label || !sourceNode) return;
+
+      let markdown = '';
+      try {
+        markdown = JSON.parse(sourceNode.textContent || '""');
+      } catch {
+        button.disabled = true;
+        label.textContent = '内容不可用';
+        return;
+      }
+
+      const fallbackCopy = () => {
+        const textarea = document.createElement('textarea');
+        textarea.value = markdown;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand('copy');
+        textarea.remove();
+        if (!copied) throw new Error('copy command failed');
+      };
+
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(markdown);
+          } else {
+            fallbackCopy();
+          }
+          button.dataset.copyState = 'success';
+          label.textContent = '已复制';
+        } catch {
+          button.dataset.copyState = 'error';
+          label.textContent = '复制失败';
+        } finally {
+          button.disabled = false;
+          window.setTimeout(() => {
+            delete button.dataset.copyState;
+            label.textContent = '复制 Markdown';
+          }, 1800);
+        }
+      });
+    })();
+  </script>
+`
 }
 
 func renderMarkdown(source string) string {
