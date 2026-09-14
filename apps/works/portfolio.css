@@ -429,6 +429,14 @@ h1 {
   min-width: 0;
   animation: appear 0.55s var(--ease) both;
 }
+.work-card:nth-child(4n + 1),
+.work-card:nth-child(4n) {
+  grid-column: span 7;
+}
+.work-card:nth-child(4n + 2),
+.work-card:nth-child(4n + 3) {
+  grid-column: span 5;
+}
 .work-card:nth-child(2) {
   animation-delay: 80ms;
 }
@@ -1016,7 +1024,7 @@ h1 {
     grid-template-columns: minmax(0, 1fr);
     gap: 34px;
   }
-  .work-card,
+  .work-card:nth-child(n),
   .work-card.woolly,
   .work-card.tower,
   .work-card.space,
