@@ -6,13 +6,21 @@
   const filters = [...document.querySelectorAll("[data-filter]")];
   const randomButton = document.querySelector("#random-work");
   const details = {
+    "chick-chick": {
+      order: -1,
+      label: "CHICK CHICK / VOXEL ADVENTURE",
+      description:
+        "小鸡向前冲！穿过车流、铁轨和河流，收集金币，看看这次能走多远。",
+      tags: ["3D 过马路", "键盘 / 触屏"],
+      style: "chick",
+      note: "新作登场",
+    },
     "woolly-run": {
       order: 0,
       label: "MACARON ADVENTURE",
       description: "软乎乎的角色，硬核一点的冒险。跳跃、冲刺，和朋友一起闯关。",
       tags: ["跑酷冒险", "单人 / 双人"],
       style: "woolly",
-      note: "从这里开始",
     },
     starcruiser: {
       order: 1,

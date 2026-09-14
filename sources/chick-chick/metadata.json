@@ -1,0 +1,5 @@
+{
+  "name": "Voxel Road Cross",
+  "description": "A 3D voxel-style arcade game where you guide a chicken across busy roads and rivers. Avoid traffic, jump on logs, and try to get the highest score!",
+  "requestFramePermissions": []
+}

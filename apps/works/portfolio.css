@@ -824,6 +824,30 @@ h1 {
     opacity: 0.55;
   }
 }
+.work-card.chick {
+  grid-column: 1 / -1;
+}
+.chick .cover {
+  background: #e5ecd2;
+  height: 380px;
+}
+.chick .preview-frame {
+  inset: 60px 14% -100px;
+  transform: rotate(-2deg);
+  border-color: #f8faed;
+}
+.chick .work-image {
+  object-position: center;
+}
+@media (max-width: 767px) {
+  .chick .cover {
+    height: 310px;
+  }
+  .chick .preview-frame {
+    inset: 60px 22px -20px;
+  }
+}
+
 @media (min-width: 1500px) {
   .intro {
     min-height: 550px;
