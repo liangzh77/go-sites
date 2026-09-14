@@ -1,4 +1,7 @@
 (main_site_routes) {
+    @legacy_works_page path /works /works/
+    redir @legacy_works_page /mu/ permanent
+
     redir /mu /mu/ permanent
 
     @legacy_works path_regexp legacy_works ^/apps/works/(.*)$
@@ -21,7 +24,7 @@
         reverse_proxy 127.0.0.1:9005
     }
 
-    @tab_routes path /search /recommendations /ai-tools /dev-tools /tools /fun /works /private /demo /wiki
+    @tab_routes path /search /recommendations /ai-tools /dev-tools /tools /fun /private /demo /wiki
     handle @tab_routes {
         reverse_proxy 127.0.0.1:9005
     }
