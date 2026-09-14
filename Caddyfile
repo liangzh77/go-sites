@@ -1,4 +1,12 @@
 (main_site_routes) {
+    @legacy_works path_regexp legacy_works ^/apps/works/(.*)$
+    redir @legacy_works /mu/{re.legacy_works.1} permanent
+
+    handle_path /mu/* {
+        root * /srv/sites/liangz77.cn/current/apps/works
+        file_server
+    }
+
     handle /api/demo/* {
         reverse_proxy 127.0.0.1:9005
     }

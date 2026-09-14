@@ -49,6 +49,7 @@ function New-StagingDir {
         ".playwright-mcp",
         ".vscode",
         "cmd",
+        "sources",
         "demo-data",
         "deploy.ps1",
         "server-init.sh",
