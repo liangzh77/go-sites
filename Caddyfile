@@ -1,7 +1,4 @@
 (main_site_routes) {
-    @legacy_works_page path /works /works/
-    redir @legacy_works_page /mu/ permanent
-
     redir /mu /mu/ permanent
 
     @legacy_works path_regexp legacy_works ^/apps/works/(.*)$
