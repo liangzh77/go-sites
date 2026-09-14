@@ -145,13 +145,16 @@
     } else {
       const artwork = element("div", "web-art");
       artwork.setAttribute("aria-hidden", "true");
-      artwork.append(
-        element(
-          "span",
-          "web-word",
-          work.slug === "chujiao.vercel.app" ? "触角" : "HELLO.",
-        ),
-      );
+      if (work.slug === "chujiao.vercel.app") {
+        const logo = element("img", "web-logo");
+        logo.src = "/mu/previews/chujiao-logo.png";
+        logo.alt = "触角公司 Logo";
+        logo.width = 128;
+        logo.height = 128;
+        artwork.append(logo);
+      } else {
+        artwork.append(element("span", "web-word", "HELLO."));
+      }
       artwork.append(element("span", "web-orbit"));
       artwork.append(
         element("span", "web-caption", "A DIFFERENT POINT OF VIEW"),
