@@ -102,11 +102,12 @@ a:focus-visible {
 .wordmark {
   font-family: MuRound, sans-serif;
   font-size: 42px;
-  letter-spacing: -5px;
+  letter-spacing: -3px;
   font-weight: bold;
   line-height: 1;
 }
 .wordmark > span {
+  margin-left: -2px;
   color: #718335;
 }
 .brand-name {
