@@ -684,10 +684,7 @@ h1 {
   z-index: 1;
   width: 128px;
   height: 128px;
-  padding: 16px;
   object-fit: contain;
-  background: white;
-  border-radius: 24px;
   transform: rotate(-7deg);
   transition: transform 0.5s var(--ease);
 }

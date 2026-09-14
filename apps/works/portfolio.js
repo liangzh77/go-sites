@@ -147,7 +147,7 @@
       artwork.setAttribute("aria-hidden", "true");
       if (work.slug === "chujiao.vercel.app") {
         const logo = element("img", "web-logo");
-        logo.src = "/mu/previews/chujiao-logo.png";
+        logo.src = "/mu/previews/chujiao-logo-hd.png";
         logo.alt = "触角公司 Logo";
         logo.width = 128;
         logo.height = 128;
