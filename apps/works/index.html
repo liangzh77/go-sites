@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f6ef" />
+    <meta
+      name="description"
+      content="张牧的作品集。小游戏、小网页，还有一点奇思妙想。挑一个，开玩。"
+    />
+    <title>张牧 · 把脑洞变成作品</title>
+    <link rel="canonical" href="https://liangz77.cn/mu/" />
+    <link rel="icon" type="image/svg+xml" href="/mu/mark.svg" />
+    <link rel="stylesheet" href="/mu/portfolio.css" />
+    <script src="/data.js" defer></script>
+    <script src="/mu/portfolio.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#collection">跳到作品</a>
+    <header class="site-header wrap">
+      <a class="brand" href="/mu/" aria-label="张牧作品集首页"
+        ><span class="wordmark">mu<span>.</span></span
+        ><span class="brand-name">张牧的作品集</span></a
+      >
+      <nav aria-label="主导航">
+        <a href="#collection"
+          >作品<span class="nav-dot" aria-hidden="true"></span></a
+        ><a href="#about">关于这里</a>
+      </nav>
+      <span class="header-note">A LITTLE WORLD OF MINE</span>
+    </header>
+
+    <main class="wrap">
+      <section class="intro" aria-labelledby="page-title">
+        <div class="intro-copy">
+          <p class="eyebrow">
+            <span class="live-dot" aria-hidden="true"></span> 你好，我是张牧
+          </p>
+          <h1 id="page-title">
+            把脑洞，<br />变成<span class="underlined">作品</span
+            ><span class="title-period">。</span>
+          </h1>
+          <p class="intro-description">
+            小游戏、小网页，还有一点奇思妙想。<br />欢迎来到我的创作游乐场。
+          </p>
+          <a class="text-link" href="#collection"
+            >往下看看 <span aria-hidden="true">↓</span></a
+          >
+        </div>
+        <div class="intro-art" aria-hidden="true">
+          <span class="art-caption top-caption">IDEAS IN MY HEAD</span>
+          <div class="orbit"></div>
+          <div class="mu-sticker">
+            <span>mu<span class="sticker-period">.</span></span
+            ><i class="sticker-eye eye-left"></i
+            ><i class="sticker-eye eye-right"></i>
+          </div>
+          <span class="spark spark-one"></span
+          ><span class="spark spark-two">+</span>
+          <span class="play-sticker">JUST FOR FUN ↗</span>
+          <span class="art-caption bottom-caption">THINGS YOU CAN PLAY</span>
+        </div>
+        <span class="intro-index" aria-hidden="true"
+          >SCROLL TO EXPLORE — 01</span
+        >
+      </section>
+
+      <section
+        id="collection"
+        class="collection"
+        aria-labelledby="collection-title"
+      >
+        <div class="collection-heading">
+          <div class="section-title">
+            <h2 id="collection-title">作品放映室</h2>
+            <span id="total-count" class="total-count"></span>
+          </div>
+          <p>挑一个，开玩。</p>
+        </div>
+        <div class="collection-toolbar">
+          <div class="filters" role="group" aria-label="按作品类型筛选">
+            <button type="button" data-filter="all" aria-pressed="true">
+              全部 <span data-count="all"></span>
+            </button>
+            <button type="button" data-filter="game" aria-pressed="false">
+              游戏 <span data-count="game"></span>
+            </button>
+            <button type="button" data-filter="web" aria-pressed="false">
+              网页 <span data-count="web"></span>
+            </button>
+          </div>
+          <button type="button" id="random-work" class="random-button" disabled>
+            <span class="shuffle-symbol" aria-hidden="true">↝</span> 随机玩一个
+            <span aria-hidden="true">↗</span>
+          </button>
+        </div>
+        <p
+          id="collection-status"
+          class="sr-only"
+          role="status"
+          aria-live="polite"
+        ></p>
+        <div id="work-grid" class="work-grid" aria-busy="true">
+          <div class="skeleton" aria-hidden="true"></div>
+          <div class="skeleton" aria-hidden="true"></div>
+        </div>
+        <noscript
+          ><div class="fallback">
+            <p>全部作品，也可以从这里直接打开：</p>
+            <ul>
+              <li><a href="/mu/woolly-run/">woolly-run</a></li>
+              <li><a href="/mu/tankbattle-warriors/">坦克大战-Warriors</a></li>
+              <li><a href="/mu/tank-1v1/">坦克大战-1v1</a></li>
+              <li><a href="/mu/starcruiser/">星际战舰</a></li>
+              <li><a href="/mu/towerfun/">塔防游戏-冲突之塔</a></li>
+              <li>
+                <a
+                  href="https://chujiao.vercel.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >触角公司网站（外部网站）</a
+                >
+              </li>
+            </ul>
+          </div>
+          <style>
+            .skeleton,
+            .collection-toolbar {
+              display: none;
+            }
+          </style></noscript
+        >
+        <div class="collection-end">
+          <span>每一个作品，都是一次「试试看」。</span
+          ><span aria-hidden="true">END OF COLLECTION ↙</span>
+        </div>
+      </section>
+
+      <section id="about" class="about" aria-labelledby="about-title">
+        <div class="about-label">
+          <span class="small-spark" aria-hidden="true"></span
+          ><span>A NOTE FROM MU</span>
+        </div>
+        <div>
+          <h2 id="about-title">保持好奇，继续折腾。</h2>
+          <p>
+            这里放着我做的小游戏和网页。<br />把一闪而过的想法，变成可以点开、可以玩的东西。<br />希望你也能在这里，找到一点小小的快乐。
+          </p>
+        </div>
+        <a href="#page-title" class="back-top" aria-label="回到页面顶部">↑</a>
+      </section>
+    </main>
+
+    <footer class="site-footer wrap">
+      <span><strong>mu.</strong> 张牧作品集</span
+      ><span>MADE WITH CURIOSITY <span aria-hidden="true">↗</span></span>
+    </footer>
+  </body>
+</html>
