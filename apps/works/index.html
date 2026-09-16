@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f6f6ef" />
+    <meta
+      name="description"
+      content="张牧的作品集。小游戏、小网页，还有一点奇思妙想。每一个，都是一次新的尝试。"
+    />
+    <title>张牧 · 把脑洞变成作品</title>
+    <link rel="canonical" href="https://liangz77.cn/mu/" />
+    <link rel="icon" type="image/svg+xml" href="/mu/wordmark-icon.svg" />
+    <link rel="stylesheet" href="/mu/portfolio.css?v=1.0.21" />
+    <link rel="stylesheet" href="/mu/playground.css" />
+    <script src="/data.js?v=1.0.21" defer></script>
+    <script src="/mu/portfolio.js?v=1.0.21" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#collection">跳到作品</a>
+    <header class="site-header wrap">
+      <a class="brand" href="/mu/" aria-label="张牧作品集首页"
+        ><span class="wordmark">mu<span>.</span></span
+        ><span class="brand-name">张牧的作品集</span></a
+      >
+      <nav aria-label="主导航">
+        <a href="#collection"
+          >作品<span class="nav-dot" aria-hidden="true"></span></a
+        ><a href="#about">关于这里</a>
+      </nav>
+      <a class="header-note home-link" href="/">回到主页 ↗</a>
+    </header>
+
+    <main class="wrap">
+      <section class="studio-intro" aria-labelledby="page-title">
+        <div class="studio-caption"><span>张牧 / 独立创作收藏</span><span>THE PLAY ARCHIVE — 01</span></div>
+        <div class="studio-title"><h1 id="page-title" class="title-lockup" aria-label="世界，大有玩头。"><span class="title-stack"><span>世界<span class="title-comma">，</span></span><span>大有</span></span><span class="title-play">玩头<span class="title-stop">。</span></span></h1><div class="studio-note"><span class="note-cross" aria-hidden="true">✳</span><p>你好，我是张牧。<br>把好奇心做成小游戏和网页，<br>也把快乐留在这里。</p><a href="#collection">进入我的收藏 <span aria-hidden="true">↓</span></a></div></div>
+        <div class="archive-strip"><span class="strip-mark wordmark" aria-hidden="true">mu<span>.</span></span><span>想法没有标准答案。<br>点开，玩玩看。</span><div class="archive-stamp" aria-hidden="true">MADE<br>FOR FUN ↗</div><span class="strip-index">小游戏 · 小网页 · 小宇宙</span></div>
+      </section>
+
+      <section
+        id="collection"
+        class="collection"
+        aria-labelledby="collection-title"
+      >
+        <div class="collection-heading">
+          <div class="section-title">
+            <h2 id="collection-title">可玩的收藏</h2>
+            <span id="total-count" class="total-count"></span>
+          </div>
+          <p>每一个，都是一次新的尝试。</p>
+        </div>
+        <div class="collection-toolbar">
+          <div class="filters" role="group" aria-label="按作品类型筛选">
+            <button type="button" data-filter="all" aria-pressed="true">
+              全部 <span data-count="all"></span>
+            </button>
+            <button type="button" data-filter="game" aria-pressed="false">
+              游戏 <span data-count="game"></span>
+            </button>
+            <button type="button" data-filter="web" aria-pressed="false">
+              网页 <span data-count="web"></span>
+            </button>
+          </div>
+          <button type="button" id="random-work" class="random-button" disabled>
+            <span class="shuffle-symbol" aria-hidden="true">↝</span> 随机玩一个
+            <span aria-hidden="true">↗</span>
+          </button>
+        </div>
+        <p
+          id="collection-status"
+          class="sr-only"
+          role="status"
+          aria-live="polite"
+        ></p>
+        <div id="work-grid" class="work-grid" aria-busy="true">
+          <div class="skeleton" aria-hidden="true"></div>
+          <div class="skeleton" aria-hidden="true"></div>
+        </div>
+        <noscript
+          ><div class="fallback">
+            <p>全部作品，也可以从这里直接打开：</p>
+            <ul>
+              <li><a href="/mu/kings-canyon/">王者峡谷 · 自由漫游</a></li>
+              <li><a href="/mu/chick-chick/">Chick Chick</a></li>
+              <li><a href="/mu/woolly-run/">woolly-run</a></li>
+              <li><a href="/mu/tankbattle-warriors/">坦克大战-Warriors</a></li>
+              <li><a href="/mu/tank-1v1/">坦克大战-1v1</a></li>
+              <li><a href="/mu/starcruiser/">星际战舰</a></li>
+              <li><a href="/mu/towerfun/">塔防游戏-冲突之塔</a></li>
+              <li>
+                <a
+                  href="https://chujiao.vercel.app"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >触角公司网站（外部网站）</a
+                >
+              </li>
+            </ul>
+          </div>
+          <style>
+            .skeleton,
+            .collection-toolbar {
+              display: none;
+            }
+          </style></noscript
+        >
+        <div class="collection-end">
+          <span>每一个作品，都是一次「试试看」。</span
+          ><span aria-hidden="true">END OF COLLECTION ↙</span>
+        </div>
+      </section>
+
+      <section id="about" class="about" aria-labelledby="about-title">
+        <div class="about-label">
+          <span class="small-spark" aria-hidden="true"></span
+          ><span>A NOTE FROM MU</span>
+        </div>
+        <div>
+          <h2 id="about-title">保持好奇，继续折腾。</h2>
+          <p>
+            这里放着我做的小游戏和网页。<br />把一闪而过的想法，变成可以点开、可以玩的东西。<br />希望你也能在这里，找到一点小小的快乐。
+          </p>
+        </div>
+        <a href="#page-title" class="back-top" aria-label="回到页面顶部">↑</a>
+      </section>
+    </main>
+
+    <footer class="site-footer wrap">
+      <span><strong>mu.</strong> 张牧作品集</span
+      ><span>MADE WITH CURIOSITY <span aria-hidden="true">↗</span></span>
+    </footer>
+  </body>
+</html>

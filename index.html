@@ -2835,6 +2835,43 @@
             font-weight: 700;
         }
 
+        .tabs-row {
+            display: flex;
+            align-items: stretch;
+            gap: 0.75rem;
+            border-top: 1px solid #E4E6EB;
+        }
+
+        .tabs-row #tabs {
+            flex: 1;
+            min-width: 0;
+            border-top: 0;
+        }
+
+        .portfolio-nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-shrink: 0;
+            padding: 0.65rem 0.25rem;
+            color: var(--primary-color);
+            font-size: 0.82rem;
+            font-weight: 600;
+            white-space: nowrap;
+            text-decoration: none;
+        }
+
+        .portfolio-nav-link:hover {
+            text-decoration: underline;
+            text-underline-offset: 4px;
+        }
+
+        .portfolio-nav-link:focus-visible {
+            outline: 2px solid var(--primary-color);
+            outline-offset: -2px;
+            border-radius: 4px;
+        }
+
         .tab-btn.tab-active::after {
             left: 0.7rem;
             right: 0.7rem;
@@ -3289,9 +3326,13 @@
                         <button id="authButton" class="auth-btn" type="button">登录</button>
                     </div>
                 </div>
-                <ul id="tabs" class="flex">
-                    <!-- 标签页将动态生成 -->
-                </ul>
+                <div class="tabs-row">
+                    <ul id="tabs" class="flex">
+                        <!-- 标签页将动态生成 -->
+                    </ul>
+                    <a class="portfolio-nav-link" href="/mu/">张牧作品 <span aria-hidden="true">↗</span></a>
+                    <a class="portfolio-nav-link" href="/fang/">张放作品 <span aria-hidden="true">↗</span></a>
+                </div>
             </div>
         </header>
 
@@ -5276,11 +5317,13 @@
 
             getVisiblePages() {
                 const sourcePages = this.getVisibleSourcePages();
-                return {
+                const visiblePages = {
                     [this.searchPageName]: this.buildSearchPage(this.getSearchSourcePages(sourcePages), this.searchQuery),
                     [this.recommendationPageName]: this.buildRecommendationPage(sourcePages),
                     ...sourcePages
                 };
+                delete visiblePages['张牧作品'];
+                return visiblePages;
             }
 
             getSearchSourcePages(sourcePages = this.getVisibleSourcePages()) {
@@ -5316,7 +5359,6 @@
                     '开发工具': 'dev-tools',
                     '实用工具': 'tools',
                     '娱乐与教育': 'fun',
-                    '张牧作品': 'works',
                     [this.privatePageName]: 'private',
                     [this.demoPageName]: 'demo',
                     [this.wikiPageName]: 'wiki'

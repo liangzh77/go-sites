@@ -1,0 +1,9 @@
+王者峡谷 · 自由漫游
+
+经典地图的艺术重建。建筑、地形、植被与装饰由本项目脚本重新建模，未提取游戏客户端资产。王者荣耀及相关名称、视觉设计归其原权利人。
+
+扫描岩石、地表贴图、环境天空：Poly Haven，CC0。
+https://polyhaven.com/license
+资源：Rock Moss Set 01、Rock Face 01、Grassy Cobblestone、Aerial Grass Rock、Kloofendal 48d Partly Cloudy Puresky。
+
+渲染：Three.js（MIT）。模型解码：Meshoptimizer（MIT）。完整许可见 third-party-licenses.txt。

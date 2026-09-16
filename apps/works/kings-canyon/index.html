@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#122324" />
+    <meta name="description" content="在三维王者峡谷中自由浏览、步行与飞行。经典峡谷的艺术重建。" />
+    <title>王者峡谷 · 自由漫游</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <script type="module" crossorigin src="./assets/index-BQ9iTsGR.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DsiiAHgx.css">
+  </head>
+  <body>
+    <main id="app">
+      <div id="viewport" aria-label="王者峡谷三维场景"></div>
+      <div class="vignette" aria-hidden="true"></div>
+      <header class="masthead">
+        <span class="crest" aria-hidden="true">◇</span>
+        <div><p class="eyebrow">KING’S CANYON</p><h1>王者峡谷</h1><p class="edition">经典峡谷 · 艺术重建</p></div>
+      </header>
+      <div class="tools" aria-label="显示设置">
+        <label class="quality-control"><span>画质</span><select id="quality" aria-label="画质"><option value="low">流畅</option><option value="balanced" selected>均衡</option><option value="high">精细</option></select></label>
+        <button id="fullscreen" class="icon-button" aria-label="全屏浏览" title="全屏">⛶</button>
+        <button id="help-button" class="icon-button" aria-label="操作说明" title="操作说明">?</button>
+      </div>
+      <section id="loading" class="loading-card" role="status" aria-live="polite">
+        <p class="eyebrow">ENTER THE CANYON</p><h2>峡谷正在苏醒</h2>
+        <p id="loading-message">正在载入地形与建筑…</p><div class="loading-track"><i id="loading-bar"></i></div>
+        <span id="loading-percent">0%</span>
+      </section>
+      <section id="error-panel" class="loading-card" hidden role="alert"><h2>暂时无法进入峡谷</h2><p id="error-message"></p><button id="retry" class="primary">重新加载</button></section>
+      <div id="crosshair" aria-hidden="true" hidden><i></i><i></i></div>
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+      <aside class="places" aria-label="前往地点">
+        <p class="eyebrow">探索地点</p>
+        <button data-place="blue"><span class="place-glyph blue">◇</span><span>蓝方基地</span><small>01</small></button>
+        <button data-place="river"><span class="place-glyph">≈</span><span>中央河道</span><small>02</small></button>
+        <button data-place="dragon"><span class="place-glyph violet">⌁</span><span>主宰龙坑</span><small>03</small></button>
+        <button data-place="red"><span class="place-glyph red">◇</span><span>红方基地</span><small>04</small></button>
+      </aside>
+      <section class="minimap-panel" aria-label="峡谷小地图">
+        <div class="minimap-heading"><span id="location">峡谷全景</span><span id="compass">N ↑</span></div>
+        <canvas id="minimap" width="320" height="320" tabindex="0" role="button" aria-label="小地图：点击位置前往。键盘使用左侧地点按钮。"></canvas>
+        <p>点击地图前往</p>
+      </section>
+      <footer class="bottom-bar">
+        <div class="controls-hint" id="controls-hint"><span>拖动旋转</span><i>·</i><span>滚轮缩放</span></div>
+        <nav class="mode-switch" aria-label="浏览模式">
+          <button id="overview" class="active primary" aria-pressed="true">俯瞰</button>
+          <button id="walk" aria-pressed="false"><span class="walk-icon" aria-hidden="true">↟</span>进入峡谷</button>
+          <button id="fly" aria-pressed="false">自由飞行</button>
+        </nav>
+        <div class="session-meta"><span id="mode-label">全景视角</span><span class="divider">/</span><span id="fps" aria-label="帧率">— FPS</span></div>
+      </footer>
+      <div id="touch-controls" hidden>
+        <div id="joystick" aria-label="拖动摇杆移动"><div id="joystick-thumb"></div></div>
+        <div class="touch-height"><button id="jump" aria-label="跳跃" hidden>跳</button><button id="up" aria-label="上升">↑</button><button id="down" aria-label="下降">↓</button></div>
+      </div>
+      <dialog id="help-dialog">
+        <button id="close-help" class="dialog-close" aria-label="关闭说明">×</button>
+        <p class="eyebrow">HOW TO EXPLORE</p><h2>走进峡谷</h2>
+        <dl><dt>俯瞰</dt><dd>拖动旋转，滚轮缩放；右键拖动平移。</dd><dt>步行 / 飞行</dt><dd><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动，鼠标转向，<kbd>Shift</kbd> 加速。</dd><dt>自由飞行</dt><dd><kbd>W</kbd> 沿视线前进，<kbd>S</kbd> 后退。抬头向上飞，低头向地面俯冲；<kbd>A</kbd><kbd>D</kbd> 横移。可穿过地形与建筑，自由探索地图内外。</dd><dt>步行跳跃</dt><dd><kbd>空格</kbd> 起跳，落地后可再次跳跃。跳跃时可以继续移动。</dd><dt>退出鼠标锁定</dt><dd><kbd>Esc</kbd> 释放鼠标，再点击场景继续。无法锁定时，按住鼠标拖动转向。</dd><dt>触屏</dt><dd>俯瞰时单指旋转、双指缩放；漫游时左摇杆移动，右侧拖动转向。步行时点「跳」跳跃；飞行时推摇杆沿视线前进。</dd></dl>
+        <p class="help-note">画面卡顿时，可把画质切换为「流畅」。</p>
+      </dialog>
+    </main>
+  </body>
+</html>
