@@ -78,6 +78,7 @@ type demoItem struct {
 	Slug      string `json:"slug"`
 	Address   string `json:"address"`
 	Disabled  bool   `json:"disabled"`
+	Locked    bool   `json:"locked"`
 	Kind      string `json:"kind"`
 	Feature   string `json:"feature"`
 	CreatedAt string `json:"createdAt"`
@@ -893,6 +894,7 @@ func (a *app) handlePublishDemo(w http.ResponseWriter, r *http.Request) {
 
 	status := http.StatusCreated
 	if index >= 0 {
+		item.Locked = m.Demos[index].Locked
 		m.Demos[index] = item
 		status = http.StatusOK
 	} else {
@@ -914,6 +916,7 @@ func (a *app) handleUpdateDemo(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	var input struct {
 		Disabled *bool   `json:"disabled"`
+		Locked   *bool   `json:"locked"`
 		Title    *string `json:"title"`
 		Feature  *string `json:"feature"`
 	}
@@ -921,7 +924,7 @@ func (a *app) handleUpdateDemo(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body.")
 		return
 	}
-	if input.Disabled == nil && input.Title == nil && input.Feature == nil {
+	if input.Disabled == nil && input.Locked == nil && input.Title == nil && input.Feature == nil {
 		writeError(w, http.StatusBadRequest, "NO_CHANGE", "No supported fields were provided.")
 		return
 	}
@@ -955,6 +958,9 @@ func (a *app) handleUpdateDemo(w http.ResponseWriter, r *http.Request) {
 				m.Demos[i].Title = nextTitle
 				m.Demos[i].Slug = nextSlug
 				m.Demos[i].Address = a.demoAddress(nextSlug)
+			}
+			if input.Locked != nil {
+				m.Demos[i].Locked = *input.Locked
 			}
 			if input.Disabled != nil {
 				m.Demos[i].Disabled = *input.Disabled
@@ -990,6 +996,10 @@ func (a *app) handleDeleteDemo(w http.ResponseWriter, r *http.Request) {
 	found := false
 	for _, item := range m.Demos {
 		if item.Slug == slug {
+			if item.Locked {
+				writeError(w, http.StatusConflict, "DEMO_LOCKED", "链接已锁定，请先解锁再删除。")
+				return
+			}
 			found = true
 			continue
 		}

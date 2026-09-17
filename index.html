@@ -709,6 +709,12 @@
             border-color: rgba(111, 124, 107, 0.3);
         }
 
+        .demo-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .demo-action-btn[aria-pressed="true"] { background: #e5ecdf; color: #40543b; border-color: #809473; }
+        .demo-lock-filter { float: right; margin-left: 0.5rem; }
+        .demo-mobile-filter { display: none; padding: 0.75rem; }
+        @media (max-width: 860px) { .demo-mobile-filter { display: block; } }
+
         .demo-action-btn.danger {
             color: #9B3F35;
         }
@@ -5282,6 +5288,7 @@
                 this.isEditingRecommendations = false;
                 this.searchQuery = '';
                 this.demoItems = [];
+                this.demoLockedOnly = false;
                 this.recommendationOverrides = this.loadRecommendationOverrides();
                 this.routePageName = this.getRoutePageName();
                 this.wikiPanel = new WikiPanel(this);
@@ -5507,7 +5514,8 @@
                                          Object.values(pageData['类型'][0])[0][0].hasOwnProperty('功能') &&
                                          Object.values(pageData['类型'][0])[0][0]['功能'] &&
                                          Object.values(pageData['类型'][0])[0][0]['功能'].trim() !== '';
-                const functionColumnHtml = showFunctionColumn ? '<th>功能</th>' : '';
+                const lockFilterHtml = `<button type="button" class="demo-action-btn demo-lock-filter" data-demo-lock-filter aria-pressed="${!!this.demoLockedOnly}" title="${this.demoLockedOnly ? '显示全部链接' : '只显示已锁定链接'}" aria-label="只显示已锁定链接">🔒${this.demoLockedOnly ? ' 已锁定' : ''}</button>`;
+                const functionColumnHtml = showFunctionColumn ? `<th>功能${pageName === this.demoPageName ? lockFilterHtml : ''}</th>` : '';
                 const tableClass = showFunctionColumn ? '' : 'no-function-column';
                 const searchPanelHtml = pageName === this.searchPageName ? `
                             <div class="search-panel">
@@ -5543,6 +5551,7 @@
                         </nav>
                         <div class="table-container">
                             ${searchPanelHtml}
+                            ${pageName === this.demoPageName ? `<div class="demo-mobile-filter">链接筛选${lockFilterHtml}</div>` : ''}
                             <div class="table-scroll">
                                 <table class="${tableClass}">
                                     <thead>
@@ -5563,6 +5572,12 @@
                     </div>
                 `;
 
+                div.querySelectorAll('[data-demo-lock-filter]').forEach(button => {
+                    button.addEventListener('click', () => {
+                        this.demoLockedOnly = !this.demoLockedOnly;
+                        this.renderVisiblePages(this.demoPageName);
+                    });
+                });
                 return div;
             }
 
@@ -5705,6 +5720,11 @@
                 const tableBody = document.getElementById(tableBodyId);
                 if (!tableBody || !pageData || !pageData['类型']) return;
 
+                if (pageName === this.demoPageName && this.demoLockedOnly) {
+                    pageData = { '类型': pageData['类型'].map(category => Object.fromEntries(
+                        Object.entries(category).map(([name, tools]) => [name, tools.filter(tool => tool.locked)])
+                    )).filter(category => Object.values(category)[0].length) };
+                }
                 tableBody.innerHTML = '';
                 const types = []; // 收集类型列表
 
@@ -5824,6 +5844,14 @@
                     });
                 });
 
+                if (pageName === this.demoPageName && this.demoLockedOnly && types.length === 0) {
+                    const row = tableBody.insertRow();
+                    const cell = row.insertCell();
+                    cell.colSpan = 5;
+                    cell.textContent = '暂无已锁定的链接，点击表头锁按钮可显示全部链接。';
+                    const cards = tableBody.closest('.table-scroll')?.querySelector('.mobile-cards');
+                    if (cards) cards.textContent = '暂无已锁定的链接，点击上方锁按钮可显示全部链接。';
+                }
                 // 生成类型导航
                 this.generateTypeNavigation(types, navListId, tableBodyId);
             }
@@ -6004,6 +6032,16 @@
             }
 
             appendDemoActionButtons(actions, tool) {
+                const lockButton = document.createElement('button');
+                lockButton.type = 'button';
+                lockButton.className = 'demo-action-btn';
+                lockButton.dataset.demoAction = tool.locked ? 'unlock' : 'lock';
+                lockButton.dataset.demoSlug = tool.demoSlug;
+                lockButton.textContent = tool.locked ? '🔒' : '🔓';
+                lockButton.title = tool.locked ? '已锁定，点击解锁' : '加锁，防止误删';
+                lockButton.setAttribute('aria-label', lockButton.title);
+                lockButton.setAttribute('aria-pressed', String(!!tool.locked));
+                actions.appendChild(lockButton);
                 const toggleButton = document.createElement('button');
                 toggleButton.type = 'button';
                 toggleButton.className = 'demo-action-btn';
@@ -6018,6 +6056,8 @@
                 deleteButton.dataset.demoAction = 'delete';
                 deleteButton.dataset.demoSlug = tool.demoSlug;
                 deleteButton.textContent = '删除';
+                deleteButton.disabled = !!tool.locked;
+                deleteButton.title = tool.locked ? '请先解锁再删除' : '删除链接';
                 actions.appendChild(deleteButton);
             }
 
@@ -6114,7 +6154,13 @@
             async handleDemoAction(button) {
                 const slug = button.dataset.demoSlug;
                 const action = button.dataset.demoAction;
-                if (!slug || !action) return;
+                if (!slug || !action || button.disabled) return;
+                if (action === 'lock' || action === 'unlock') {
+                    button.disabled = true;
+                    try { await this.setDemoLocked(slug, action === 'lock'); }
+                    finally { button.disabled = false; }
+                    return;
+                }
 
                 if (action === 'delete') {
                     if (!confirm('确定删除这个演示吗？后端文件也会一起删除。')) return;
@@ -6566,6 +6612,22 @@
                 }
             }
 
+            async setDemoLocked(slug, locked) {
+                this.setDemoStatus(locked ? '正在加锁...' : '正在解锁...');
+                try {
+                    const response = await fetch(`/api/demos/${encodeURIComponent(slug)}`, {
+                        method: 'PATCH', credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ locked })
+                    });
+                    if (!response.ok) throw new Error(await this.readErrorMessage(response));
+                    await this.loadDemos();
+                    this.setDemoStatus(locked ? '已加锁，无法删除' : '已解锁');
+                } catch (error) {
+                    this.setDemoStatus(error.message || '操作失败');
+                }
+            }
+
             async setDemoDisabled(slug, disabled) {
                 this.setDemoStatus(disabled ? '正在禁用...' : '正在启用...');
                 try {
@@ -6696,7 +6758,8 @@
                     "功能": item.feature || `${item.disabled ? '已禁用' : '已启用'} · ${this.getDemoKindLabel(item.kind)}`,
                     demoFeature: item.feature || '',
                     demoSlug: item.slug,
-                    disabled: item.disabled
+                    disabled: item.disabled,
+                    locked: !!item.locked
                 }));
 
                 return {

@@ -835,3 +835,71 @@ func gb18030Name(t *testing.T, name string) string {
 	}
 	return encoded
 }
+
+func TestDemoLockProtectsDeletion(t *testing.T) {
+	dataDir := t.TempDir()
+	a := &app{dataDir: dataDir, demosDir: filepath.Join(dataDir, "demos"), manifestPath: filepath.Join(dataDir, "manifest.json"), apiKey: "test-key"}
+	if err := a.ensureManifest(); err != nil {
+		t.Fatal(err)
+	}
+	published := publishDemo(t, a, `{"title":"protected","html":"<h1>keep</h1>"}`)
+	if published.Code != http.StatusCreated {
+		t.Fatal(published.Body.String())
+	}
+	var item demoItem
+	if err := json.Unmarshal(published.Body.Bytes(), &item); err != nil {
+		t.Fatal(err)
+	}
+	patch := func(body string) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPatch, "/api/demos/"+item.Slug, strings.NewReader(body))
+		req.SetPathValue("slug", item.Slug)
+		rec := httptest.NewRecorder()
+		a.handleUpdateDemo(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("patch: %d %s", rec.Code, rec.Body.String())
+		}
+	}
+	remove := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodDelete, "/api/demos/"+item.Slug, nil)
+		req.SetPathValue("slug", item.Slug)
+		rec := httptest.NewRecorder()
+		a.handleDeleteDemo(rec, req)
+		return rec
+	}
+	patch(`{"locked":true}`)
+	patch(`{"disabled":true,"feature":"updated"}`)
+	overwritten := publishDemo(t, a, `{"title":"protected","html":"<h1>updated</h1>"}`)
+	if overwritten.Code != http.StatusOK {
+		t.Fatal(overwritten.Body.String())
+	}
+	m, err := a.loadManifest()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(m.Demos) != 1 || !m.Demos[0].Locked {
+		t.Fatalf("lock not persisted: %+v", m)
+	}
+	rec := remove()
+	if rec.Code != http.StatusConflict || !strings.Contains(rec.Body.String(), "DEMO_LOCKED") {
+		t.Fatalf("locked delete: %d %s", rec.Code, rec.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(a.demosDir, item.Slug, "index.html")); err != nil {
+		t.Fatalf("locked file lost: %v", err)
+	}
+	m, err = a.loadManifest()
+	if err != nil || len(m.Demos) != 1 || !m.Demos[0].Locked {
+		t.Fatalf("locked manifest changed: %+v %v", m, err)
+	}
+	patch(`{"locked":false}`)
+	if rec := remove(); rec.Code != http.StatusNoContent {
+		t.Fatalf("unlocked delete: %d %s", rec.Code, rec.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(a.demosDir, item.Slug)); !os.IsNotExist(err) {
+		t.Fatalf("unlocked file not removed: %v", err)
+	}
+	m, err = a.loadManifest()
+	if err != nil || len(m.Demos) != 0 {
+		t.Fatalf("unlocked manifest: %+v %v", m, err)
+	}
+}
