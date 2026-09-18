@@ -712,6 +712,9 @@
         .demo-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .demo-action-btn[aria-pressed="true"] { background: #e5ecdf; color: #40543b; border-color: #809473; }
         .demo-lock-filter { float: right; margin-left: 0.5rem; }
+        .demo-lock-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.85rem; padding: 0; vertical-align: middle; }
+        .demo-lock-icon svg { width: 16px; height: 16px; stroke: currentColor; }
+        [data-demo-row][hidden], [data-demo-empty][hidden] { display: none !important; }
         .demo-mobile-filter { display: none; padding: 0.75rem; }
         @media (max-width: 860px) { .demo-mobile-filter { display: block; } }
 
@@ -5514,7 +5517,7 @@
                                          Object.values(pageData['类型'][0])[0][0].hasOwnProperty('功能') &&
                                          Object.values(pageData['类型'][0])[0][0]['功能'] &&
                                          Object.values(pageData['类型'][0])[0][0]['功能'].trim() !== '';
-                const lockFilterHtml = `<button type="button" class="demo-action-btn demo-lock-filter" data-demo-lock-filter aria-pressed="${!!this.demoLockedOnly}" title="${this.demoLockedOnly ? '显示全部链接' : '只显示已锁定链接'}" aria-label="只显示已锁定链接">🔒${this.demoLockedOnly ? ' 已锁定' : ''}</button>`;
+                const lockFilterHtml = `<button type="button" class="demo-action-btn demo-lock-filter demo-lock-icon" data-demo-lock-filter aria-pressed="${!!this.demoLockedOnly}" title="${this.demoLockedOnly ? '显示全部链接' : '只显示已锁定链接'}" aria-label="只显示已锁定链接">${this.getDemoLockIcon(!!this.demoLockedOnly)}</button>`;
                 const functionColumnHtml = showFunctionColumn ? `<th>功能${pageName === this.demoPageName ? lockFilterHtml : ''}</th>` : '';
                 const tableClass = showFunctionColumn ? '' : 'no-function-column';
                 const searchPanelHtml = pageName === this.searchPageName ? `
@@ -5575,7 +5578,7 @@
                 div.querySelectorAll('[data-demo-lock-filter]').forEach(button => {
                     button.addEventListener('click', () => {
                         this.demoLockedOnly = !this.demoLockedOnly;
-                        this.renderVisiblePages(this.demoPageName);
+                        this.updateDemoLockView();
                     });
                 });
                 return div;
@@ -5720,11 +5723,6 @@
                 const tableBody = document.getElementById(tableBodyId);
                 if (!tableBody || !pageData || !pageData['类型']) return;
 
-                if (pageName === this.demoPageName && this.demoLockedOnly) {
-                    pageData = { '类型': pageData['类型'].map(category => Object.fromEntries(
-                        Object.entries(category).map(([name, tools]) => [name, tools.filter(tool => tool.locked)])
-                    )).filter(category => Object.values(category)[0].length) };
-                }
                 tableBody.innerHTML = '';
                 const types = []; // 收集类型列表
 
@@ -5759,6 +5757,7 @@
 
                     tools.forEach((tool, index) => {
                         const row = document.createElement('tr');
+                        if (pageName === this.demoPageName) row.dataset.demoRow = tool.demoSlug;
                         if (pageName === this.demoPageName && tool.disabled) {
                             row.classList.add('is-disabled-demo');
                         }
@@ -5844,16 +5843,9 @@
                     });
                 });
 
-                if (pageName === this.demoPageName && this.demoLockedOnly && types.length === 0) {
-                    const row = tableBody.insertRow();
-                    const cell = row.insertCell();
-                    cell.colSpan = 5;
-                    cell.textContent = '暂无已锁定的链接，点击表头锁按钮可显示全部链接。';
-                    const cards = tableBody.closest('.table-scroll')?.querySelector('.mobile-cards');
-                    if (cards) cards.textContent = '暂无已锁定的链接，点击上方锁按钮可显示全部链接。';
-                }
                 // 生成类型导航
                 this.generateTypeNavigation(types, navListId, tableBodyId);
+                if (pageName === this.demoPageName) this.updateDemoLockView();
             }
 
             // 生成类型导航
@@ -5911,6 +5903,7 @@
             createMobileCard(tool, pageName) {
                 const card = document.createElement('div');
                 card.className = 'mobile-card';
+                if (pageName === this.demoPageName) card.dataset.demoRow = tool.demoSlug;
 
                 // 解析备注获取标签，同时传入地址用于判断
                 const tags = this.parseNoteTags(tool['备注'] || '', tool['地址'] || '');
@@ -6031,13 +6024,76 @@
                 functionCell.setAttribute('data-full-text', tool['功能'] || '');
             }
 
+            getDemoLockIcon(locked) {
+                const shackle = locked ? 'M8 11V7a4 4 0 0 1 8 0v4' : 'M8 11V7a4 4 0 0 1 7.5-2';
+                return `<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${shackle}"/><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M12 15v2"/></svg>`;
+            }
+
+            updateDemoLockView() {
+                const tab = document.getElementById(this.getTabId(this.demoPageName));
+                if (!tab) return;
+                const items = new Map(this.demoItems.map(item => [item.slug, item]));
+                tab.querySelectorAll('[data-demo-lock-filter]').forEach(button => {
+                    button.innerHTML = this.getDemoLockIcon(!!this.demoLockedOnly);
+                    button.setAttribute('aria-pressed', String(!!this.demoLockedOnly));
+                    button.title = this.demoLockedOnly ? '显示全部链接' : '只显示已锁定链接';
+                });
+                tab.querySelectorAll('[data-demo-row]').forEach(row => {
+                    const locked = !!items.get(row.dataset.demoRow)?.locked;
+                    row.hidden = !!this.demoLockedOnly && !locked;
+                    row.querySelectorAll('[data-demo-action]').forEach(button => {
+                        if (['lock', 'unlock'].includes(button.dataset.demoAction)) {
+                            button.dataset.demoAction = locked ? 'unlock' : 'lock';
+                            button.innerHTML = this.getDemoLockIcon(locked);
+                            button.title = locked ? '已锁定，点击解锁' : '加锁，防止误删';
+                            button.setAttribute('aria-label', button.title);
+                            button.setAttribute('aria-pressed', String(locked));
+                        } else if (button.dataset.demoAction === 'delete') {
+                            button.disabled = locked;
+                            button.title = locked ? '请先解锁再删除' : '删除链接';
+                        }
+                    });
+                });
+                const body = tab.querySelector('tbody');
+                if (!body) return;
+                const visibleRows = [...body.querySelectorAll('[data-demo-row]')].filter(row => !row.hidden);
+                const typeCell = body.querySelector('.type-cell');
+                if (typeCell && visibleRows.length) {
+                    visibleRows[0].prepend(typeCell);
+                    typeCell.rowSpan = visibleRows.length;
+                    typeCell.classList.toggle('is-multi-row', visibleRows.length > 1);
+                }
+                let emptyRow = body.querySelector('[data-demo-empty]');
+                if (!emptyRow) {
+                    emptyRow = body.insertRow();
+                    emptyRow.dataset.demoEmpty = '';
+                    const cell = emptyRow.insertCell();
+                    cell.colSpan = 5;
+                    cell.textContent = '暂无已锁定的链接，点击表头锁按钮可显示全部链接。';
+                }
+                const empty = !!this.demoLockedOnly && visibleRows.length === 0;
+                emptyRow.hidden = !empty;
+                const cards = tab.querySelector('.mobile-cards');
+                if (cards) {
+                    let message = cards.querySelector('[data-demo-empty]');
+                    if (!message) {
+                        message = document.createElement('p');
+                        message.dataset.demoEmpty = '';
+                        message.textContent = '暂无已锁定的链接，点击上方锁按钮可显示全部链接。';
+                        cards.appendChild(message);
+                    }
+                    message.hidden = !empty;
+                    cards.querySelectorAll('.mobile-type-header').forEach(header => { header.hidden = empty; });
+                }
+            }
+
             appendDemoActionButtons(actions, tool) {
                 const lockButton = document.createElement('button');
                 lockButton.type = 'button';
-                lockButton.className = 'demo-action-btn';
+                lockButton.className = 'demo-action-btn demo-lock-icon';
                 lockButton.dataset.demoAction = tool.locked ? 'unlock' : 'lock';
                 lockButton.dataset.demoSlug = tool.demoSlug;
-                lockButton.textContent = tool.locked ? '🔒' : '🔓';
+                lockButton.innerHTML = this.getDemoLockIcon(!!tool.locked);
                 lockButton.title = tool.locked ? '已锁定，点击解锁' : '加锁，防止误删';
                 lockButton.setAttribute('aria-label', lockButton.title);
                 lockButton.setAttribute('aria-pressed', String(!!tool.locked));
@@ -6621,7 +6677,9 @@
                         body: JSON.stringify({ locked })
                     });
                     if (!response.ok) throw new Error(await this.readErrorMessage(response));
-                    await this.loadDemos();
+                    const item = this.demoItems.find(item => item.slug === slug);
+                    if (item) item.locked = locked;
+                    this.updateDemoLockView();
                     this.setDemoStatus(locked ? '已加锁，无法删除' : '已解锁');
                 } catch (error) {
                     this.setDemoStatus(error.message || '操作失败');
