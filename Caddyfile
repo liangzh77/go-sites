@@ -64,3 +64,26 @@ https://resume.liangz77.cn {
     encode zstd gzip
     file_server
 }
+
+https://mu-zhang.cn {
+    encode zstd gzip
+    redir /mu / permanent
+    @old_mu path_regexp old_mu ^/mu/(.*)$
+    redir @old_mu /{re.old_mu.1} permanent
+
+    handle /data.js {
+        root * /srv/sites/liangz77.cn/current
+        file_server
+    }
+    @old_wisecut path_regexp old_wisecut ^/demo(/WiseCut-test-summary(?:/.*)?)$
+    redir @old_wisecut {re.old_wisecut.1}?{query} permanent
+    redir /WiseCut-test-summary /WiseCut-test-summary/ permanent
+    handle /WiseCut-test-summary/* {
+        rewrite * /demo{uri}
+        reverse_proxy 127.0.0.1:9005
+    }
+    handle {
+        root * /srv/sites/liangz77.cn/current/apps/works
+        file_server
+    }
+}

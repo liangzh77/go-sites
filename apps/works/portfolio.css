@@ -1,6 +1,6 @@
 @font-face {
   font-family: MuRound;
-  src: url("/mu/fonts/varela-round-latin.woff2") format("woff2");
+  src: url("./fonts/varela-round-latin.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -296,7 +296,7 @@ h1 {
 .spark-one {
   width: 56px;
   height: 56px;
-  background: url("/mu/spark.svg") center/contain no-repeat;
+  background: url("./spark.svg") center/contain no-repeat;
   top: 25px;
   right: 8px;
   transform: rotate(12deg);
@@ -753,7 +753,7 @@ h1 {
   flex-shrink: 0;
   width: 46px;
   height: 46px;
-  background: url("/mu/spark.svg") center/contain no-repeat;
+  background: url("./spark.svg") center/contain no-repeat;
 }
 .about h2 {
   font-size: 26px;

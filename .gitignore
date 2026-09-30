@@ -4,3 +4,7 @@ demo-data
 .local-demo-server.exe*
 .wiki-original-backup-*
 wiki/
+
+# Local JavaScript dependencies and intermediate game builds.
+node_modules/
+/sources/*/dist/

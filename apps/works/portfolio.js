@@ -6,6 +6,14 @@
   const filters = [...document.querySelectorAll("[data-filter]")];
   const randomButton = document.querySelector("#random-work");
   const details = {
+    "WiseCut-test-summary": {
+      order: -3,
+      label: "WISECUT / PRODUCT & TEST REPORT",
+      description: "从一份素材，到更多好视频。了解 WiseCut 的制作流程，看看批量制作背后的测试与发现。",
+      tags: ["产品介绍", "测试总结"],
+      style: "web",
+      note: "新作登场",
+    },
     "kings-canyon": {
       order: -2,
       label: "KING’S CANYON / 3D EXPLORER",
@@ -81,7 +89,12 @@
       .flatMap((group) =>
         Object.entries(group).flatMap(([category, items]) =>
           items.map((item) => {
-            const address = item["地址"];
+            const originalAddress = item["地址"];
+            const address = originalAddress.startsWith("/mu/")
+              ? new URL(originalAddress.slice(4), new URL("./", location.href)).href
+              : location.hostname === "mu-zhang.cn" && originalAddress.startsWith("/demo/WiseCut-test-summary/")
+                ? originalAddress.slice(5)
+                : originalAddress;
             const url = new URL(
               address.startsWith("/") || /^https?:\/\//.test(address)
                 ? address
@@ -133,7 +146,7 @@
 
     if (work.style && work.style !== "web") {
       const image = element("img", "work-image");
-      image.src = `/mu/previews/${work.slug}.png`;
+      image.src = `./previews/${work.slug}.png`;
       image.alt = `${work.title}${work.kind === "game" ? "游戏" : "场景"}实景`;
       image.width = 1200;
       image.height = 900;
@@ -155,13 +168,13 @@
       artwork.setAttribute("aria-hidden", "true");
       if (work.slug === "chujiao.vercel.app") {
         const logo = element("img", "web-logo");
-        logo.src = "/mu/previews/chujiao-logo-user.png";
+        logo.src = "./previews/chujiao-logo-user.png";
         logo.alt = "触角公司 Logo";
         logo.width = 128;
         logo.height = 128;
         artwork.append(logo);
       } else {
-        artwork.append(element("span", "web-word", "HELLO."));
+        artwork.append(element("span", "web-word", work.slug === "WiseCut-test-summary" ? "WISECUT" : "HELLO."));
       }
       artwork.append(element("span", "web-orbit"));
       artwork.append(
@@ -244,7 +257,7 @@
     const message = element("div", "fallback");
     message.append(element("p", "", "作品清单暂时没有加载成功。"));
     const retry = element("a", "text-link", "重新加载 ↗");
-    retry.href = "/mu/";
+    retry.href = "./";
     message.append(retry);
     grid.replaceChildren(message);
     grid.setAttribute("aria-busy", "false");
