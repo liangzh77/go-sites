@@ -21,12 +21,17 @@
         reverse_proxy 127.0.0.1:9005
     }
 
-    handle /private {
-        redir * /private/ permanent
+    handle /fleeting {
+        redir * /fleeting/ permanent
     }
 
-    handle_path /private/* {
+    handle_path /fleeting/* {
         reverse_proxy 127.0.0.1:3010
+    }
+
+    @legacy_private path_regexp legacy_private ^/private(?:/(.*))?$
+    handle @legacy_private {
+        redir https://liangz77.cn/fleeting/{re.legacy_private.1} 308
     }
 
     @tab_routes path /search /recommendations /ai-tools /dev-tools /tools /fun /demo /wiki
