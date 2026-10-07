@@ -21,7 +21,15 @@
         reverse_proxy 127.0.0.1:9005
     }
 
-    @tab_routes path /search /recommendations /ai-tools /dev-tools /tools /fun /private /demo /wiki
+    handle /private {
+        redir * /private/ permanent
+    }
+
+    handle_path /private/* {
+        reverse_proxy 127.0.0.1:3010
+    }
+
+    @tab_routes path /search /recommendations /ai-tools /dev-tools /tools /fun /demo /wiki
     handle @tab_routes {
         reverse_proxy 127.0.0.1:9005
     }
