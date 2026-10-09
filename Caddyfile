@@ -1,4 +1,10 @@
 (main_site_routes) {
+    # Vias public synthetic demo; no SPA fallback or tile proxy.
+    redir /vias /vias/ 301
+    handle_path /vias/* {
+        root * /srv/sites/liangz77.cn/vias/current
+        file_server
+    }
     redir /mu /mu/ permanent
 
     @legacy_works path_regexp legacy_works ^/apps/works/(.*)$
@@ -31,6 +37,23 @@
 
     handle_path /fleeting/* {
         reverse_proxy 127.0.0.1:3010
+    }
+
+    # 有型（HairPlay）：独立静态版本，文件不存在时直接返回 404。
+    handle /hairplay {
+        redir * /hairplay/ permanent
+    }
+
+    # 有型 API：由独立 hairplay-api 服务处理，不与静态发布目录混放。
+    handle /hairplay/api/* {
+        reverse_proxy 127.0.0.1:8777 {
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    handle_path /hairplay/* {
+        root * /srv/sites/liangz77.cn/hairplay/current
+        file_server
     }
 
     @tab_routes path /search /recommendations /ai-tools /dev-tools /tools /fun /private /demo /wiki
