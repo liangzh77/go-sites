@@ -169,6 +169,14 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("POST /api/wiki/folders", a.requireAuth(a.handleCreateWikiFolder))
 	mux.HandleFunc("DELETE /api/wiki/folders/", a.requireAuth(a.handleDeleteWikiFolder))
 	mux.HandleFunc("PATCH /api/wiki/move", a.requireAuth(a.handleMoveWikiEntry))
+
+	// WeChat Open Platform "website app" scan login (OAuth2.0, scope=snsapi_login).
+	// Placeholder only: the final handler must verify the `state` value, exchange
+	// ?code for access_token/openid via
+	// https://api.weixin.qq.com/sns/oauth2/access_token, then establish a
+	// server-side session. It is intentionally unimplemented and performs no
+	// outbound request until the 网站应用 is approved and an AppID/AppSecret exist.
+	mux.HandleFunc("GET /api/auth/wechat/callback", a.handleWechatCallback)
 	for _, routePath := range appRoutePaths {
 		mux.HandleFunc("GET "+routePath, a.handleStaticFallback)
 	}
@@ -176,6 +184,10 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("/wiki/", a.requireAuth(a.handleServeWikiAsset))
 	mux.HandleFunc("/", a.handleStaticFallback)
 	return mux
+}
+
+func (a *app) handleWechatCallback(w http.ResponseWriter, r *http.Request) {
+	writeError(w, http.StatusNotImplemented, "WECHAT_NOT_IMPLEMENTED", "WeChat website-app login callback is not implemented yet.")
 }
 
 func (a *app) handleSession(w http.ResponseWriter, r *http.Request) {
@@ -1544,9 +1556,21 @@ func (a *app) handleStaticFallback(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	if info, err := os.Stat(target); err == nil && !info.IsDir() {
-		http.ServeFile(w, r, target)
-		return
+	if info, err := os.Stat(target); err == nil {
+		if !info.IsDir() {
+			http.ServeFile(w, r, target)
+			return
+		}
+		// Directory request: serve a real index.html when present (static pages such as
+		// /about/, /terms/, /contact/), otherwise fall back to the SPA shell so that
+		// client-side routes keep working.
+		indexTarget := filepath.Join(target, "index.html")
+		if isWithin(a.staticRoot, indexTarget) {
+			if indexInfo, indexErr := os.Stat(indexTarget); indexErr == nil && !indexInfo.IsDir() {
+				http.ServeFile(w, r, indexTarget)
+				return
+			}
+		}
 	}
 	a.serveAppShell(w, r)
 }

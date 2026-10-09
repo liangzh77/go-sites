@@ -1,0 +1,251 @@
+/*
+ * 站点信息页（关于 / 用户协议 / 隐私政策 / 联系我们 / 登录）共用样式。
+ * 与站点主色保持一致，PC 优先、移动端可读，不依赖任何前端框架或构建步骤。
+ */
+:root {
+    --primary-color: #0866FF;
+    --hover-color: #075CE5;
+    --bg-color: #F0F2F5;
+    --card-bg: #FFFFFF;
+    --border-color: #DADDE1;
+    --text-color: #1C1E21;
+    --ink-soft: #65676B;
+    --sage-pale: #E7F3FF;
+    --surface-hover: #F2F3F5;
+    --serif-stack: "Iowan Old Style", "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, serif;
+    --sans-stack: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--primary-color); text-decoration: none; }
+a:hover { color: var(--hover-color); text-decoration: underline; }
+
+/* 顶部导航 */
+.doc-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    padding: 0.85rem 2rem;
+    background: rgba(255, 255, 255, 0.92);
+    border-bottom: 1px solid var(--border-color);
+    backdrop-filter: blur(8px);
+}
+
+.doc-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--sans-stack);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-color);
+    letter-spacing: 0.02em;
+}
+.doc-brand:hover { text-decoration: none; color: var(--primary-color); }
+.doc-brand img { width: 1.7rem; height: 1.7rem; display: block; }
+
+.doc-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.1rem;
+    margin-left: auto;
+    font-size: 0.9rem;
+}
+.doc-nav a { color: var(--ink-soft); }
+.doc-nav a:hover { color: var(--primary-color); }
+.doc-nav a[aria-current="page"] { color: var(--primary-color); font-weight: 600; }
+
+/* 正文容器 */
+.doc-main {
+    width: min(920px, calc(100% - 2.5rem));
+    margin: 2rem auto 3rem;
+    padding: 2.4rem 2.8rem 2.8rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(28, 30, 33, 0.08);
+}
+
+.doc-eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--primary-color);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.doc-main h1 {
+    margin: 0 0 0.5rem;
+    font-family: var(--serif-stack);
+    font-size: 1.9rem;
+    line-height: 1.3;
+}
+
+.doc-meta {
+    margin: 0 0 2rem;
+    padding-bottom: 1.4rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--ink-soft);
+    font-size: 0.86rem;
+}
+
+.doc-main h2 {
+    margin: 2.2rem 0 0.6rem;
+    font-size: 1.16rem;
+    line-height: 1.4;
+}
+
+.doc-main h3 {
+    margin: 1.5rem 0 0.4rem;
+    font-size: 1rem;
+}
+
+.doc-main p { margin: 0.6rem 0; }
+.doc-main ul, .doc-main ol { margin: 0.6rem 0; padding-left: 1.4rem; }
+.doc-main li { margin: 0.3rem 0; }
+
+.doc-note {
+    margin: 1.4rem 0;
+    padding: 0.9rem 1.1rem;
+    background: var(--sage-pale);
+    border-left: 3px solid var(--primary-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 0.92rem;
+}
+
+.doc-placeholder {
+    display: inline-block;
+    padding: 0.05rem 0.4rem;
+    background: #FFF4D6;
+    border: 1px dashed #D9A400;
+    border-radius: 4px;
+    color: #8A6A00;
+    font-size: 0.86em;
+}
+
+/* 介绍页功能区 */
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+    margin: 1.2rem 0;
+    padding: 0;
+    list-style: none;
+}
+.feature-card {
+    padding: 1.1rem 1.2rem;
+    background: var(--surface-hover);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+.feature-card h3 { margin: 0 0 0.35rem; font-size: 1rem; }
+.feature-card p { margin: 0; color: var(--ink-soft); font-size: 0.9rem; }
+
+.shot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+    margin: 1.2rem 0;
+}
+.shot {
+    margin: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--surface-hover);
+}
+.shot img { display: block; width: 100%; height: auto; }
+.shot figcaption {
+    padding: 0.6rem 0.8rem;
+    color: var(--ink-soft);
+    font-size: 0.84rem;
+}
+.shot-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 150px;
+    color: var(--ink-soft);
+    font-size: 0.86rem;
+}
+.shot.shot-missing img { display: none; }
+.shot.shot-missing::after {
+    content: "截图暂缺";
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 150px;
+    color: var(--ink-soft);
+    font-size: 0.86rem;
+}
+
+/* 联系方式表格 */
+.contact-table {
+    width: 100%;
+    margin: 1rem 0;
+    border-collapse: collapse;
+}
+.contact-table th,
+.contact-table td {
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border-color);
+    text-align: left;
+    vertical-align: top;
+    font-size: 0.94rem;
+}
+.contact-table th {
+    width: 9rem;
+    background: var(--surface-hover);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* 页脚 */
+.doc-footer {
+    padding: 1.5rem 2rem 2.5rem;
+    color: var(--ink-soft);
+    font-size: 0.82rem;
+    text-align: center;
+}
+.doc-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.3rem 1.2rem;
+    margin-bottom: 0.7rem;
+}
+.doc-footer-links a { color: var(--ink-soft); }
+.doc-footer-links a:hover { color: var(--primary-color); }
+.doc-footer p { margin: 0.2rem 0; }
+
+@media (max-width: 720px) {
+    .doc-header { padding: 0.7rem 1rem; }
+    .doc-nav { margin-left: 0; width: 100%; }
+    .doc-main {
+        width: calc(100% - 1.25rem);
+        margin: 1rem auto 1.5rem;
+        padding: 1.5rem 1.2rem 1.8rem;
+    }
+    .doc-main h1 { font-size: 1.5rem; }
+    .contact-table th { width: 6.5rem; }
+}

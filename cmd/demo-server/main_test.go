@@ -718,6 +718,58 @@ func TestTopLevelAppRoutesServeIndex(t *testing.T) {
 	}
 }
 
+func TestStaticDirectoryIndexServesLegalPages(t *testing.T) {
+	staticRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(staticRoot, "index.html"), []byte("app shell"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(staticRoot, "terms"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(staticRoot, "terms", "index.html"), []byte("terms page"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	a := &app{staticRoot: staticRoot}
+	handler := a.routes()
+
+	for _, routePath := range []string{"/terms", "/terms/"} {
+		req := httptest.NewRequest(http.MethodGet, routePath, nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want %d", routePath, rec.Code, http.StatusOK)
+		}
+		if body := rec.Body.String(); body != "terms page" {
+			t.Fatalf("%s body = %q, want terms page", routePath, body)
+		}
+	}
+
+	// A directory without its own index.html must still fall back to the SPA shell.
+	req := httptest.NewRequest(http.MethodGet, "/apps", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || rec.Body.String() != "app shell" {
+		t.Fatalf("/apps = %d %q, want app shell", rec.Code, rec.Body.String())
+	}
+}
+
+func TestWechatCallbackPlaceholderIsNotImplemented(t *testing.T) {
+	a := &app{staticRoot: t.TempDir()}
+	handler := a.routes()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/auth/wechat/callback?code=test&state=test", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotImplemented {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusNotImplemented)
+	}
+	if !strings.Contains(rec.Body.String(), "WECHAT_NOT_IMPLEMENTED") {
+		t.Fatalf("body = %s, want WECHAT_NOT_IMPLEMENTED", rec.Body.String())
+	}
+}
+
 func TestWikiAssetRoutesStillRequireAuth(t *testing.T) {
 	staticRoot := t.TempDir()
 	if err := os.WriteFile(filepath.Join(staticRoot, "index.html"), []byte("app shell"), 0o644); err != nil {

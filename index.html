@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI入口</title>
+    <title>灵感书架 · AI 工具与灵感导航</title>
+    <meta name="description" content="灵感书架是一个个人整理并持续更新的 AI 工具与灵感导航站点，收录 AI 工具、开发与设计资源、在线演示与 Wiki 笔记。">
+    <meta name="keywords" content="灵感书架,AI工具,AI导航,效率工具,在线演示">
+    <meta name="robots" content="index,follow">
+    <link rel="canonical" href="https://liangz77.cn/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="灵感书架">
+    <meta property="og:title" content="灵感书架 · AI 工具与灵感导航">
+    <meta property="og:description" content="个人整理并持续更新的 AI 工具与灵感导航站点。">
+    <meta property="og:url" content="https://liangz77.cn/">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=20260618-bulb-logo">
     <script src="./site-config.js"></script>
     <script src="./data.js?v=20260704-resume"></script>
@@ -2156,6 +2165,41 @@
             vertical-align: baseline;
         }
 
+        /* 页脚：版权、备案信息与站内信息页入口 */
+        .site-footer {
+            flex-shrink: 0;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.2rem 1rem;
+            padding: 0.45rem 2rem 0.7rem;
+            color: var(--ink-soft);
+            font-family: var(--sans-stack);
+            font-size: 0.72rem;
+            line-height: 1.5;
+        }
+
+        .site-footer a { color: inherit; text-decoration: none; }
+        .site-footer a:hover { color: var(--primary-color); text-decoration: underline; }
+
+        .site-footer-links,
+        .site-footer-meta {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 0.2rem 0.85rem;
+            margin: 0;
+        }
+
+        .site-footer-owner { color: var(--ink-soft); }
+
+        @media (max-width: 860px) {
+            .site-footer { padding: 0.4rem 1rem 0.6rem; gap: 0.15rem 0.6rem; }
+            .site-footer-links { gap: 0.15rem 0.65rem; }
+        }
+
         .brand-note {
             margin: 0.32rem 0 0;
             color: var(--ink-soft);
@@ -3349,6 +3393,21 @@
         <main class="content-section">
             <!-- 页面内容将动态生成 -->
         </main>
+
+        <!-- 页脚：站内信息页入口 + 版权与备案信息 -->
+        <footer class="site-footer">
+            <nav class="site-footer-links" aria-label="站内信息">
+                <a href="/about/">关于本站</a>
+                <a href="/terms/">用户协议</a>
+                <a href="/privacy/">隐私政策</a>
+                <a href="/contact/">联系我们</a>
+                <a href="/login/">微信扫码登录</a>
+            </nav>
+            <p class="site-footer-meta">
+                <span class="site-footer-owner">© 2026 北京市海淀区多雨星空商贸店 版权所有</span>
+                <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">京ICP备00000000号-1（备案完成后替换）</a>
+            </p>
+        </footer>
     </div>
 
     <div id="loginModal" class="login-modal hidden" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
