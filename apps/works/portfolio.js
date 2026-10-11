@@ -8,9 +8,9 @@
   const details = {
     "WiseCut-test-summary": {
       order: -3,
-      label: "WISECUT / PRODUCT & TEST REPORT",
-      description: "从一份素材，到更多好视频。了解 WiseCut 的制作流程，看看批量制作背后的测试与发现。",
-      tags: ["产品介绍", "测试总结"],
+      label: "WISECUT / PRODUCT TESTING TOOL",
+      description: "为批量视频制作开发的一套产品测试工具：从测试计划、批量提交，到结果核对与问题发现。",
+      tags: ["产品测试工具", "开发过程"],
       style: "web",
       note: "新作登场",
     },
