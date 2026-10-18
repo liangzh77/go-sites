@@ -62,6 +62,9 @@ var appRoutePaths = []string{
 
 type app struct {
 	mu            sync.Mutex
+	monitorMu     sync.Mutex
+	monitorWindow time.Time
+	monitorCount  int
 	dataDir       string
 	demosDir      string
 	wikiRoot      string
@@ -153,6 +156,8 @@ func main() {
 
 func (a *app) routes() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/demo/monitor/oceanengine/{run}/{event}", a.handleMonitorCallback)
+	mux.HandleFunc("GET /api/demo/monitor/events", a.requireAuth(a.handleMonitorEvents))
 	mux.HandleFunc("GET /api/demo/session", a.handleSessionStatus)
 	mux.HandleFunc("POST /api/demo/session", a.handleSession)
 	mux.HandleFunc("GET /api/demos", a.handleListDemos)
