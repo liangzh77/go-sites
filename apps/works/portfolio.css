@@ -1196,3 +1196,6 @@ h1 {
 
 .canyon .cover { background: #d6e4c9; }
 .canyon .preview-frame { background: #95afa1; }
+
+/* StudyFlow uses its original brand mark and wordmark. */
+.studyflow-brand-image{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#edf3e8}

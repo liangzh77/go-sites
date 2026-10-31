@@ -152,7 +152,15 @@
     );
     cover.append(coverTop);
 
-    if (work.style && work.style !== "web") {
+    if (work.slug === "study-flow") {
+      const image = element("img", "studyflow-brand-image");
+      image.src = "./previews/study-flow.svg";
+      image.alt = "StudyFlow 绿色勾选图标与品牌文字：让学习有序发生";
+      image.width = 1200;
+      image.height = 600;
+      image.decoding = "async";
+      cover.append(image);
+    } else if (work.style && work.style !== "web") {
       const image = element("img", "work-image");
       image.src = `./previews/${work.slug}.png`;
       image.alt = `${work.title}${work.kind === "game" ? "游戏" : "场景"}实景`;
@@ -182,8 +190,7 @@
         logo.height = 128;
         artwork.append(logo);
       } else {
-        const word = element("span", "web-word", work.slug === "study-flow" ? "STUDYFLOW" : work.slug === "WiseCut-test-summary" ? "WISECUT" : "HELLO.");
-        if (work.slug === "study-flow") word.style.fontSize = "clamp(32px, 5vw, 64px)";
+        const word = element("span", "web-word", work.slug === "WiseCut-test-summary" ? "WISECUT" : "HELLO.");
         artwork.append(word);
       }
       artwork.append(element("span", "web-orbit"));
