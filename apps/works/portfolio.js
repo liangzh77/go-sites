@@ -6,6 +6,14 @@
   const filters = [...document.querySelectorAll("[data-filter]")];
   const randomButton = document.querySelector("#random-work");
   const details = {
+    "study-flow": {
+      order: -4,
+      label: "STUDYFLOW / LEARNING PLANNER",
+      description: "把学习任务放进日程，给重要的事留出专注时间。登录账号，在不同设备上继续学习。",
+      tags: ["学习规划", "专注计时", "账号同步"],
+      style: "web",
+      note: "新作登场",
+    },
     "WiseCut-test-summary": {
       order: -3,
       label: "WISECUT / PRODUCT TESTING TOOL",
@@ -104,7 +112,7 @@
             if (!["https:", "http:"].includes(url.protocol))
               throw new Error("作品链接格式有误");
             const slug =
-              url.hostname === location.hostname
+              url.hostname === location.hostname || url.hostname === "mu-zhang.cn"
                 ? url.pathname.split("/").filter(Boolean).pop()
                 : url.hostname;
             return {
@@ -174,7 +182,9 @@
         logo.height = 128;
         artwork.append(logo);
       } else {
-        artwork.append(element("span", "web-word", work.slug === "WiseCut-test-summary" ? "WISECUT" : "HELLO."));
+        const word = element("span", "web-word", work.slug === "study-flow" ? "STUDYFLOW" : work.slug === "WiseCut-test-summary" ? "WISECUT" : "HELLO.");
+        if (work.slug === "study-flow") word.style.fontSize = "clamp(32px, 5vw, 64px)";
+        artwork.append(word);
       }
       artwork.append(element("span", "web-orbit"));
       artwork.append(

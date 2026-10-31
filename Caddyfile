@@ -102,6 +102,10 @@ https://resume.liangz77.cn {
 
 https://mu-zhang.cn {
     encode zstd gzip
+    redir /study-flow /study-flow/ permanent
+    handle_path /study-flow/* {
+        reverse_proxy 127.0.0.1:8093
+    }
     redir /mu / permanent
     @old_mu path_regexp old_mu ^/mu/(.*)$
     redir @old_mu /{re.old_mu.1} permanent
