@@ -701,7 +701,7 @@ func TestTopLevelAppRoutesServeIndex(t *testing.T) {
 	a := &app{staticRoot: staticRoot}
 	handler := a.routes()
 
-	for _, routePath := range []string{"/wiki", "/search", "/demo"} {
+	for _, routePath := range []string{"/search", "/demo"} {
 		req := httptest.NewRequest(http.MethodGet, routePath, nil)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
@@ -715,6 +715,15 @@ func TestTopLevelAppRoutesServeIndex(t *testing.T) {
 		if got := rec.Header().Get("Cache-Control"); got != "no-store, max-age=0" {
 			t.Fatalf("%s Cache-Control = %q, want no-store, max-age=0", routePath, got)
 		}
+	}
+}
+
+func TestRemovedWikiPage(t *testing.T) {
+	a := &app{staticRoot: t.TempDir()}
+	rec := httptest.NewRecorder()
+	a.routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/wiki", nil))
+	if rec.Code != http.StatusGone {
+		t.Fatalf("/wiki status = %d, want %d", rec.Code, http.StatusGone)
 	}
 }
 

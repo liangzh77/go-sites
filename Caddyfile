@@ -56,7 +56,11 @@
         file_server
     }
 
-    @tab_routes path /search /recommendations /ai-tools /dev-tools /tools /fun /private /demo /wiki
+    handle /wiki {
+        respond "Page removed" 410
+    }
+
+    @tab_routes path /search /recommendations /ai-tools /dev-tools /tools /fun /private /demo
     handle @tab_routes {
         reverse_proxy 127.0.0.1:9005
     }

@@ -57,7 +57,6 @@ var appRoutePaths = []string{
 	"/works",
 	"/private",
 	"/demo",
-	"/wiki",
 }
 
 type app struct {
@@ -186,6 +185,9 @@ func (a *app) routes() http.Handler {
 		mux.HandleFunc("GET "+routePath, a.handleStaticFallback)
 	}
 	mux.HandleFunc("/demo/", a.handleServeDemo)
+	mux.HandleFunc("GET /wiki", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "Page removed", http.StatusGone)
+	})
 	mux.HandleFunc("/wiki/", a.requireAuth(a.handleServeWikiAsset))
 	mux.HandleFunc("/", a.handleStaticFallback)
 	return mux
