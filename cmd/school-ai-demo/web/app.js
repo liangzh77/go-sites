@@ -222,8 +222,10 @@
   const DEMO_STUDENT = '陈知远';
   const DEMO_FATHER = '陈立国';
   const DEMO_MOTHER = '周雅琴';
-  const DEMO_FATHER_PHONE = '138 0000 0001';
-  const DEMO_MOTHER_PHONE = '138 0000 0002';
+  // Placeholder numbers: a real-looking prefix with an all-zero subscriber
+  // part, which no carrier hands out, so nothing here reaches a person.
+  const DEMO_FATHER_PHONE = '138-0000-0000';
+  const DEMO_MOTHER_PHONE = '139-0000-0000';
 
   // Labels are shared between the two templates, so one table fills both. A
   // value whose label is absent from a template is simply never looked up.
