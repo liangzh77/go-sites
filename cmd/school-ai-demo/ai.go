@@ -89,6 +89,10 @@ var errNoAPIKey = errors.New("尚未配置 DeepSeek API Key")
 // it is worth a retry, unlike a malformed answer.
 var errEmptyContent = errors.New("模型没有返回内容，请重试")
 
+// errNoUsableFields is a reply that parsed but named no field this template
+// has, which is a model problem worth retrying rather than an empty form.
+var errNoUsableFields = errors.New("模型没有返回任何可用的字段，请重试")
+
 // retryableStatus marks the upstream answers that mean "this key is not
 // usable right now": auth, payment, and rate limiting. Those are the ones where
 // the backup key is worth trying.
@@ -221,42 +225,56 @@ func parseFillJSON(tpl templateRecord, content, model string) (fillResult, error
 	if text == "" {
 		return fillResult{}, errEmptyContent
 	}
-	text = repairJSON(text)
+
+	known := make(map[string]bool, len(tpl.Fields))
+	for _, f := range tpl.Fields {
+		known[f.ID] = true
+	}
+
+	// Take the candidate that recognises the most fields, not merely the first
+	// one json.Unmarshal accepts. A reply with a stray brace in the key
+	// ({"fields{": ...}) is perfectly valid JSON whose only key is meaningless;
+	// stopping there would answer "no fields found" for a form the model did
+	// fill, and the user would see a blank sheet with no reason why.
+	var best map[string]any
+	var bestText string
+	bestScore := -1
+	var parseErr error
+	for _, cand := range jsonCandidates(text) {
+		var raw map[string]any
+		if err := json.Unmarshal([]byte(cand), &raw); err != nil {
+			if parseErr == nil {
+				parseErr = err
+			}
+			continue
+		}
+		fields := fieldMapFrom(raw)
+		score := 0
+		for k := range fields {
+			if known[strings.TrimSpace(k)] {
+				score++
+			}
+		}
+		if score > bestScore {
+			best, bestText, bestScore = raw, cand, score
+		}
+	}
+	if best == nil {
+		return fillResult{}, fmt.Errorf("模型返回的不是有效 JSON: %w", parseErr)
+	}
+	if bestScore == 0 && hasKey(best, "fields") == false && hasKey(best, "values") == false {
+		// A bare object that names no field of this template: not an answer.
+		return fillResult{}, errNoUsableFields
+	}
 
 	var envelope struct {
 		Fields   map[string]any `json:"fields"`
 		Warnings []string       `json:"warnings"`
 		Values   map[string]any `json:"values"`
 	}
-	// Accept both {"fields": {...}} and a bare {"f01": "..."} object.
-	raw := map[string]any{}
-	if err := json.Unmarshal([]byte(text), &raw); err != nil {
-		// Last resort: keep the outermost object and drop what trails it.
-		if salvaged := outermostObject(text); salvaged != "" && json.Unmarshal([]byte(salvaged), &raw) == nil {
-			text = salvaged
-		} else {
-			return fillResult{}, fmt.Errorf("模型返回的不是有效 JSON: %w", err)
-		}
-	}
-	values := map[string]any{}
-	switch {
-	case hasKey(raw, "fields"):
-		_ = json.Unmarshal([]byte(text), &envelope)
-		values = envelope.Fields
-	case hasKey(raw, "values"):
-		_ = json.Unmarshal([]byte(text), &envelope)
-		values = envelope.Values
-	default:
-		values = raw
-	}
-	if envelope.Warnings != nil {
-		_ = json.Unmarshal([]byte(text), &envelope)
-	}
+	_ = json.Unmarshal([]byte(bestText), &envelope)
+	values := fieldMapFrom(best)
 
-	known := make(map[string]bool, len(tpl.Fields))
-	for _, f := range tpl.Fields {
-		known[f.ID] = true
-	}
 	out := fillResult{Values: map[string]string{}, Model: model, Warnings: []string{}}
 	var unknown []string
 	keys := make([]string, 0, len(values))
@@ -270,18 +288,18 @@ func parseFillJSON(tpl templateRecord, content, model string) (fillResult, error
 			unknown = append(unknown, id)
 			continue
 		}
-		s, ok := values[k].(string)
+		v, ok := values[k].(string)
 		if !ok {
 			if values[k] == nil {
 				continue
 			}
-			s = fmt.Sprint(values[k])
+			v = fmt.Sprint(values[k])
 		}
-		s = strings.TrimSpace(s)
-		if s == "" || strings.EqualFold(s, "null") || s == "未知" || s == "不详" {
+		v = strings.TrimSpace(v)
+		if v == "" || strings.EqualFold(v, "null") || v == "未知" || v == "不详" {
 			continue
 		}
-		out.Values[id] = truncateRunes(s, maxValueRunes)
+		out.Values[id] = truncateRunes(v, maxValueRunes)
 	}
 	if len(unknown) > 0 {
 		sort.Strings(unknown)
@@ -299,37 +317,122 @@ func parseFillJSON(tpl templateRecord, content, model string) (fillResult, error
 	return out, nil
 }
 
-// repairJSON strips markdown fences and fixes the malformations a reasoning
-// model actually produces, cheapest first. It never invents values: it only
-// removes syntax the model added by accident.
-func repairJSON(text string) string {
-	t := strings.TrimSpace(text)
+// fieldMapFrom pulls the id -> value map out of whichever envelope shape the
+// model used: {"fields": {...}}, {"values": {...}}, or a bare {"f01": "..."}.
+func fieldMapFrom(raw map[string]any) map[string]any {
+	for _, key := range []string{"fields", "values"} {
+		if inner, ok := raw[key].(map[string]any); ok {
+			return inner
+		}
+	}
+	return raw
+}
 
-	// Wrapped in a code fence, possibly with a language tag and prose around it.
-	if i := strings.Index(t, "```"); i >= 0 {
-		rest := t[i+3:]
+// jsonCandidates returns the shapes worth trying, in order of how little they
+// change the model's answer. parseFillJSON takes the first that parses.
+//
+// They are separate candidates rather than one string rewritten in place
+// because a repair aimed at one problem can damage a reply that had only a
+// different one. Replacing Chinese quotation marks is the case that bit: the
+// model writes them inside warning text ("资料中的“联系电话”…"), and a blanket
+// replacement turned a valid object into an unterminated string.
+func jsonCandidates(text string) []string {
+	out := []string{text}
+
+	// Wrapped in a code fence, possibly with a language tag.
+	fenced := text
+	if i := strings.Index(fenced, "```"); i >= 0 {
+		rest := fenced[i+3:]
 		if nl := strings.IndexByte(rest, '\n'); nl >= 0 {
 			rest = rest[nl+1:]
 		}
 		if j := strings.Index(rest, "```"); j >= 0 {
 			rest = rest[:j]
 		}
-		t = strings.TrimSpace(rest)
+		fenced = strings.TrimSpace(rest)
+		if fenced != text {
+			out = append(out, fenced)
+		}
 	}
-	// Prose before the object.
-	if i := strings.IndexByte(t, '{'); i > 0 {
-		t = t[i:]
+
+	// Prose before the first brace and after the matching one.
+	trimmed := fenced
+	if i := strings.IndexByte(trimmed, '{'); i > 0 {
+		trimmed = trimmed[i:]
 	}
-	// Prose after the object.
-	if j := strings.LastIndexByte(t, '}'); j >= 0 && j < len(t)-1 {
-		t = t[:j+1]
+	trimmed = strings.TrimSpace(trimmed)
+	if trimmed != "" && trimmed != fenced {
+		out = append(out, trimmed)
 	}
-	t = strings.ReplaceAll(t, "\"fields{\":", "\"fields\":")
-	t = strings.ReplaceAll(t, "\"values{\":", "\"values\":")
-	t = strings.ReplaceAll(t, "\"warnings{\":", "\"warnings\":")
-	t = strings.ReplaceAll(t, "\u201c", "\"")
-	t = strings.ReplaceAll(t, "\u201d", "\"")
-	return dropTrailingCommas(t)
+	if obj := outermostObject(trimmed); obj != "" && obj != trimmed {
+		out = append(out, obj)
+	}
+
+	// The near-misses themselves.
+	base := trimmed
+	if base == "" {
+		base = fenced
+	}
+	swapped := strings.NewReplacer(
+		"\"fields{\":", "\"fields\":",
+		"\"values{\":", "\"values\":",
+		"\"warnings{\":", "\"warnings\":",
+	).Replace(base)
+	if swapped != base {
+		out = append(out, swapped)
+	}
+	for _, seed := range []string{base, swapped} {
+		if noCommas := dropTrailingCommas(seed); noCommas != seed {
+			out = append(out, noCommas)
+		}
+		// Smart quotes only as a last resort, and only outside strings.
+		if q := straightenQuotes(seed); q != seed {
+			out = append(out, q, dropTrailingCommas(q))
+		}
+	}
+	return out
+}
+
+// straightenQuotes rewrites curly double quotes (U+201C, U+201D, U+201E) as
+// straight ones, but only where a quote is opening or closing a JSON string.
+// Curly quotes inside a value are content and stay put: the model writes
+// warnings like 资料中的“联系电话”… and mangling those is what turned a valid
+// answer into "invalid character" in production.
+func straightenQuotes(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	var open rune // the quote that opened the string we are in, 0 if none
+	escaped := false
+	for _, r := range s {
+		switch {
+		case open == 0:
+			switch r {
+			case '"':
+				open = '"'
+				b.WriteByte('"')
+			case '\u201c', '\u201d', '\u201e':
+				open = '\u201c'
+				b.WriteByte('"')
+			default:
+				b.WriteRune(r)
+			}
+		case escaped:
+			escaped = false
+			b.WriteRune(r)
+		case r == '\\':
+			escaped = true
+			b.WriteRune(r)
+		case open == '"' && r == '"':
+			open = 0
+			b.WriteByte('"')
+		case open == '\u201c' && (r == '\u201d' || r == '\u201c'):
+			open = 0
+			b.WriteByte('"')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // dropTrailingCommas removes a comma that sits just before a closing bracket,

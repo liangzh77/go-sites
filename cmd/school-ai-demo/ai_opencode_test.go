@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -230,5 +231,55 @@ func TestNoAPIKeyIsItsOwnError(t *testing.T) {
 	c := &aiClient{model: "m", http: http.DefaultClient}
 	if _, err := c.fill(context.Background(), testTemplate(t), "姓名：张伟"); err != errNoAPIKey {
 		t.Fatalf("err = %v, want errNoAPIKey", err)
+	}
+}
+
+// The exact reply the live endpoint produced: valid JSON whose warnings use
+// Chinese curly quotes as content. An earlier repair pass rewrote every curly
+// quote, which turned this into an unterminated string and surfaced to the
+// user as "模型返回的不是有效 JSON" on a fill that had in fact succeeded.
+func TestCurlyQuotesInsideAValueAreLeftAlone(t *testing.T) {
+	content := `{"fields":{"f04":"张伟"},"warnings":["资料中的“联系电话”未明确归属，已按家庭电话填入。"]}`
+	res, err := parseFillJSON(testTemplate(t), content, "m")
+	if err != nil {
+		t.Fatalf("a valid answer must not fail: %v", err)
+	}
+	if res.Values["f04"] != "张伟" {
+		t.Fatalf("values = %v", res.Values)
+	}
+	if len(res.Warnings) != 1 || !strings.Contains(res.Warnings[0], "“联系电话”") {
+		t.Fatalf("the curly quotes should survive as text: %v", res.Warnings)
+	}
+}
+
+// A stray brace in the envelope key is still valid JSON — it just names a key
+// the template has never heard of. Stopping at the first successful unmarshal
+// would report a filled form as empty.
+func TestStrayBraceKeyKeepsTheFieldsInside(t *testing.T) {
+	res, err := parseFillJSON(testTemplate(t), `{"fields{": {"f04": "张伟", "f05": "男"}}`, "m")
+	if err != nil {
+		t.Fatalf("should have been repaired: %v", err)
+	}
+	if res.Values["f04"] != "张伟" || res.Values["f05"] != "男" {
+		t.Fatalf("values = %v", res.Values)
+	}
+}
+
+func TestAReplyNamingNoFieldIsItsOwnError(t *testing.T) {
+	_, err := parseFillJSON(testTemplate(t), `{"note": "资料不足"}`, "m")
+	if !errors.Is(err, errNoUsableFields) {
+		t.Fatalf("want errNoUsableFields, got %v", err)
+	}
+}
+
+// Curly quotes used as JSON syntax (a model that never produced straight
+// ones at all) still have to be accepted.
+func TestCurlyQuotesAsSyntaxAreStillAccepted(t *testing.T) {
+	res, err := parseFillJSON(testTemplate(t), "{“fields”: {“f04”: “张伟”}}", "m")
+	if err != nil {
+		t.Fatalf("should have been repaired: %v", err)
+	}
+	if res.Values["f04"] != "张伟" {
+		t.Fatalf("values = %v", res.Values)
 	}
 }
