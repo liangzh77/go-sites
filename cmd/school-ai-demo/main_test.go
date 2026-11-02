@@ -153,6 +153,80 @@ func TestFillWithoutKeyIsAClear503NotACrash(t *testing.T) {
 	}
 }
 
+// A form filled by hand must still be exportable: the export endpoint reads
+// values from a stored session, so there has to be a way to open one without
+// an AI call. This is the path a user takes while no API key is configured.
+func TestManualSessionMakesAHandFilledFormExportable(t *testing.T) {
+	svc := newTestService(t, nil) // no API key on purpose
+
+	body := strings.NewReader(`{"template":"enrollment","values":{"f04":"李思远","f05":"男"}}`)
+	req := httptest.NewRequest(http.MethodPost, defaultBasePath+"/api/sessions", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := do(t, svc, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create status = %d: %s", rec.Code, rec.Body.String())
+	}
+	out := decodeBody(t, rec)
+	sess, _ := out["session"].(map[string]any)
+	if sess == nil {
+		t.Fatalf("no session in %s", rec.Body.String())
+	}
+	if sess["status"] != statusManual {
+		t.Fatalf("status = %v, want %q", sess["status"], statusManual)
+	}
+	id, _ := sess["id"].(string)
+	if id == "" {
+		t.Fatal("session has no id")
+	}
+
+	// Export must produce a real workbook with those values in it.
+	xrec := do(t, svc, httptest.NewRequest(http.MethodGet, defaultBasePath+"/api/sessions/"+id+"/xlsx", nil))
+	if xrec.Code != http.StatusOK {
+		t.Fatalf("export status = %d: %s", xrec.Code, xrec.Body.String())
+	}
+	if ct := xrec.Header().Get("Content-Type"); !strings.Contains(ct, "spreadsheet") {
+		t.Fatalf("content type = %q", ct)
+	}
+	sheet, err := readXLSX(xrec.Body.Bytes())
+	if err != nil {
+		t.Fatalf("exported workbook does not parse: %v", err)
+	}
+	text := sheet.text()
+	if !strings.Contains(text, "李思远") || !strings.Contains(text, "男") {
+		t.Fatalf("exported workbook lost the hand-typed values:\n%s", text)
+	}
+}
+
+func TestManualSessionRejectsUnknownTemplate(t *testing.T) {
+	svc := newTestService(t, nil)
+	body := strings.NewReader(`{"template":"nope","values":{}}`)
+	req := httptest.NewRequest(http.MethodPost, defaultBasePath+"/api/sessions", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := do(t, svc, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestManualSessionDropsBlankValues(t *testing.T) {
+	svc := newTestService(t, nil)
+	body := strings.NewReader(`{"template":"enrollment","values":{"f04":"  ","f05":"男"}}`)
+	req := httptest.NewRequest(http.MethodPost, defaultBasePath+"/api/sessions", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := do(t, svc, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+	}
+	sess, _ := decodeBody(t, rec)["session"].(map[string]any)
+	values, _ := sess["values"].(map[string]any)
+	if _, ok := values["f04"]; ok {
+		t.Fatalf("a whitespace-only value should be dropped, got %v", values)
+	}
+	if values["f05"] != "男" {
+		t.Fatalf("values = %v", values)
+	}
+}
+
 func TestFillRejectsEmptyMaterial(t *testing.T) {
 	svc := newTestService(t, &aiClient{apiKey: "test", endpoint: "http://127.0.0.1:1", model: "m", http: http.DefaultClient})
 	body := strings.NewReader(`{"template":"enrollment","text":"   "}`)

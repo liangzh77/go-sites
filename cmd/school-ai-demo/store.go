@@ -54,7 +54,10 @@ const (
 	statusPending = "pending"
 	statusFilled  = "filled"
 	statusFailed  = "failed"
-	statusNoKey   = "no_key"
+	// statusManual marks a session the user filled in themselves, with no model
+	// call; the export path treats it the same as a filled one.
+	statusManual = "manual"
+	statusNoKey  = "no_key"
 )
 
 func openStore(path string) (*store, error) {
@@ -297,6 +300,25 @@ func (s *store) session(id string) (fillSession, error) {
 	sess.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
 	sess.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
 	return sess, nil
+}
+
+// createManualSession opens an empty session for a form the user fills in by
+// hand. Without it a page opened without an API key could be edited and printed
+// but never exported, because export reads values back from a stored session.
+func (s *store) createManualSession(tpl templateRecord, values map[string]string) (fillSession, error) {
+	sess, err := s.createSession(tpl, "manual", "手动填写", "")
+	if err != nil {
+		return fillSession{}, err
+	}
+	if len(values) > 0 {
+		if _, err := s.saveSession(sess.ID, values); err != nil {
+			return fillSession{}, err
+		}
+	}
+	if err := s.finishSession(sess.ID, values, nil, "", statusManual, ""); err != nil {
+		return fillSession{}, err
+	}
+	return s.session(sess.ID)
 }
 
 // recentSessions powers the "最近填写" list on the demo page.

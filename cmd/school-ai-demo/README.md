@@ -48,6 +48,7 @@ All under `SCHOOL_AI_DEMO_BASE_PATH` (default `/school-ai-demo`).
 | GET | `/api/state` | templates, recent fills, whether a key is configured |
 | GET | `/api/templates/{slug}` | one template: its fields and its bound HTML |
 | POST | `/api/fill` | material + template → a session of filled values |
+| POST | `/api/sessions` | open a session for a hand-filled form (no model call) |
 | GET | `/api/sessions/{id}` | one session |
 | PATCH | `/api/sessions/{id}` | save values the user edited by hand |
 | GET | `/api/sessions/{id}/xlsx` | the filled form as a spreadsheet |

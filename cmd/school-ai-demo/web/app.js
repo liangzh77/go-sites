@@ -172,7 +172,9 @@
 
     resetPanel();
     mountPaper(data.html);
-    $('exportBtn').disabled = true;
+    // Both export and save work on a hand-filled form too: they create a
+    // session on first use instead of waiting for an AI fill.
+    $('exportBtn').disabled = false;
     $('saveBtn').disabled = true;
     $('fillPill').hidden = true;
     $('warnBox').hidden = true;
@@ -322,6 +324,13 @@
       pill.className = 'pill';
       pill.textContent = `AI 填了 ${n}/${total} 项`;
       setStatus('ok', `AI 已填写 <b>${n}</b> 项（共 ${total} 项），其余留空。请核对后导出。`);
+    } else if (sess.status === 'manual') {
+      // A hand-filled form is a normal outcome, not a failure: say so plainly
+      // and leave the status line alone so it does not wipe a real message.
+      const n = Object.keys(sess.values || {}).length;
+      const total = state.current ? state.current.fields.length : 0;
+      pill.className = 'pill manual';
+      pill.textContent = `手动填写 ${n}/${total} 项`;
     } else {
       pill.className = 'pill fail';
       pill.textContent = statusLabel[sess.status] || sess.status;
@@ -433,8 +442,24 @@
   }
 
   async function saveEdits() {
-    if (!state.sessionId) return;
+    if (!state.current) return;
     const values = collectValues();
+    if (!state.sessionId) {
+      $('saveBtn').disabled = true;
+      try {
+        const res = await api('/api/sessions', {
+          method: 'POST',
+          body: JSON.stringify({ template: state.current.slug, values }),
+        });
+        applySession(res.session);
+        setStatus('ok', `已保存 <b>${Object.keys(values).length}</b> 项。`);
+        $('saveBtn').disabled = true;
+      } catch (e) {
+        setStatus('err', escapeHTML(e.message));
+        $('saveBtn').disabled = false;
+      }
+      return;
+    }
     $('saveBtn').disabled = true;
     try {
       const res = await api('/api/sessions/' + encodeURIComponent(state.sessionId), {
@@ -452,8 +477,35 @@
     }
   }
 
-  function exportXLSX() {
-    if (!state.sessionId) return;
+  async function exportXLSX() {
+    // Export reads the values back from a stored session, so a form the user
+    // filled by hand (or is filling while AI is not configured) needs one
+    // created first; otherwise the button would do nothing.
+    const values = collectValues();
+    if (!state.sessionId) {
+      if (!state.current) return;
+      try {
+        const res = await api('/api/sessions', {
+          method: 'POST',
+          body: JSON.stringify({ template: state.current.slug, values }),
+        });
+        applySession(res.session);
+      } catch (e) {
+        setStatus('err', escapeHTML(e.message));
+        return;
+      }
+    } else if (state.dirty) {
+      try {
+        const res = await api('/api/sessions/' + encodeURIComponent(state.sessionId), {
+          method: 'PATCH',
+          body: JSON.stringify({ values }),
+        });
+        if (res.session) applySession(res.session);
+      } catch (e) {
+        setStatus('err', escapeHTML(e.message));
+        return;
+      }
+    }
     const url = BASE + '/api/sessions/' + encodeURIComponent(state.sessionId) + '/xlsx';
     window.location.href = url;
   }

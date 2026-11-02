@@ -197,6 +197,7 @@ button:disabled { cursor: not-allowed; opacity: .5; }
   white-space: nowrap;
 }
 .pill.fail { background: var(--bad-soft); color: var(--bad); }
+.pill.manual { background: #eef0f4; color: var(--ink-2); }
 
 .studio-body { display: grid; grid-template-columns: 352px minmax(0, 1fr); gap: 20px; padding: 20px 0 40px; align-items: start; }
 

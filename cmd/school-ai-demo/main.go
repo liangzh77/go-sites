@@ -167,6 +167,7 @@ func (s *service) routes() http.Handler {
 	mux.HandleFunc("GET "+p+"/api/state", s.handleState)
 	mux.HandleFunc("GET "+p+"/api/templates/{slug}", s.handleTemplate)
 	mux.HandleFunc("POST "+p+"/api/fill", s.handleFill)
+	mux.HandleFunc("POST "+p+"/api/sessions", s.handleCreateSession)
 	mux.HandleFunc("GET "+p+"/api/sessions/{id}", s.handleSession)
 	mux.HandleFunc("PATCH "+p+"/api/sessions/{id}", s.handleSaveSession)
 	mux.HandleFunc("GET "+p+"/api/sessions/{id}/xlsx", s.handleExportXLSX)
@@ -464,6 +465,60 @@ func splitCSVLine(line string) []string {
 	return out
 }
 
+// cleanValues keeps the field ids the client sent, drops blank ones, and caps
+// each value so a stray paste cannot bloat the database.
+func cleanValues(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		if k = strings.TrimSpace(k); k == "" {
+			continue
+		}
+		if v = strings.TrimSpace(v); v == "" {
+			continue
+		}
+		out[k] = truncateRunes(v, maxValueRunes)
+	}
+	return out
+}
+
+// handleCreateSession opens a session for a form the user is filling in by
+// hand. It needs no model, so it works before an API key is configured; the
+// export endpoint then has somewhere to read the values from.
+func (s *service) handleCreateSession(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Template string            `json:"template"`
+		Values   map[string]string `json:"values"`
+	}
+	r.Body = http.MaxBytesReader(nil, r.Body, maxUploadBytes)
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "请求格式不正确")
+		return
+	}
+	slug := strings.TrimSpace(in.Template)
+	if slug == "" {
+		writeError(w, http.StatusBadRequest, "缺少 template 参数")
+		return
+	}
+	tpl, err := s.st.template(slug)
+	if errors.Is(err, errNotFound) {
+		writeError(w, http.StatusNotFound, "模板不存在")
+		return
+	}
+	if err != nil {
+		log.Printf("create session: template %s: %v", slug, err)
+		writeError(w, http.StatusInternalServerError, "读取模板失败")
+		return
+	}
+	values := cleanValues(in.Values)
+	sess, err := s.st.createManualSession(tpl, values)
+	if err != nil {
+		log.Printf("create session: %v", err)
+		writeError(w, http.StatusInternalServerError, "创建填写记录失败")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "session": sess, "saved": len(values)})
+}
+
 func (s *service) handleSession(w http.ResponseWriter, r *http.Request) {
 	sess, err := s.st.session(r.PathValue("id"))
 	if errors.Is(err, errNotFound) {
@@ -487,13 +542,7 @@ func (s *service) handleSaveSession(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "请求格式不正确")
 		return
 	}
-	values := make(map[string]string, len(in.Values))
-	for k, v := range in.Values {
-		if k = strings.TrimSpace(k); k == "" {
-			continue
-		}
-		values[k] = truncateRunes(strings.TrimSpace(v), maxValueRunes)
-	}
+	values := cleanValues(in.Values)
 	sess, err := s.st.saveSession(r.PathValue("id"), values)
 	if errors.Is(err, errNotFound) {
 		writeError(w, http.StatusNotFound, "找不到这次填写记录")
