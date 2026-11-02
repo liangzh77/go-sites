@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0f172a">
+<title>School AI Demo</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <a class="brand" href="./">
+      <span class="brand-mark" aria-hidden="true">学</span>
+      <span class="brand-text">
+        <strong>School AI Demo</strong>
+        <small>把资料自动填进学校表格</small>
+      </span>
+    </a>
+    <div class="topbar-links">
+      <a href="https://liangz77.cn/" target="_blank" rel="noopener">liangz77.cn</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="app">
+  <section class="hero">
+    <h1>上传资料，自动填表</h1>
+    <p>给一份 Excel 或一段文字，AI 会按语义把信息对上表格里的每一个格子。对不上的格子留空，绝不编造。</p>
+  </section>
+
+  <div class="notice" id="aiNotice" hidden>
+    <strong>AI 填写还没开通。</strong>
+    <span id="aiNoticeText">服务器上还没有配置 DeepSeek API Key，上传后会提示错误，但表格仍可手动填写、打印和导出。</span>
+  </div>
+
+  <section class="demos" id="demoList" aria-live="polite">
+    <h2 class="section-head">可用 demo</h2>
+    <div class="cards" id="demoCards">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+  </section>
+
+  <section class="recent" id="recentBlock" hidden>
+    <h2 class="section-head">最近填写</h2>
+    <ul class="recent-list" id="recentList"></ul>
+  </section>
+</main>
+
+<!-- Filling screen -->
+<section class="studio" id="studio" hidden>
+  <div class="studio-bar">
+    <div class="wrap studio-bar-inner">
+      <button class="ghost" id="backBtn" type="button">
+        <span aria-hidden="true">←</span> 返回 demo 列表
+      </button>
+      <div class="studio-title" id="studioTitle">学生入学登记表</div>
+      <div class="studio-tools">
+        <span class="pill" id="fillPill" hidden></span>
+        <button class="ghost" id="saveBtn" type="button" disabled>保存修改</button>
+        <button class="ghost" id="printBtn" type="button">打印 / PDF</button>
+        <button class="primary" id="exportBtn" type="button" disabled>导出 Excel</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap studio-body">
+    <aside class="panel">
+      <div class="panel-head">
+        <h2>1 · 给资料</h2>
+        <p>Excel（.xlsx）、CSV、TXT 都可以，也可以直接把文字粘进来。</p>
+      </div>
+
+      <label class="dropzone" id="dropzone" for="fileInput">
+        <input type="file" id="fileInput" accept=".xlsx,.xlsm,.csv,.txt,.md" hidden>
+        <span class="dz-icon" aria-hidden="true">＋</span>
+        <span class="dz-main">点击选择文件，或把文件拖到这里</span>
+        <span class="dz-sub" id="dzSub">支持 .xlsx / .csv / .txt，最大 8MB</span>
+      </label>
+
+      <div class="or"><span>或者粘贴文字</span></div>
+
+      <textarea id="pasteBox" rows="7" placeholder="例如：&#10;张三，男，2019年3月出生，汉族&#10;家庭住址：河北省石家庄市长安区……&#10;父亲：张伟，工人，138……"></textarea>
+
+      <div class="panel-actions">
+        <button class="primary block" id="fillBtn" type="button">开始 AI 填写</button>
+        <button class="ghost block" id="clearBtn" type="button">清空</button>
+      </div>
+
+      <div class="status" id="status" hidden></div>
+      <div class="warnbox" id="warnBox" hidden></div>
+
+      <div class="panel-note">
+        <h3>2 · 校对并导出</h3>
+        <p>右侧表格里的内容可以直接改。改完点「保存修改」，再打印成 PDF 或导出 Excel。</p>
+      </div>
+    </aside>
+
+    <div class="paper-area">
+      <div class="paper-toolbar">
+        <span class="paper-hint">蓝色虚线格为可填位置，点一下即可编辑</span>
+        <span class="paper-legend"><i class="dot ai"></i>AI 填入<i class="dot empty"></i>留空</span>
+      </div>
+      <div class="paper-scroll" id="paperScroll">
+        <div class="paper-holder" id="paperHolder">
+          <iframe id="paper" title="表格预览"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

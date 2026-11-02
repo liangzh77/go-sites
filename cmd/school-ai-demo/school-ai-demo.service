@@ -1,0 +1,30 @@
+[Unit]
+Description=School AI Demo - fill a school form from material the user brings
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=schoolai
+Group=schoolai
+WorkingDirectory=/srv/apps/school-ai-demo/current
+EnvironmentFile=/srv/apps/school-ai-demo/shared/school-ai-demo.env
+ExecStart=/srv/apps/school-ai-demo/current/school-ai-demo
+Restart=on-failure
+RestartSec=3
+
+# The service only needs its own data directory; the DeepSeek key arrives
+# through the environment file and is never written to disk by the binary.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/apps/school-ai-demo/shared
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target
