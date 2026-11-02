@@ -339,20 +339,29 @@
     $('demoBanner').hidden = !state.demo;
   }
 
-  // Filling the sample is not an edit: it is a starting point the user is
-  // expected to overwrite, and the banner is what marks it as such.
+  // The sample goes into the material pane only. The sheet stays empty until
+  // the model fills it, because the thing worth watching is the model reading
+  // prose and choosing the cells itself; a pre-painted sheet would show the
+  // result and hide the work.
   function fillDemo() {
     if (!state.current) return;
-    const values = demoValues(state.current.fields);
-    state.demo = true;
-    applyValues(values);
-    state.dirty = false;
-    $('saveBtn').disabled = true;
     $('pasteBox').value = demoSourceText();
+    state.draft.text = $('pasteBox').value;
+    state.demo = false;
     showDemoBanner();
     setStatus('', '');
-    fitPaper();
-    toast('已填入示例资料，改成真实信息后示例标记会消失');
+    toast('示例资料已放进左边，点「开始 AI 填写」看看它怎么填表');
+  }
+
+  // An AI fill that reproduces the sample is still a sample: the export keeps
+  // its marker even though none of those cells was typed by hand.
+  function isSampleFill(sess) {
+    if (!state.current) return false;
+    const values = (sess && sess.values) || {};
+    const sample = demoValues(state.current.fields);
+    const ids = Object.keys(values).filter((id) => String(values[id] || '').trim());
+    if (!ids.length) return false;
+    return ids.every((id) => String(values[id]).trim() === String(sample[id] || '').trim());
   }
 
   // Any real input drops the sample state: once a cell no longer holds the
@@ -748,6 +757,10 @@
       // exported file is no longer a demo.
       clearDemo();
       applySession(res.session);
+      if (isSampleFill(res.session)) {
+        state.demo = true;
+        showDemoBanner();
+      }
       refreshQuota();
       const n = Object.keys((res.session && res.session.values) || {}).length;
       const filled = Object.keys(collectValues()).length;
