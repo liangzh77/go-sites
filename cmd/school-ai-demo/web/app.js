@@ -253,17 +253,10 @@
 
     // 信息采集表专属
     '登记日期': demoDate,
-    '编号': '20260312',
     '年龄': '13',
     '籍贯': '江苏苏州',
     '是否独子': '是',
-    '学生类别': '普通学生',
-    '特殊家庭': '否',
-    '是否残疾': '否',
-    '参加学平险': '是',
-    '是否住宿生': '否',
     '户口所在地': '江苏省苏州市吴中区',
-    '户籍性质': '城镇',
     '现居地址': DEMO_ADDRESS,
     '曾就读学校1起止年月': '2019年9月—2026年6月',
     '曾就读学校1名称': '苏州市吴中区城南小学',
@@ -312,20 +305,35 @@
     return out;
   }
 
-  // The pasted text is generated from the same values, so a user who reads the
-  // panel sees where the numbers on the sheet came from.
-  function demoSourceText(fields, values) {
-    const seen = new Set();
-    const lines = ['示例资料（虚构，仅用于演示）'];
-    (fields || []).forEach((f) => {
-      const v = values[f.id];
-      const label = (f.label || '').trim();
-      if (!v || !label || seen.has(label)) return;
-      seen.add(label);
-      lines.push(`${label}：${v}`);
-    });
-    return lines.join('\n');
+  // A sample has to read like the material a parent actually sends: a few
+  // sentences in their own words, never the form's own labels. Mirroring the
+  // labels would hide the one thing the demo exists to show, which is the
+  // model reading prose and finding the right cells by itself.
+  function demoSourceText() {
+    return [
+      '示例资料（虚构，仅用于演示）',
+      '',
+      `孩子叫${DEMO_STUDENT}，男孩，2013 年 4 月出生，汉族，今年 13 岁，` +
+        '独生子，在苏州出生长大，籍贯苏州。今年 9 月刚上初一（3）班，' +
+        '学号 20260312，班主任是刘敏老师。',
+      '',
+      '小学念的是苏州市吴中区城南小学，2019 年 9 月入学，2026 年 6 月毕业，' +
+        '毕业那会儿身高 152 厘米，在班上当过学习委员。',
+      '',
+      `我们家住${DEMO_ADDRESS}，户口也在吴中区。` +
+        `爸爸${DEMO_FATHER}，43 岁，在苏州华远精密机械有限公司做工程师，手机 ${DEMO_FATHER_PHONE}。` +
+        `妈妈${DEMO_MOTHER}，41 岁，在苏州市吴中区实验小学当老师，手机 ${DEMO_MOTHER_PHONE}。`,
+      '',
+      '孩子平时喜欢看书、看星星，围棋和书法练了几年。' +
+        '家里收入就靠我们俩的工资。身体一直挺好，没有什么不能上体育课的毛病。',
+      '',
+      `今天是 ${demoDate()}，表是班主任发的，晚上填好交回去。`,
+    ].join('\n');
   }
+
+  // Every filled cell has to be sayable from the text above: a value the
+  // sample never mentions would be the model inventing, which is the one
+  // thing this demo promises it does not do.
 
   function showDemoBanner() {
     $('demoBanner').hidden = !state.demo;
@@ -340,7 +348,7 @@
     applyValues(values);
     state.dirty = false;
     $('saveBtn').disabled = true;
-    $('pasteBox').value = demoSourceText(state.current.fields, values);
+    $('pasteBox').value = demoSourceText();
     showDemoBanner();
     setStatus('', '');
     fitPaper();

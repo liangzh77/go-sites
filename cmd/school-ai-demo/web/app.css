@@ -295,7 +295,7 @@ button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 .studio-body {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: 420px minmax(0, 1fr);
   gap: var(--sp-4);
   padding: var(--sp-4) 0 var(--sp-6);
   align-items: start;
@@ -472,7 +472,7 @@ textarea:focus, .dropzone:focus-visible { outline: 2px solid var(--brand); outli
 /* The side panel is the first thing to give up its column: the form needs the
    width more than the material box does. */
 @media (max-width: 1080px) {
-  .studio-body { grid-template-columns: 260px minmax(0, 1fr); }
+  .studio-body { grid-template-columns: 390px minmax(0, 1fr); }
 }
 
 @media (max-width: 900px) {
