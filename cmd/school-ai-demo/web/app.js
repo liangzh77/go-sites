@@ -123,10 +123,10 @@
       return;
     }
 
-    inline.hidden = false;
-    inline.textContent = spent
-      ? `今日 AI 填表次数已用完（${q.limit}/${q.limit}），明天 00:00 重置。`
-      : `AI 填表每天限 ${q.limit} 次，今天还剩 ${q.remaining} 次。`;
+    // The remaining count is not printed: a number that only goes down reads as
+    // a warning, and the button says what happened the one time it matters.
+    inline.hidden = !spent;
+    if (spent) inline.textContent = `今日 AI 填表次数已用完（${q.limit}/${q.limit}），明天 00:00 重置。`;
     inline.classList.toggle('spent', spent);
 
     if (spent) {
@@ -156,7 +156,6 @@
       desc: '上传 Excel 或粘贴文字，自动填进学生表格。对不上的格子留空，绝不编造。',
       tags: (tpls) => [
         `共 ${tpls.length} 种表格`,
-        `共 ${tpls.reduce((n, t) => n + (t.fieldCount || 0), 0)} 个可填字段`,
         { text: 'AI 语义匹配', brand: true },
       ],
       note: (tpls) => tpls.map((t) => t.name).join(' · '),
@@ -335,10 +334,6 @@
   // sample never mentions would be the model inventing, which is the one
   // thing this demo promises it does not do.
 
-  function showDemoBanner() {
-    $('demoBanner').hidden = !state.demo;
-  }
-
   // The sample goes into the material pane only. The sheet stays empty until
   // the model fills it, because the thing worth watching is the model reading
   // prose and choosing the cells itself; a pre-painted sheet would show the
@@ -348,7 +343,6 @@
     $('pasteBox').value = demoSourceText();
     state.draft.text = $('pasteBox').value;
     state.demo = false;
-    showDemoBanner();
     setStatus('', '');
     toast('示例资料已放进左边，点「开始 AI 填写」看看它怎么填表');
   }
@@ -369,7 +363,6 @@
   function clearDemo() {
     if (!state.demo) return;
     state.demo = false;
-    showDemoBanner();
   }
 
   // --- studio ---------------------------------------------------------------
@@ -400,7 +393,6 @@
     if (draft) restoreDraft(draft);
     renderTplSwitch();
     mountPaper(data.html);
-    showDemoBanner();
     // Both export and save work on a hand-filled form too: they create a
     // session on first use instead of waiting for an AI fill.
     $('exportBtn').disabled = false;
@@ -759,8 +751,7 @@
       applySession(res.session);
       if (isSampleFill(res.session)) {
         state.demo = true;
-        showDemoBanner();
-      }
+          }
       refreshQuota();
       const n = Object.keys((res.session && res.session.values) || {}).length;
       const filled = Object.keys(collectValues()).length;
