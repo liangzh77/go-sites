@@ -85,9 +85,11 @@
   }
 
   function renderAIDisabled() {
+    // 没配 key 时按钮保持可点：点下去要给一句明确的说明，
+    // 而不是留一个灰按钮让人猜原因。
     const off = !state.ai.configured;
     $('aiNotice').hidden = !off;
-    $('fillBtn').disabled = off;
+    $('fillBtn').disabled = false;
     if (off) {
       $('aiNoticeText').textContent =
         `服务器上没有配置 DeepSeek API Key（${state.ai.keyEnv}），提交会返回提示。` +
@@ -374,7 +376,20 @@
   async function doFill() {
     if (!state.current) return;
     if (!state.ai.configured) {
-      setStatus('err', 'AI 填写还没开通：服务器上缺少 DeepSeek API Key，请先手动填写或联系管理员。');
+      // 没配 key 也把资料读一遍再提示，这样用户能确认文件本身没问题，
+      // 也保证「上传 → 报错」这条链路在没 key 时依然走通。
+      const picked = $('fileInput').files[0];
+      const typed = $('pasteBox').value.trim();
+      if (!picked && !typed) {
+        setStatus('err', '请先选一个文件，或粘贴一些文字。');
+        return;
+      }
+      setStatus(
+        'err',
+        'AI 填写还没开通：服务器上缺少 DeepSeek API Key（' +
+          state.ai.keyEnv +
+          '）。请把 key 交给管理员配置后重试；你现在也可以直接在右侧表格里手动填写。'
+      );
       return;
     }
     const file = $('fileInput').files[0];
@@ -411,13 +426,9 @@
       }
       fitPaper();
     } catch (e) {
-      if (e.code === 'no_key') {
-        setStatus('err', escapeHTML(e.message));
-      } else {
-        setStatus('err', escapeHTML(e.message));
-      }
+      setStatus('err', escapeHTML(e.message));
     } finally {
-      $('fillBtn').disabled = !state.ai.configured;
+      $('fillBtn').disabled = false;
     }
   }
 
