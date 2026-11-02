@@ -101,6 +101,12 @@
         reverse_proxy 127.0.0.1:9005
     }
 
+    # 中转站：本机（Paseo / 本地 Pi）与云端助手之间的存储转发网关。
+    # 路径保持 /relay 前缀，由网关自己按 RELAY_BASE_PATH 处理。
+    handle /relay/* {
+        reverse_proxy 127.0.0.1:9015
+    }
+
     root * /srv/sites/liangz77.cn/current
     encode zstd gzip
     file_server
