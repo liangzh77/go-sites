@@ -213,6 +213,41 @@ button:disabled { cursor: not-allowed; opacity: .5; }
 .quota-inline { margin: 0; font-size: 12.5px; color: var(--ink-3); text-align: center; }
 .quota-inline.spent { color: var(--bad); font-weight: 600; }
 
+/* template switch -------------------------------------------------------- */
+/* A segmented control, not select: the number of forms is small and known up
+   front, so showing every option costs one row and saves a menu. */
+.tpl-switch {
+  display: flex; align-items: center; gap: 4px;
+  flex: 0 1 auto; min-width: 0; max-width: 100%;
+  padding: 3px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: #f2f4f8;
+  overflow-x: auto; scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.tpl-tab {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border: 1px solid transparent; border-radius: 8px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 13px; line-height: 1.4; white-space: nowrap;
+}
+.tpl-tab:hover { background: #e8ecf3; color: var(--ink); }
+.tpl-tab.on,
+.tpl-tab[aria-selected="true"] {
+  background: var(--card); color: var(--brand-ink);
+  border-color: #d3dbea;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+.tpl-tab:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+
+.tpl-switch-note {
+  margin: 0; padding: 0 0 8px;
+  font-size: 12.5px; color: var(--ink-3);
+}
+
 
 .studio-body { display: grid; grid-template-columns: 352px minmax(0, 1fr); gap: 20px; padding: 20px 0 40px; align-items: start; }
 
@@ -325,6 +360,7 @@ textarea:focus, .dropzone:focus-visible { outline: 2px solid var(--brand); outli
   .studio-bar { top: 0; }
   .studio-bar-inner { height: auto; flex-wrap: wrap; padding: 10px 0; gap: 8px; }
   .studio-title { order: 3; width: 100%; flex-basis: 100%; }
+  .tpl-switch { order: 4; width: 100%; flex-basis: 100%; margin-bottom: 2px; }
   .studio-tools { gap: 6px; flex-wrap: wrap; }
   .studio-tools .ghost, .studio-tools .primary { padding: 7px 10px; font-size: 13px; }
 }

@@ -31,9 +31,17 @@ const (
 	maxMaterialRunes     = 24000
 	maxValueRunes        = 1200
 	// The model spends tokens on reasoning before it writes the answer, so a
-	// small cap yields an empty content string. Leave room, or omit it.
-	maxTokens = 4096
+	// small cap yields an empty content string. A full 51-field form needs
+	// 836-1897 tokens of content, and reasoning can outgrow that; 8192 is
+	// accepted by the gateway (16384 too) and leaves headroom without giving a
+	// runaway reply room to burn the whole timeout.
+	maxTokens = 8192
 	userAgent = "school-ai-demo/1.0"
+
+	// closeTruncatedJSON is a last-resort repair and each candidate costs a
+	// full parse; a garbage reply can offer one cut point per byte, so only the
+	// last few are worth trying.
+	maxJSONCutAttempts = 32
 )
 
 // aiClient talks to an OpenAI-compatible chat completions endpoint. The base
@@ -88,6 +96,12 @@ var errNoAPIKey = errors.New("尚未配置 DeepSeek API Key")
 // errEmptyContent is what the model returns when it never got past reasoning;
 // it is worth a retry, unlike a malformed answer.
 var errEmptyContent = errors.New("模型没有返回内容，请重试")
+
+// errTruncated is the gateway saying it stopped at max_tokens (finish_reason
+// "length"). The content is a fragment of a JSON object, so it is reported as
+// its own condition: not an empty reply, and not a parse failure. The fix the
+// user can actually act on is to send less material.
+var errTruncated = errors.New("模型输出被长度限制截断，请把资料拆成更短的一段再试")
 
 // errNoUsableFields is a reply that parsed but named no field this template
 // has, which is a model problem worth retrying rather than an empty form.
@@ -196,6 +210,9 @@ func (c *aiClient) attempt(ctx context.Context, tpl templateRecord, material, ap
 			Message struct {
 				Content string `json:"content"`
 			} `json:"message"`
+			// "length" means the server cut the reply at max_tokens, so content
+			// is a fragment even when it looks like JSON.
+			FinishReason string `json:"finish_reason"`
 		} `json:"choices"`
 	}
 	if err := json.Unmarshal(payload, &completion); err != nil {
@@ -204,13 +221,23 @@ func (c *aiClient) attempt(ctx context.Context, tpl templateRecord, material, ap
 	if len(completion.Choices) == 0 {
 		return fillResult{}, resp.StatusCode, errors.New("模型没有返回内容")
 	}
-	content := completion.Choices[0].Message.Content
-	if strings.TrimSpace(content) == "" {
+	choice := completion.Choices[0]
+
+	// Report the cutoff before touching the body, and before the empty-content
+	// check: a reasoning-heavy reply can be both empty and truncated, and
+	// "split your material" is then the truthful advice. The repair pass in
+	// parseFillJSON is skipped on purpose: it would close the half-written
+	// object, silently drop everything after the cut, and hand back a
+	// partially filled form that looks like a complete answer.
+	if choice.FinishReason == "length" {
+		return fillResult{}, resp.StatusCode, errTruncated
+	}
+	if strings.TrimSpace(choice.Message.Content) == "" {
 		// Reasoning-only answers come back as an empty string; say so instead
 		// of reporting an empty but successful fill.
 		return fillResult{}, resp.StatusCode, errEmptyContent
 	}
-	res, err := parseFillJSON(tpl, content, c.model)
+	res, err := parseFillJSON(tpl, choice.Message.Content, c.model)
 	return res, resp.StatusCode, err
 }
 
@@ -220,6 +247,10 @@ func (c *aiClient) attempt(ctx context.Context, tpl templateRecord, material, ap
 // inside a key ({"fields{": ...}), a trailing comma, or the object wrapped in
 // prose. None of those should surface as a hard failure, so each parse attempt
 // falls back to the next repair before giving up.
+//
+// A body cut off mid-value is repairable the same way, but callers that know
+// why it was cut (finish_reason "length") should refuse this repair: the
+// recovered fragment would pass for a complete answer.
 func parseFillJSON(tpl templateRecord, content, model string) (fillResult, error) {
 	text := strings.TrimSpace(content)
 	if text == "" {
@@ -390,7 +421,133 @@ func jsonCandidates(text string) []string {
 			out = append(out, q, dropTrailingCommas(q))
 		}
 	}
+
+	// Lowest priority: a body that stops mid-way. Closing it recovers the
+	// fields written before the cut, and because candidates are scored by how
+	// many template fields they name, a fragment can never beat an answer that
+	// the model actually finished.
+	if closed := closeTruncatedJSON(base); closed != "" && closed != base {
+		out = append(out, closed)
+	}
 	return out
+}
+
+// closeTruncatedJSON finishes a JSON object that was cut off: the tail is
+// dropped back to the last point where a value ended, and the brackets still
+// open there are closed LIFO. It returns s unchanged when the object already
+// balances, and "" when no cut point yields a non-empty JSON object.
+//
+// The cut almost always lands inside a string value ("f24":"1381111), and that
+// half-written value is dropped rather than guessed at: a truncated phone
+// number or address in a submitted form is worse than a blank field.
+func closeTruncatedJSON(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" || s[0] != '{' {
+		return ""
+	}
+
+	// Cut points are the byte offsets just past something that can end a
+	// value: a closing quote, a closing bracket, or the last character of a
+	// number/true/false/null. A value cut mid-string has no closing quote, so
+	// it is never a candidate and its fragment is dropped.
+	var cuts []int
+	depth := 0
+	inString, escaped := false, false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == '"':
+				inString = false
+				cuts = append(cuts, i+1)
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inString = true
+		case '{', '[':
+			depth++
+		case '}', ']':
+			depth--
+			if depth < 0 {
+				// More closers than openers is not a truncation; leave it to the
+				// ordinary repairs rather than inventing a prefix.
+				return ""
+			}
+			cuts = append(cuts, i+1)
+		case ' ', '\n', '\r', '\t', ',', ':':
+			// Not a value end on its own.
+		default:
+			cuts = append(cuts, i+1)
+		}
+	}
+	if !inString && depth == 0 {
+		return s // Already balanced, so there is nothing to close.
+	}
+
+	// Newest cut first: the shortest repair that parses wins, keeping as many
+	// complete pairs as possible.
+	if len(cuts) > maxJSONCutAttempts {
+		cuts = cuts[len(cuts)-maxJSONCutAttempts:]
+	}
+	for i := len(cuts) - 1; i >= 0; i-- {
+		prefix := s[:cuts[i]]
+		cand := prefix + closeBrackets(prefix)
+		var probe map[string]any
+		if json.Unmarshal([]byte(cand), &probe) == nil && len(probe) > 0 {
+			return cand
+		}
+	}
+	return ""
+}
+
+// closeBrackets returns the closers that balance the brackets left open in
+// prefix, innermost first. It returns "" when prefix is already balanced.
+func closeBrackets(prefix string) string {
+	var stack []byte
+	inString, escaped := false, false
+	for i := 0; i < len(prefix); i++ {
+		c := prefix[i]
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == '"':
+				inString = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inString = true
+		case '{', '[':
+			stack = append(stack, c)
+		case '}', ']':
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+		}
+	}
+	if len(stack) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(len(stack))
+	for i := len(stack) - 1; i >= 0; i-- {
+		if stack[i] == '[' {
+			b.WriteByte(']')
+		} else {
+			b.WriteByte('}')
+		}
+	}
+	return b.String()
 }
 
 // straightenQuotes rewrites curly double quotes (U+201C, U+201D, U+201E) as

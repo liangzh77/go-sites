@@ -222,8 +222,10 @@ func TestMaxTokensLeavesRoomForReasoning(t *testing.T) {
 	if !ok {
 		t.Fatalf("max_tokens should be sent, body = %v", body)
 	}
-	if got < 4000 {
-		t.Fatalf("max_tokens = %v is small enough to starve the answer", got)
+	// 4096 was enough for a quiet reply but not for one whose reasoning runs
+	// long; 8192 is accepted by the gateway and leaves that headroom.
+	if got != 8192 {
+		t.Fatalf("max_tokens = %v, want 8192 (maxTokens = %d)", got, maxTokens)
 	}
 }
 
@@ -281,5 +283,82 @@ func TestCurlyQuotesAsSyntaxAreStillAccepted(t *testing.T) {
 	}
 	if res.Values["f04"] != "张伟" {
 		t.Fatalf("values = %v", res.Values)
+	}
+}
+
+// --- truncated output -------------------------------------------------------
+
+// max_tokens is a hard stop: the gateway reports it as finish_reason "length"
+// and the content is a half-written object. That is neither an empty reply nor
+// unparsable JSON, and it must reach the user as "send less material" instead
+// of being repaired into a silently half-filled form.
+func TestTruncatedOutputIsReportedAsTruncation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"fields\": {\"f04\": \"张伟\", \"f05\": \""},"finish_reason":"length"}]}`))
+	}))
+	defer srv.Close()
+
+	c := &aiClient{apiKey: "k", endpoint: srv.URL, model: "m", http: http.DefaultClient}
+	_, err := c.fill(context.Background(), testTemplate(t), "姓名：张伟")
+	if err == nil {
+		t.Fatal("a truncated answer must not be reported as a successful fill")
+	}
+	if !strings.Contains(err.Error(), "截断") && !strings.Contains(err.Error(), "长度限制") {
+		t.Fatalf("the message should name the truncation: %v", err)
+	}
+	if errors.Is(err, errEmptyContent) {
+		t.Fatalf("truncation is not an empty reply: %v", err)
+	}
+}
+
+// On the parser level a cut body is still worth closing, because a fill that
+// recovers most fields beats a blank form. No finish_reason reaches here, so
+// the repair is allowed; the caller is what refuses it on "length".
+func TestATruncatedJSONBodyIsClosedAndParsed(t *testing.T) {
+	res, err := parseFillJSON(testTemplate(t), `{"fields": {"f04": "张伟", "f05": "`, "m")
+	if err != nil {
+		t.Fatalf("a body cut after a complete pair should be repaired: %v", err)
+	}
+	if res.Values["f04"] != "张伟" {
+		t.Fatalf("values = %v", res.Values)
+	}
+	if _, ok := res.Values["f05"]; ok {
+		t.Fatalf("the half-written value must be dropped, values = %v", res.Values)
+	}
+}
+
+// The repair must not touch a body that already balances: parseFillJSON scores
+// candidates by field count, and rewriting a good answer would risk that.
+func TestClosingTruncatedJSONLeavesCompleteJSONAlone(t *testing.T) {
+	complete := `{"fields": {"f04": "张伟", "f05": "男"}, "warnings": ["资料中的“联系电话”未明确归属。"]}`
+	if got := closeTruncatedJSON(complete); got != complete {
+		t.Fatalf("complete JSON must be returned unchanged, got %q", got)
+	}
+	res, err := parseFillJSON(testTemplate(t), complete, "m")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if res.Values["f04"] != "张伟" || res.Values["f05"] != "男" {
+		t.Fatalf("values = %v", res.Values)
+	}
+}
+
+// The other shapes a cut takes: a number with no closing brackets, an array
+// open past a finished object, and a body with no complete pair at all (which
+// must stay unrepairable rather than become {}).
+func TestCloseTruncatedJSONHandlesNumbersAndArrays(t *testing.T) {
+	cases := []struct{ name, in, want string }{
+		{"number at the end", `{"fields": {"f24": 1381111`, `{"fields": {"f24": 1381111}}`},
+		{"inside a warnings array", `{"fields": {"f04": "张伟"}, "warnings": ["资料`, `{"fields": {"f04": "张伟"}}`},
+		{"nested array and object", `{"fields": {"f04": "张伟"}, "warnings": [{"t": "提示"`, `{"fields": {"f04": "张伟"}, "warnings": [{"t": "提示"}]}`},
+		{"no complete pair", `{"fields": {"f04": `, ""},
+		{"not an object", `"fields"`, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := closeTruncatedJSON(tc.in); got != tc.want {
+				t.Fatalf("closeTruncatedJSON = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }

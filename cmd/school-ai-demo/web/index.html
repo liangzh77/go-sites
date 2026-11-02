@@ -43,7 +43,6 @@
     <h2 class="section-head">可用 demo</h2>
     <div class="cards" id="demoCards">
       <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
     </div>
   </section>
 
@@ -60,13 +59,17 @@
       <button class="ghost" id="backBtn" type="button">
         <span aria-hidden="true">←</span> 返回 demo 列表
       </button>
-      <div class="studio-title" id="studioTitle">学生入学登记表</div>
+      <div class="studio-title" id="studioTitle">AI 填表</div>
+      <div class="tpl-switch" id="tplSwitch" role="tablist" aria-label="选择表格" hidden></div>
       <div class="studio-tools">
         <span class="pill" id="fillPill" hidden></span>
         <button class="ghost" id="saveBtn" type="button" disabled>保存修改</button>
         <button class="ghost" id="printBtn" type="button">打印 / PDF</button>
         <button class="primary" id="exportBtn" type="button" disabled>导出 Excel</button>
       </div>
+    </div>
+    <div class="wrap">
+      <p class="tpl-switch-note" id="tplSwitchNote" hidden>换表格会清空已填内容，但会保留你上传的资料，可以直接再填一次。</p>
     </div>
   </div>
 

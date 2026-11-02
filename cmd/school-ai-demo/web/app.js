@@ -17,6 +17,7 @@
     sessionId: '',
     values: {},           // fieldId -> string
     dirty: false,
+    draft: { file: null, text: '' },  // material to keep across a template switch
     doc: null,            // the iframe's document
     quota: null,          // today's AI budget, as the server reports it
     aiOff: false,         // no API key configured on the server
@@ -151,25 +152,37 @@
       box.innerHTML = '<p class="dz-sub">暂时没有可用模板。</p>';
       return;
     }
-    box.innerHTML = state.templates.map((t, i) => `
-      <article class="demo-card">
+    // One entry point for every form. The template list is data, so a card per
+    // file made the home page grow with whatever is dropped into templates/.
+    const total = state.templates.reduce((n, t) => n + (t.fieldCount || 0), 0);
+    const names = state.templates.map((t) => escapeHTML(t.name)).join(' · ');
+    box.innerHTML = `
+      <article class="demo-card demo-card-single">
         <div class="meta">
-          <span class="tag brand">Demo ${i + 1}</span>
-          <span class="tag">${t.fieldCount} 个可填字段</span>
-          <span class="tag">AI 语义匹配</span>
+          <span class="tag">共 ${state.templates.length} 种表格</span>
+          <span class="tag">共 ${total} 个可填字段</span>
+          <span class="tag brand">AI 语义匹配</span>
         </div>
-        <h3>${escapeHTML(t.name)}</h3>
-        <p>${i === 0
-          ? '上传学生资料 Excel 或粘贴一段文字，自动填进入学登记表的每个格子；对不上的留空，不编造。'
-          : '上传资料或粘贴文字，自动填写信息采集表，含单选项目。'}</p>
+        <h3>AI 填表</h3>
+        <p>上传 Excel 或粘贴文字，自动填进学生表格。对不上的格子留空，绝不编造。</p>
         <div class="foot">
-          <span class="dz-sub">${escapeHTML(t.sourceFile)}</span>
-          <button class="primary" type="button" data-slug="${escapeHTML(t.slug)}">开始填写</button>
+          <span class="dz-sub">${names}</span>
+          <button class="primary" type="button">开始填写</button>
         </div>
-      </article>`).join('');
-    box.querySelectorAll('button[data-slug]').forEach((b) => {
-      b.addEventListener('click', () => openStudio(b.dataset.slug));
+      </article>`;
+    // The button has no handler of its own: its click bubbles to the card, so
+    // mouse and keyboard land on the same code path exactly once.
+    box.querySelector('.demo-card').addEventListener('click', () => {
+      const slug = entrySlug();
+      if (slug) openStudio(slug);
     });
+  }
+
+  // A bookmarked hash wins; otherwise the first template in the folder opens.
+  function entrySlug() {
+    const wanted = slugFromHash();
+    if (wanted && state.templates.some((t) => t.slug === wanted)) return wanted;
+    return state.templates.length ? state.templates[0].slug : '';
   }
 
   function renderRecent(list) {
@@ -199,7 +212,7 @@
     return decodeURIComponent((location.hash || '').replace(/^#\/?/, ''));
   }
 
-  async function openStudio(slug, sessionId) {
+  async function openStudio(slug, sessionId, draft) {
     let data;
     try {
       data = await api('/api/templates/' + encodeURIComponent(slug));
@@ -209,13 +222,14 @@
     state.sessionId = '';
     state.values = {};
     state.dirty = false;
-    $('studioTitle').textContent = data.name;
     if (slugFromHash() !== slug) history.replaceState(null, '', '#' + encodeURIComponent(slug));
     $('studio').hidden = false;
     $('app').hidden = true;
     window.scrollTo({ top: 0 });
 
     resetPanel();
+    if (draft) restoreDraft(draft);
+    renderTplSwitch();
     mountPaper(data.html);
     // Both export and save work on a hand-filled form too: they create a
     // session on first use instead of waiting for an AI fill.
@@ -236,9 +250,48 @@
     $('studio').hidden = true;
     $('app').hidden = false;
     if (location.hash) history.replaceState(null, '', location.pathname);
+    state.current = null;
     state.doc = null;
     // A fresh reload keeps the list in step with what was just saved.
     loadState();
+  }
+
+  // The tab list is built from /api/state, so a file added to templates/
+  // appears here without any front-end change.
+  function renderTplSwitch() {
+    const box = $('tplSwitch');
+    const many = state.templates.length > 1;
+    box.hidden = !many;
+    $('tplSwitchNote').hidden = !many;
+    if (!many) {
+      box.innerHTML = '';
+      // With one form the tab list is gone, so the bar still has to say which
+      // form is open; with several the tabs say it and the bar stays generic.
+      $('studioTitle').textContent = (state.current && state.current.name) || 'AI 填表';
+      return;
+    }
+    $('studioTitle').textContent = 'AI 填表';
+    box.innerHTML = state.templates.map((t) => {
+      const on = !!state.current && state.current.slug === t.slug;
+      return `<button type="button" role="tab" class="tpl-tab${on ? ' on' : ''}" data-slug="${escapeHTML(t.slug)}" aria-selected="${on ? 'true' : 'false'}">${escapeHTML(t.name)} · ${escapeHTML(String(t.fieldCount))} 字段</button>`;
+    }).join('');
+    box.querySelectorAll('button[data-slug]').forEach((b) => {
+      b.addEventListener('click', () => {
+        if (state.current && b.dataset.slug === state.current.slug) return;
+        switchTemplate(b.dataset.slug);
+      });
+    });
+  }
+
+  async function switchTemplate(slug) {
+    if (!state.current || slug === state.current.slug) return;
+    if (state.dirty && !confirm('当前表格有未保存的修改，切换会丢失，继续吗？')) return;
+    // Two forms ask about the same student from different angles; making the
+    // teacher re-upload the file after every switch would be the wrong kind of
+    // clean slate. Answers are dropped, the material is not.
+    const draft = captureDraft();
+    state.draft = draft;
+    await openStudio(slug, '', draft);
   }
 
   function resetPanel() {
@@ -246,7 +299,32 @@
     $('fileInput').value = '';
     $('dzSub').textContent = '支持 .xlsx / .csv / .txt，最大 8MB';
     $('dropzone').classList.remove('has-file');
+    state.draft = { file: null, text: '' };
     setStatus('', '');
+  }
+
+  // What the user gave us lives in the panel, so a switch has to copy it out
+  // before resetPanel runs and put it back into the fresh panel afterwards.
+  function captureDraft() {
+    return {
+      file: ($('fileInput').files && $('fileInput').files[0]) || null,
+      text: $('pasteBox').value || '',
+    };
+  }
+
+  function restoreDraft(draft) {
+    state.draft = draft || { file: null, text: '' };
+    $('pasteBox').value = state.draft.text;
+    if (state.draft.file) {
+      // input.files is read-only; a DataTransfer is the script-side way in.
+      const dt = new DataTransfer();
+      dt.items.add(state.draft.file);
+      $('fileInput').files = dt.files;
+    } else {
+      $('fileInput').value = '';
+    }
+    // Reuse the change handler so #dzSub and the dropzone highlight follow.
+    $('fileInput').dispatchEvent(new Event('change'));
   }
 
   function mountPaper(html) {
@@ -429,6 +507,7 @@
   // --- filling --------------------------------------------------------------
   async function doFill() {
     if (!state.current) return;
+    const slug = state.current.slug;
     if (!state.ai.configured) {
       // 没配 key 也把资料读一遍再提示，这样用户能确认文件本身没问题，
       // 也保证「上传 → 报错」这条链路在没 key 时依然走通。
@@ -463,15 +542,18 @@
       let res;
       if (file) {
         const fd = new FormData();
-        fd.append('template', state.current.slug);
+        fd.append('template', slug);
         fd.append('file', file);
         res = await api('/api/fill', { method: 'POST', body: fd });
       } else {
         res = await api('/api/fill', {
           method: 'POST',
-          body: JSON.stringify({ template: state.current.slug, text }),
+          body: JSON.stringify({ template: slug, text }),
         });
       }
+      // The user may have switched forms while the request was in flight; the
+      // answer belongs to the form they left, not the one now on screen.
+      if (!state.current || state.current.slug !== slug) return;
       applySession(res.session);
       refreshQuota();
       const n = Object.keys((res.session && res.session.values) || {}).length;
@@ -490,6 +572,7 @@
         else if (state.quota) { state.quota = Object.assign({}, state.quota, { remaining: 0, used: state.quota.limit }); }
         renderQuota();
       }
+      if (!state.current || state.current.slug !== slug) return;
       setStatus('err', escapeHTML(e.message));
     } finally {
       if (!state.quota || state.quota.unlimited || state.quota.remaining > 0) {
@@ -608,6 +691,16 @@
 
   window.addEventListener('beforeunload', (e) => {
     if (state.dirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // replaceState does not fire hashchange, so this only runs for back/forward
+  // or a hand-edited URL. Unknown slugs are left alone on purpose.
+  window.addEventListener('hashchange', () => {
+    const slug = slugFromHash();
+    if (!slug || !state.templates.some((t) => t.slug === slug)) return;
+    if (state.current && state.current.slug === slug) return;
+    if ($('studio').hidden) openStudio(slug);
+    else switchTemplate(slug);
   });
 
   loadState().then(() => {
