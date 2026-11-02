@@ -209,73 +209,96 @@
   }
 
   // --- sample data ----------------------------------------------------------
-  // 示例数据必须一眼看出是假的，也要跟着模板走：值是按字段 label 推的，
-  // templates/ 里加一张新表不用回来改这里。
-  const DEMO_GENERIC = '示例内容';
-  const DEMO_NAME = '示例学生';
-  const DEMO_PHONE = '138-0000-0000';
-  const DEMO_ADDRESS = '北京市朝阳区示例路 1 号';
-  const CN_NUM = ['一', '二', '三', '四', '五', '六'];
-
   const demoDate = () => {
     const d = new Date();
     const pad = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
 
-  function demoFamilyValue(label) {
-    const n = Number((label.match(/家庭成员(\d)/) || [])[1] || 1);
-    if (/称谓|关系/.test(label)) return ['父亲', '母亲', '祖父', '祖母'][n - 1] || '家长';
-    if (/姓名/.test(label)) return `示例家长${CN_NUM[n - 1] || n}`;
-    if (/年龄/.test(label)) return '38';
-    if (/电话|手机|联系方式/.test(label)) return DEMO_PHONE;
-    if (/单位/.test(label)) return '示例工作单位';
-    if (/职业|职务/.test(label)) return '职员';
-    if (/残疾/.test(label)) return '无';
-    return DEMO_GENERIC;
-  }
+  // The sample is a whitelist, not a rule engine: only the fields named here
+  // get a value and every other cell stays empty, so the sheet reads like a
+  // form a parent filled halfway instead of a fabricated student record.
+  const DEMO_ADDRESS = '江苏省苏州市吴中区长桥街道宝带西路 218 号 6 幢 502 室';
+  const DEMO_STUDENT = '陈知远';
+  const DEMO_FATHER = '陈立国';
+  const DEMO_MOTHER = '周雅琴';
+  const DEMO_FATHER_PHONE = '138 0000 0001';
+  const DEMO_MOTHER_PHONE = '138 0000 0002';
 
-  // Order matters: the first hit wins, so the narrower labels (家庭成员1姓名,
-  // 曾就读学校1起止年月) have to be tested before the catch-all ones.
-  const DEMO_RULES = [
-    [/照片/, () => ''],                      // a photo box is a picture, not text
-    [/家庭成员|紧急联系人/, (label) => demoFamilyValue(label)],
-    [/身份证/, () => '110101201009010011'],
-    [/出生/, () => '2010-09-01'],
-    [/登记日期|填表日期/, () => demoDate()],
-    [/入学年月/, () => '2026-09'],
-    [/学号|编号/, () => '20260001'],
-    [/班级/, () => '一年级 1 班'],
-    [/班主任|证明人/, () => '示例老师'],
-    [/姓名/, () => DEMO_NAME],
-    [/性别/, () => '男'],
-    [/民族/, () => '汉族'],
-    [/籍贯/, () => '北京市'],
-    [/政治面貌/, () => '群众'],
-    [/电话|手机|联系方式/, () => DEMO_PHONE],
-    [/学校/, (label) => (/起止/.test(label) ? '2018-09 至 2024-06' : '示例小学')],
-    [/地址|住址|居住地|户口所在地/, () => DEMO_ADDRESS],
-    [/接送/, () => '示例家长'],
-    [/年龄/, () => '10'],
-    [/身高/, () => '140cm'],
-    [/QQ/i, () => '123456789'],
-    [/职务/, () => '学习委员'],
-    [/获奖/, () => '示例获奖情况'],
-    [/特长/, () => '示例特长（绘画）'],
-    [/兴趣|爱好/, () => '示例爱好（阅读）'],
-    [/残疾|低保|补助|疾病|过敏|家族/, () => '无'],
-    [/单位/, () => '示例工作单位'],
-  ];
+  // Labels are shared between the two templates, so one table fills both. A
+  // value whose label is absent from a template is simply never looked up.
+  const DEMO_VALUES = {
+    // 学生入学登记表 / 信息采集表 共有的身份项
+    '姓名': DEMO_STUDENT,
+    '性别': '男',
+    '出生年月': '2013年4月',
+    '民族': '汉族',
+    '学号': '20260312',
+    '班主任': '刘敏',
+
+    // 入学登记表专属
+    '登记姓名': DEMO_STUDENT,
+    '毕业学校': '苏州市吴中区城南小学',
+    '身高': '152cm',
+    '详细家庭住址': DEMO_ADDRESS,
+    '小学担任职务': '学习委员',
+    '特长': '围棋、书法',
+    '家庭主要经济来源': '父母工资收入',
+    '家庭成员1关系': '父亲',
+    '家庭成员2关系': '母亲',
+    '家庭成员1手机号码1': DEMO_FATHER_PHONE,
+    '家庭成员2手机号码1': DEMO_MOTHER_PHONE,
+
+    // 信息采集表专属
+    '登记日期': demoDate,
+    '编号': '20260312',
+    '年龄': '13',
+    '籍贯': '江苏苏州',
+    '是否独子': '是',
+    '学生类别': '普通学生',
+    '特殊家庭': '否',
+    '是否残疾': '否',
+    '参加学平险': '是',
+    '是否住宿生': '否',
+    '户口所在地': '江苏省苏州市吴中区',
+    '户籍性质': '城镇',
+    '现居地址': DEMO_ADDRESS,
+    '曾就读学校1起止年月': '2019年9月—2026年6月',
+    '曾就读学校1名称': '苏州市吴中区城南小学',
+    '现就读班级': '初一（3）班',
+    '入学年月': '2026年9月',
+    '健康状况': '良好',
+    '是否有不适于运动的疾病': '否',
+    '兴趣爱好第一行': '阅读、天文',
+    '个人特长第一行': '围棋、书法',
+
+    // 家庭成员 1 / 2（两张表编号对应的称谓不同）
+    '家庭成员1姓名': DEMO_FATHER,
+    '家庭成员1称谓': '父亲',
+    '家庭成员1年龄': '43',
+    '家庭成员1工作单位': '苏州华远精密机械有限公司',
+    '家庭成员1职业': '工程师',
+    '家庭成员1联系电话': DEMO_FATHER_PHONE,
+    '家庭成员2姓名': DEMO_MOTHER,
+    '家庭成员2称谓': '母亲',
+    '家庭成员2年龄': '41',
+    '家庭成员2工作单位': '苏州市吴中区实验小学',
+    '家庭成员2职业': '教师',
+    '家庭成员2联系电话': DEMO_MOTHER_PHONE,
+  };
 
   function demoValueFor(f) {
-    // A choice slot has a closed set of answers; the first option is always a
-    // legal one and keeps the sample printable.
-    if (f.kind === 'choice' && f.options && f.options.length) return f.options[0];
-    const label = f.label || '';
-    for (const [re, make] of DEMO_RULES) {
-      if (re.test(label)) return make(label);
+    const label = (f.label || '').trim();
+    const raw = DEMO_VALUES[label];
+    if (raw === undefined) return '';
+    const v = typeof raw === 'function' ? raw() : raw;
+    // A radio group only accepts its own labels; anything else would leave the
+    // group unusable, so an unknown answer drops the cell back to empty.
+    if (f.kind === 'choice') {
+      const opts = f.options || [];
+      return opts.includes(v) ? v : '';
     }
-    return DEMO_GENERIC;
+    return v || '';
   }
 
   function demoValues(fields) {
