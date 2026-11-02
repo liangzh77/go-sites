@@ -928,10 +928,15 @@
     else switchTemplate(slug);
   });
 
+  // A reload starts from a clean sheet: the template opens, but nothing is
+  // painted into it and the material pane is empty. Only an in-page arrival
+  // (the card, the sample button, back/forward) brings the sample in, because
+  // someone who refreshed is about to type their own data and does not want a
+  // half-filled form they have to clear first.
   loadState().then(() => {
     const slug = slugFromHash();
     if (slug && state.templates.some((t) => t.slug === slug)) {
-      openStudio(slug, { autoDemo: true });
+      openStudio(slug);
     }
   });
 })();
