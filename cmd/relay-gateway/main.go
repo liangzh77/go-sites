@@ -33,10 +33,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -69,7 +67,7 @@ type result struct {
 var idPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,95}$`)
 
 type gateway struct {
-	dataDir  string
+	st       *store
 	localTok string
 	cloudTok string
 	hookURL  string
@@ -77,14 +75,13 @@ type gateway struct {
 	lease    time.Duration
 	basePath string
 	client   *http.Client
-	mu       sync.Mutex // guards queue file mutations
 	now      func() time.Time
 }
 
 func main() {
 	basePath := strings.TrimRight(envOr("RELAY_BASE_PATH", "/relay"), "/")
+	dataDir := envOr("RELAY_DATA_DIR", "./relay-data")
 	g := &gateway{
-		dataDir:  envOr("RELAY_DATA_DIR", "./relay-data"),
 		localTok: os.Getenv("RELAY_LOCAL_TOKEN"),
 		cloudTok: os.Getenv("RELAY_CLOUD_TOKEN"),
 		hookURL:  os.Getenv("RELAY_WEBHOOK_URL"),
@@ -101,11 +98,17 @@ func main() {
 	if g.localTok == g.cloudTok {
 		log.Fatal("RELAY_LOCAL_TOKEN and RELAY_CLOUD_TOKEN must differ")
 	}
-	for _, dir := range []string{g.queueDir(), g.resultDir()} {
-		if err := os.MkdirAll(dir, 0o750); err != nil {
-			log.Fatal(err)
-		}
+	st, err := openStore(filepath.Join(dataDir, "relay.db"))
+	if err != nil {
+		log.Fatalf("cannot open store: %v", err)
 	}
+	defer st.close()
+	if moved, err := st.importLegacyQueue(filepath.Join(dataDir, "queue")); err != nil {
+		log.Printf("legacy queue import: %v", err)
+	} else if moved > 0 {
+		log.Printf("legacy queue import: moved %d task(s) into sqlite", moved)
+	}
+	g.st = st
 
 	addr := envOr("RELAY_ADDR", "127.0.0.1:9015")
 	srv := &http.Server{
@@ -118,9 +121,6 @@ func main() {
 	log.Printf("relay gateway listening on %s (base path %s)", addr, basePath)
 	log.Fatal(srv.ListenAndServe())
 }
-
-func (g *gateway) queueDir() string  { return filepath.Join(g.dataDir, "queue") }
-func (g *gateway) resultDir() string { return filepath.Join(g.dataDir, "results") }
 
 func (g *gateway) routes() http.Handler {
 	p := g.basePath
@@ -141,14 +141,14 @@ func (g *gateway) routes() http.Handler {
 // --- handlers ---------------------------------------------------------------
 
 func (g *gateway) handleHealth(w http.ResponseWriter, r *http.Request) {
-	tasks, err := g.loadQueue()
+	queued, err := g.st.count()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "queue unreadable")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":      true,
-		"queued":  len(tasks),
+		"queued":  queued,
 		"time":    g.now().UTC().Format(time.RFC3339),
 		"webhook": g.hookURL != "",
 	})
@@ -231,7 +231,7 @@ func (g *gateway) handleToLocal(w http.ResponseWriter, r *http.Request) {
 
 	deadline := time.Now().Add(time.Duration(wait) * time.Second)
 	for {
-		t, err := g.claim()
+		t, err := g.st.claim(time.Now(), g.lease)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "queue error")
 			return
@@ -269,16 +269,10 @@ func (g *gateway) handleAck(w http.ResponseWriter, r *http.Request) {
 	}
 	in.UpdatedAt = g.now().UTC()
 
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	if err := writeFileAtomic(g.resultPath(in.ID), in); err != nil {
+	if err := g.st.ack(in); err != nil {
+		log.Printf("ack: cannot store result for %s: %v", in.ID, err)
 		writeError(w, http.StatusInternalServerError, "cannot store result")
 		return
-	}
-	// Removing the queue entry makes the ack idempotent: a repeated ack just
-	// rewrites the same result.
-	if err := os.Remove(g.taskPath(in.ID)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		log.Printf("ack: cannot remove task %s: %v", in.ID, err)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "id": in.ID})
 }
@@ -305,31 +299,22 @@ func (g *gateway) handleFromCloud(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
 	// Idempotent: the same id never queues twice, so a retried POST from the
-	// cloud cannot make the local side run the same work again.
-	if _, err := os.Stat(g.taskPath(id)); err == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "id": id, "duplicate": true})
-		return
-	}
-	if _, err := os.Stat(g.resultPath(id)); err == nil {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "id": id, "duplicate": true})
-		return
-	}
-	existing, err := g.loadQueueLocked()
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "queue error")
-		return
-	}
-	if len(existing) >= maxQueueDepth {
+	// cloud cannot make the local side run the same work again. An id that was
+	// already answered also counts as a duplicate.
+	t := task{ID: id, Text: in.Text, Meta: in.Meta, CreatedAt: g.now().UTC()}
+	created, err := g.st.enqueue(t, maxQueueDepth)
+	if errors.Is(err, errQueueFull) {
 		writeError(w, http.StatusInsufficientStorage, "queue is full")
 		return
 	}
-	t := task{ID: id, Text: in.Text, Meta: in.Meta, CreatedAt: g.now().UTC()}
-	if err := writeFileAtomic(g.taskPath(id), t); err != nil {
+	if err != nil {
+		log.Printf("from-cloud: enqueue %s: %v", id, err)
 		writeError(w, http.StatusInternalServerError, "cannot queue task")
+		return
+	}
+	if !created {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true, "id": id, "duplicate": true})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "id": id})
@@ -341,104 +326,25 @@ func (g *gateway) handleResult(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
-	data, err := os.ReadFile(g.resultPath(id))
-	if errors.Is(err, os.ErrNotExist) {
-		writeError(w, http.StatusNotFound, "no result yet")
-		return
-	}
+	found, err := g.st.result(id)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "cannot read result")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(data)
+	if found == nil {
+		writeError(w, http.StatusNotFound, "no result yet")
+		return
+	}
+	writeJSON(w, http.StatusOK, found)
 }
 
 func (g *gateway) handleQueue(w http.ResponseWriter, r *http.Request) {
-	tasks, err := g.loadQueue()
+	tasks, err := g.st.queue()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "queue error")
 		return
 	}
-	type brief struct {
-		ID          string    `json:"id"`
-		CreatedAt   time.Time `json:"createdAt"`
-		DeliveredAt time.Time `json:"deliveredAt,omitempty"`
-		Attempts    int       `json:"attempts"`
-	}
-	out := make([]brief, 0, len(tasks))
-	for _, t := range tasks {
-		out = append(out, brief{t.ID, t.CreatedAt, t.DeliveredAt, t.Attempts})
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"tasks": out})
-}
-
-// --- queue ------------------------------------------------------------------
-
-func (g *gateway) taskPath(id string) string   { return filepath.Join(g.queueDir(), id+".json") }
-func (g *gateway) resultPath(id string) string { return filepath.Join(g.resultDir(), id+".json") }
-
-// claim returns the oldest task that is either new or whose lease expired.
-func (g *gateway) claim() (*task, error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	tasks, err := g.loadQueueLocked()
-	if err != nil {
-		return nil, err
-	}
-	now := g.now().UTC()
-	for i := range tasks {
-		t := &tasks[i]
-		if !t.DeliveredAt.IsZero() && now.Sub(t.DeliveredAt) < g.lease {
-			continue // still leased to another worker
-		}
-		t.DeliveredAt = now
-		t.Attempts++
-		if err := writeFileAtomic(g.taskPath(t.ID), t); err != nil {
-			return nil, err
-		}
-		return t, nil
-	}
-	return nil, nil
-}
-
-func (g *gateway) loadQueue() ([]task, error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return g.loadQueueLocked()
-}
-
-func (g *gateway) loadQueueLocked() ([]task, error) {
-	entries, err := os.ReadDir(g.queueDir())
-	if err != nil {
-		return nil, err
-	}
-	tasks := make([]task, 0, len(entries))
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(g.queueDir(), e.Name()))
-		if err != nil {
-			return nil, err
-		}
-		var t task
-		if err := json.Unmarshal(data, &t); err != nil {
-			// A corrupt entry must not block every later task.
-			log.Printf("queue: skipping unreadable entry %s: %v", e.Name(), err)
-			continue
-		}
-		tasks = append(tasks, t)
-	}
-	sort.Slice(tasks, func(i, j int) bool {
-		if tasks[i].CreatedAt.Equal(tasks[j].CreatedAt) {
-			return tasks[i].ID < tasks[j].ID
-		}
-		return tasks[i].CreatedAt.Before(tasks[j].CreatedAt)
-	})
-	return tasks, nil
+	writeJSON(w, http.StatusOK, map[string]any{"tasks": tasks})
 }
 
 // --- helpers ----------------------------------------------------------------

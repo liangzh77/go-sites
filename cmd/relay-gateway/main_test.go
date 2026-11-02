@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -15,18 +15,18 @@ import (
 
 func newTestGateway(t *testing.T) (*gateway, http.Handler) {
 	t.Helper()
+	st, err := openStore(filepath.Join(t.TempDir(), "relay.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { st.close() })
 	g := &gateway{
-		dataDir:  t.TempDir(),
+		st:       st,
 		localTok: "local-secret",
 		cloudTok: "cloud-secret",
 		basePath: "/relay",
 		client:   &http.Client{Timeout: 5 * time.Second},
 		now:      time.Now,
-	}
-	for _, dir := range []string{g.queueDir(), g.resultDir()} {
-		if err := os.MkdirAll(dir, 0o750); err != nil {
-			t.Fatal(err)
-		}
 	}
 	return g, g.routes()
 }
