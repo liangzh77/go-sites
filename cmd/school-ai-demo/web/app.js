@@ -10,6 +10,10 @@
   const BASE = new URL('.', location.href).pathname.replace(/\/$/, '');
   const $ = (id) => document.getElementById(id);
 
+  // The paper keeps its 794px (A4 at 96dpi) logical width: print and PDF need
+  // it. Anything narrower is handled by scaling the wrapper, not the sheet.
+  const PAPER_W = 794;
+
   const state = {
     templates: [],
     ai: { configured: false, model: '', keyEnv: '' },
@@ -21,6 +25,7 @@
     doc: null,            // the iframe's document
     quota: null,          // today's AI budget, as the server reports it
     aiOff: false,         // no API key configured on the server
+    demo: false,          // the sheet currently holds the generated sample data
   };
 
   // --- tiny helpers ---------------------------------------------------------
@@ -60,14 +65,6 @@
     return data;
   }
 
-  const fmtTime = (iso) => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (isNaN(d)) return '';
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getMonth() + 1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-
   const statusLabel = {
     filled: '已填写', pending: '处理中', failed: '失败', no_key: '缺 Key',
   };
@@ -86,7 +83,6 @@
     state.quota = data.quota || state.quota;
     renderAIDisabled();
     renderDemos();
-    renderRecent(data.recent || []);
   }
 
   function renderAIDisabled() {
@@ -108,20 +104,25 @@
 
   // renderQuota draws today's budget. The limit is a server-side counter, not
   // a browser one, so every page load re-reads it from /api/state.
+  // The home page stays silent until the budget is actually gone: a permanent
+  // counter there is noise for someone who only came to open a form.
   function renderQuota() {
     const q = state.quota;
+    const inline = $('quotaInline');
+    const spent = !!q && !q.unlimited && q.remaining <= 0;
+
+    $('quotaSpent').hidden = !spent;
+    if (spent) {
+      $('quotaSpentText').textContent =
+        `每天 ${q.limit} 次，明天 00:00 重置；表格照常可以手动填写、打印和导出。`;
+    }
+
     if (!q || q.unlimited) {
-      $('quotaBar').hidden = true;
-      $('quotaInline').hidden = true;
+      inline.hidden = true;
       $('fillBtn').disabled = !!state.aiOff;
       return;
     }
-    const spent = q.remaining <= 0;
-    $('quotaBar').hidden = false;
-    $('quotaText').textContent = `今日剩余 ${q.remaining} / ${q.limit}`;
-    $('quotaBar').classList.toggle('spent', spent);
 
-    const inline = $('quotaInline');
     inline.hidden = false;
     inline.textContent = spent
       ? `今日 AI 填表次数已用完（${q.limit}/${q.limit}），明天 00:00 重置。`
@@ -146,63 +147,187 @@
     } catch (e) { /* a stale count is not worth an error banner */ }
   }
 
+  // Every card on the home page comes from this array. Adding a second demo
+  // is one more entry here: nothing in renderDemos() names a specific tool.
+  const DEMOS = [
+    {
+      key: 'ai-fill',
+      title: 'AI 填表',
+      desc: '上传 Excel 或粘贴文字，自动填进学生表格。对不上的格子留空，绝不编造。',
+      tags: (tpls) => [
+        `共 ${tpls.length} 种表格`,
+        `共 ${tpls.reduce((n, t) => n + (t.fieldCount || 0), 0)} 个可填字段`,
+        { text: 'AI 语义匹配', brand: true },
+      ],
+      note: (tpls) => tpls.map((t) => t.name).join(' · '),
+      cta: '开始填写',
+      available: (tpls) => tpls.length > 0,
+      open: (tpls) => openStudio(pickTemplate(tpls).slug, { autoDemo: true }),
+    },
+  ];
+
   function renderDemos() {
     const box = $('demoCards');
-    if (!state.templates.length) {
-      box.innerHTML = '<p class="dz-sub">暂时没有可用模板。</p>';
+    const tpls = state.templates || [];
+    const items = DEMOS.filter((d) => !d.available || d.available(tpls));
+    if (!items.length) {
+      box.innerHTML = '<p class="dz-sub">暂时没有可用的 demo。</p>';
       return;
     }
-    // One entry point for every form. The template list is data, so a card per
-    // file made the home page grow with whatever is dropped into templates/.
-    const total = state.templates.reduce((n, t) => n + (t.fieldCount || 0), 0);
-    const names = state.templates.map((t) => escapeHTML(t.name)).join(' · ');
-    box.innerHTML = `
-      <article class="demo-card demo-card-single">
-        <div class="meta">
-          <span class="tag">共 ${state.templates.length} 种表格</span>
-          <span class="tag">共 ${total} 个可填字段</span>
-          <span class="tag brand">AI 语义匹配</span>
-        </div>
-        <h3>AI 填表</h3>
-        <p>上传 Excel 或粘贴文字，自动填进学生表格。对不上的格子留空，绝不编造。</p>
+    box.innerHTML = items.map((d) => {
+      const tags = (d.tags ? d.tags(tpls) : []).map((raw) => {
+        const t = typeof raw === 'string' ? { text: raw } : raw;
+        return `<span class="tag${t.brand ? ' brand' : ''}">${escapeHTML(t.text)}</span>`;
+      }).join('');
+      const note = d.note ? d.note(tpls) : '';
+      return `
+      <article class="demo-card" data-demo="${escapeHTML(d.key)}">
+        <div class="meta">${tags}</div>
+        <h3>${escapeHTML(d.title)}</h3>
+        <p>${escapeHTML(d.desc)}</p>
         <div class="foot">
-          <span class="dz-sub">${names}</span>
-          <button class="primary" type="button">开始填写</button>
+          <span class="dz-sub">${escapeHTML(note)}</span>
+          <button class="primary" type="button">${escapeHTML(d.cta || '打开')}</button>
         </div>
       </article>`;
+    }).join('');
     // The button has no handler of its own: its click bubbles to the card, so
     // mouse and keyboard land on the same code path exactly once.
-    box.querySelector('.demo-card').addEventListener('click', () => {
-      const slug = entrySlug();
-      if (slug) openStudio(slug);
+    box.querySelectorAll('[data-demo]').forEach((card) => {
+      const d = DEMOS.find((x) => x.key === card.dataset.demo);
+      if (!d || !d.open) return;
+      card.addEventListener('click', () => d.open(tpls));
     });
   }
 
   // A bookmarked hash wins; otherwise the first template in the folder opens.
-  function entrySlug() {
+  function pickTemplate(tpls) {
     const wanted = slugFromHash();
-    if (wanted && state.templates.some((t) => t.slug === wanted)) return wanted;
-    return state.templates.length ? state.templates[0].slug : '';
+    const list = tpls || state.templates;
+    if (wanted && list.some((t) => t.slug === wanted)) return list.find((t) => t.slug === wanted);
+    return list[0];
   }
 
-  function renderRecent(list) {
-    const block = $('recentBlock');
-    if (!list.length) { block.hidden = true; return; }
-    block.hidden = false;
-    $('recentList').innerHTML = list.map((s) => {
-      const n = Object.keys(s.values || {}).length;
-      const badge = s.status === 'filled'
-        ? `${n} 项已填`
-        : (statusLabel[s.status] || s.status);
-      const tpl = state.templates.find((t) => t.slug === s.template);
-      return `<li><button type="button" data-id="${escapeHTML(s.id)}" data-tpl="${escapeHTML(s.template)}">
-        <span class="rt">${escapeHTML(s.inputName || '一次填写')} → ${escapeHTML(tpl ? tpl.name : s.template)}</span>
-        <span class="rm">${escapeHTML(badge)} · ${escapeHTML(fmtTime(s.createdAt))}</span>
-      </button></li>`;
-    }).join('');
-    $('recentList').querySelectorAll('button[data-id]').forEach((b) => {
-      b.addEventListener('click', () => openStudio(b.dataset.tpl, b.dataset.id));
+  // --- sample data ----------------------------------------------------------
+  // 示例数据必须一眼看出是假的，也要跟着模板走：值是按字段 label 推的，
+  // templates/ 里加一张新表不用回来改这里。
+  const DEMO_GENERIC = '示例内容';
+  const DEMO_NAME = '示例学生';
+  const DEMO_PHONE = '138-0000-0000';
+  const DEMO_ADDRESS = '北京市朝阳区示例路 1 号';
+  const CN_NUM = ['一', '二', '三', '四', '五', '六'];
+
+  const demoDate = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
+  function demoFamilyValue(label) {
+    const n = Number((label.match(/家庭成员(\d)/) || [])[1] || 1);
+    if (/称谓|关系/.test(label)) return ['父亲', '母亲', '祖父', '祖母'][n - 1] || '家长';
+    if (/姓名/.test(label)) return `示例家长${CN_NUM[n - 1] || n}`;
+    if (/年龄/.test(label)) return '38';
+    if (/电话|手机|联系方式/.test(label)) return DEMO_PHONE;
+    if (/单位/.test(label)) return '示例工作单位';
+    if (/职业|职务/.test(label)) return '职员';
+    if (/残疾/.test(label)) return '无';
+    return DEMO_GENERIC;
+  }
+
+  // Order matters: the first hit wins, so the narrower labels (家庭成员1姓名,
+  // 曾就读学校1起止年月) have to be tested before the catch-all ones.
+  const DEMO_RULES = [
+    [/照片/, () => ''],                      // a photo box is a picture, not text
+    [/家庭成员|紧急联系人/, (label) => demoFamilyValue(label)],
+    [/身份证/, () => '110101201009010011'],
+    [/出生/, () => '2010-09-01'],
+    [/登记日期|填表日期/, () => demoDate()],
+    [/入学年月/, () => '2026-09'],
+    [/学号|编号/, () => '20260001'],
+    [/班级/, () => '一年级 1 班'],
+    [/班主任|证明人/, () => '示例老师'],
+    [/姓名/, () => DEMO_NAME],
+    [/性别/, () => '男'],
+    [/民族/, () => '汉族'],
+    [/籍贯/, () => '北京市'],
+    [/政治面貌/, () => '群众'],
+    [/电话|手机|联系方式/, () => DEMO_PHONE],
+    [/学校/, (label) => (/起止/.test(label) ? '2018-09 至 2024-06' : '示例小学')],
+    [/地址|住址|居住地|户口所在地/, () => DEMO_ADDRESS],
+    [/接送/, () => '示例家长'],
+    [/年龄/, () => '10'],
+    [/身高/, () => '140cm'],
+    [/QQ/i, () => '123456789'],
+    [/职务/, () => '学习委员'],
+    [/获奖/, () => '示例获奖情况'],
+    [/特长/, () => '示例特长（绘画）'],
+    [/兴趣|爱好/, () => '示例爱好（阅读）'],
+    [/残疾|低保|补助|疾病|过敏|家族/, () => '无'],
+    [/单位/, () => '示例工作单位'],
+  ];
+
+  function demoValueFor(f) {
+    // A choice slot has a closed set of answers; the first option is always a
+    // legal one and keeps the sample printable.
+    if (f.kind === 'choice' && f.options && f.options.length) return f.options[0];
+    const label = f.label || '';
+    for (const [re, make] of DEMO_RULES) {
+      if (re.test(label)) return make(label);
+    }
+    return DEMO_GENERIC;
+  }
+
+  function demoValues(fields) {
+    const out = {};
+    (fields || []).forEach((f) => {
+      const v = demoValueFor(f);
+      if (v) out[f.id] = v;
     });
+    return out;
+  }
+
+  // The pasted text is generated from the same values, so a user who reads the
+  // panel sees where the numbers on the sheet came from.
+  function demoSourceText(fields, values) {
+    const seen = new Set();
+    const lines = ['示例资料（虚构，仅用于演示）'];
+    (fields || []).forEach((f) => {
+      const v = values[f.id];
+      const label = (f.label || '').trim();
+      if (!v || !label || seen.has(label)) return;
+      seen.add(label);
+      lines.push(`${label}：${v}`);
+    });
+    return lines.join('\n');
+  }
+
+  function showDemoBanner() {
+    $('demoBanner').hidden = !state.demo;
+  }
+
+  // Filling the sample is not an edit: it is a starting point the user is
+  // expected to overwrite, and the banner is what marks it as such.
+  function fillDemo() {
+    if (!state.current) return;
+    const values = demoValues(state.current.fields);
+    state.demo = true;
+    applyValues(values);
+    state.dirty = false;
+    $('saveBtn').disabled = true;
+    $('pasteBox').value = demoSourceText(state.current.fields, values);
+    showDemoBanner();
+    setStatus('', '');
+    fitPaper();
+    toast('已填入示例资料，改成真实信息后示例标记会消失');
+  }
+
+  // Any real input drops the sample state: once a cell no longer holds the
+  // generated value the sheet is the user's own work and the export is theirs.
+  function clearDemo() {
+    if (!state.demo) return;
+    state.demo = false;
+    showDemoBanner();
   }
 
   // --- studio ---------------------------------------------------------------
@@ -212,7 +337,8 @@
     return decodeURIComponent((location.hash || '').replace(/^#\/?/, ''));
   }
 
-  async function openStudio(slug, sessionId, draft) {
+  async function openStudio(slug, opts = {}) {
+    const { sessionId = '', draft = null, autoDemo = false } = opts;
     let data;
     try {
       data = await api('/api/templates/' + encodeURIComponent(slug));
@@ -222,6 +348,7 @@
     state.sessionId = '';
     state.values = {};
     state.dirty = false;
+    state.demo = false;
     if (slugFromHash() !== slug) history.replaceState(null, '', '#' + encodeURIComponent(slug));
     $('studio').hidden = false;
     $('app').hidden = true;
@@ -231,6 +358,7 @@
     if (draft) restoreDraft(draft);
     renderTplSwitch();
     mountPaper(data.html);
+    showDemoBanner();
     // Both export and save work on a hand-filled form too: they create a
     // session on first use instead of waiting for an AI fill.
     $('exportBtn').disabled = false;
@@ -243,7 +371,12 @@
         const res = await api('/api/sessions/' + encodeURIComponent(sessionId));
         applySession(res.session);
       } catch (e) { toast(e.message); }
+    } else if (autoDemo) {
+      // Only a direct entry gets the sample: switching forms must leave the
+      // sheet empty, or a stale sample is one click away from being exported.
+      fillDemo();
     }
+    fitPaper();
   }
 
   function closeStudio() {
@@ -252,6 +385,7 @@
     if (location.hash) history.replaceState(null, '', location.pathname);
     state.current = null;
     state.doc = null;
+    state.demo = false;
     // A fresh reload keeps the list in step with what was just saved.
     loadState();
   }
@@ -288,10 +422,10 @@
     if (state.dirty && !confirm('当前表格有未保存的修改，切换会丢失，继续吗？')) return;
     // Two forms ask about the same student from different angles; making the
     // teacher re-upload the file after every switch would be the wrong kind of
-    // clean slate. Answers are dropped, the material is not.
+    // clean slate. Answers are dropped, the material is not. Passing the draft
+    // also keeps the sample data out of the switched-to form.
     const draft = captureDraft();
-    state.draft = draft;
-    await openStudio(slug, '', draft);
+    await openStudio(slug, { draft });
   }
 
   function resetPanel() {
@@ -335,7 +469,6 @@
     doc.close();
     state.doc = doc;
     decorateFrame();
-    frame.contentWindow.addEventListener('beforeprint', () => {});
     // The frame is a document we control: every slot becomes editable and
     // reports back, so the parent never has to know the form's layout.
     bindSlots();
@@ -349,13 +482,11 @@
     const style = doc.createElement('style');
     style.textContent = `
       [data-field-id] { position: relative; transition: background .15s ease; }
-      [data-field-id]:hover { background: #eef4ff !important; }
-      [data-field-id]:focus { outline: 2px solid #2f6bd8 !important; outline-offset: -2px; background: #f4f8ff !important; }
-      [data-field-id].ai-filled { background: #f2f7ff; }
-      [data-field-id].ai-filled:empty::after,
-      [data-field-id].ai-filled:not(:empty) { }
+      [data-field-id]:hover { background: #eef2fb !important; }
+      [data-field-id]:focus { outline: 2px solid #24408e !important; outline-offset: -2px; background: #f2f5fd !important; }
+      [data-field-id].ai-filled { background: #f1f5fc; }
       .choices[data-field-id] { background: transparent; }
-      .choices[data-field-id].ai-filled { background: #f2f7ff; }
+      .choices[data-field-id].ai-filled { background: #f1f5fc; }
       @media print {
         [data-field-id].ai-filled { background: transparent !important; }
         [data-field-id]:hover { background: transparent !important; }
@@ -397,6 +528,9 @@
   }
 
   function setValue(id, text, opts = {}) {
+    // A keystroke in the sheet means the generated sample is being replaced,
+    // even when the text happens to match what was already there.
+    if (opts.fromFrame) clearDemo();
     const clean = String(text || '');
     if ((state.values[id] || '') === clean) return;
     state.values[id] = clean;
@@ -492,16 +626,39 @@
     return out;
   }
 
+  // The sheet is 794px wide no matter what; the browser window is not. Scaling
+  // the wrapper keeps the paper's own layout (and therefore print/PDF) intact
+  // while the column on screen stays free of a horizontal scrollbar.
   function fitPaper() {
     const frame = $('paper');
     const doc = state.doc;
     if (!doc || !doc.documentElement) return;
-    const h = Math.max(
+    const contentH = Math.max(
       doc.documentElement.scrollHeight || 0,
       doc.body ? doc.body.scrollHeight : 0,
       1120,
-    );
-    frame.style.height = (h + 8) + 'px';
+    ) + 8;
+    frame.style.height = contentH + 'px';
+    $('paperFit').style.height = contentH + 'px';
+
+    const scroll = $('paperScroll');
+    const cs = getComputedStyle(scroll);
+    const avail = scroll.clientWidth
+      - (parseFloat(cs.paddingLeft) || 0)
+      - (parseFloat(cs.paddingRight) || 0);
+    const k = avail > 0 ? Math.min(1, avail / PAPER_W) : 1;
+
+    $('paperFit').style.transform = k < 1 ? `scale(${k})` : 'none';
+    // The holder is what takes up room in the scroll area: without its own
+    // size the document would keep the untransformed 794 x contentH box and
+    // leave either a dead gutter or a scrollbar behind.
+    $('paperHolder').style.width = Math.floor(PAPER_W * k) + 'px';
+    $('paperHolder').style.height = Math.ceil(contentH * k) + 'px';
+  }
+
+  function resetPaperScale() {
+    $('paperFit').style.transform = 'none';
+    $('paperHolder').style.width = PAPER_W + 'px';
   }
 
   // --- filling --------------------------------------------------------------
@@ -554,6 +711,9 @@
       // The user may have switched forms while the request was in flight; the
       // answer belongs to the form they left, not the one now on screen.
       if (!state.current || state.current.slug !== slug) return;
+      // The sheet now holds real answers, so the sample marker must go: the
+      // exported file is no longer a demo.
+      clearDemo();
       applySession(res.session);
       refreshQuota();
       const n = Object.keys((res.session && res.session.values) || {}).length;
@@ -621,6 +781,9 @@
     // Export reads the values back from a stored session, so a form the user
     // filled by hand (or is filling while AI is not configured) needs one
     // created first; otherwise the button would do nothing.
+    // The demo flag is read before the session round-trips: saving must not be
+    // what decides whether the file is marked as a sample.
+    const demo = state.demo;
     const values = collectValues();
     if (!state.sessionId) {
       if (!state.current) return;
@@ -646,7 +809,10 @@
         return;
       }
     }
-    const url = BASE + '/api/sessions/' + encodeURIComponent(state.sessionId) + '/xlsx';
+    let url = BASE + '/api/sessions/' + encodeURIComponent(state.sessionId) + '/xlsx';
+    // The server stamps the file name and the first row, so a sample that gets
+    // shared by mistake still says what it is.
+    if (demo) url += '?demo=1';
     window.location.href = url;
   }
 
@@ -654,8 +820,13 @@
     const frame = $('paper');
     if (!frame.contentWindow) return;
     fitPaper();
+    // A transformed frame is printed by some Chrome builds at the preview
+    // scale, so drop the zoom for the duration of the print and put it back
+    // afterwards.
+    resetPaperScale();
     frame.contentWindow.focus();
     frame.contentWindow.print();
+    setTimeout(fitPaper, 0);
   }
 
   // --- wiring ---------------------------------------------------------------
@@ -664,12 +835,16 @@
   $('saveBtn').addEventListener('click', saveEdits);
   $('exportBtn').addEventListener('click', exportXLSX);
   $('printBtn').addEventListener('click', printForm);
+  $('demoBtn').addEventListener('click', fillDemo);
+  // Clearing the panel leaves the sample rows on the sheet, so the demo mark
+  // has to stay: without it the exported file loses its "do not use" label.
   $('clearBtn').addEventListener('click', () => { resetPanel(); });
 
   $('fileInput').addEventListener('change', () => {
     const f = $('fileInput').files[0];
     const dz = $('dropzone');
     if (!f) { dz.classList.remove('has-file'); $('dzSub').textContent = '支持 .xlsx / .csv / .txt，最大 8MB'; return; }
+    clearDemo();
     dz.classList.add('has-file');
     $('dzSub').textContent = `${f.name} · ${(f.size / 1024).toFixed(0)} KB`;
   });
@@ -693,18 +868,37 @@
     if (state.dirty) { e.preventDefault(); e.returnValue = ''; }
   });
 
+  // The paper column changes width with the window, the side panel and the
+  // grid, so re-fit on whichever of those moves first. rAF-coalescing keeps a
+  // resize drag from recomputing the sheet on every pixel.
+  let fitPending = false;
+  function scheduleFit() {
+    if (fitPending) return;
+    fitPending = true;
+    requestAnimationFrame(() => { fitPending = false; fitPaper(); });
+  }
+  window.addEventListener('resize', scheduleFit);
+  window.addEventListener('orientationchange', scheduleFit);
+  if (window.ResizeObserver) {
+    // Observe the column, not the scroll box: the scroll box's own size depends
+    // on the fit, which would make the observer chase its own output.
+    new ResizeObserver(scheduleFit).observe(document.querySelector('.paper-area'));
+  }
+
   // replaceState does not fire hashchange, so this only runs for back/forward
   // or a hand-edited URL. Unknown slugs are left alone on purpose.
   window.addEventListener('hashchange', () => {
     const slug = slugFromHash();
     if (!slug || !state.templates.some((t) => t.slug === slug)) return;
     if (state.current && state.current.slug === slug) return;
-    if ($('studio').hidden) openStudio(slug);
+    if ($('studio').hidden) openStudio(slug, { autoDemo: true });
     else switchTemplate(slug);
   });
 
   loadState().then(() => {
     const slug = slugFromHash();
-    if (slug && state.templates.some((t) => t.slug === slug)) openStudio(slug);
+    if (slug && state.templates.some((t) => t.slug === slug)) {
+      openStudio(slug, { autoDemo: true });
+    }
   });
 })();

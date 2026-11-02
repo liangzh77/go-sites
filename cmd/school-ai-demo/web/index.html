@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#16295c">
 <title>School AI Demo</title>
 <link rel="stylesheet" href="app.css">
 </head>
@@ -14,7 +14,7 @@
       <span class="brand-mark" aria-hidden="true">学</span>
       <span class="brand-text">
         <strong>School AI Demo</strong>
-        <small>把资料自动填进学校表格</small>
+        <small>一些自己写的小工具</small>
       </span>
     </a>
     <div class="topbar-links">
@@ -25,8 +25,8 @@
 
 <main class="wrap" id="app">
   <section class="hero">
-    <h1>上传资料，自动填表</h1>
-    <p>给一份 Excel 或一段文字，AI 会按语义把信息对上表格里的每一个格子。对不上的格子留空，绝不编造。</p>
+    <h1>一些自己写的小工具</h1>
+    <p>放在这里的是我平时自己用的几个小工具，都是打开就能用、不用注册的小页面。现在先上线了第一个，后面还会陆续加。</p>
   </section>
 
   <div class="notice" id="aiNotice" hidden>
@@ -34,9 +34,9 @@
     <span id="aiNoticeText">服务器上还没有配置 DeepSeek API Key，上传后会提示错误，但表格仍可手动填写、打印和导出。</span>
   </div>
 
-  <div class="quota-bar" id="quotaBar" hidden>
-    <span id="quotaText">今日剩余 — / —</span>
-    <span class="quota-note">AI 填表每天限量，导出手动填写不受影响</span>
+  <div class="quota-spent" id="quotaSpent" hidden>
+    <strong>今天的 AI 填表次数已用完。</strong>
+    <span id="quotaSpentText">每天 100 次，明天 00:00 重置；表格照常可以手动填写、打印和导出。</span>
   </div>
 
   <section class="demos" id="demoList" aria-live="polite">
@@ -45,19 +45,14 @@
       <div class="skeleton-card"></div>
     </div>
   </section>
-
-  <section class="recent" id="recentBlock" hidden>
-    <h2 class="section-head">最近填写</h2>
-    <ul class="recent-list" id="recentList"></ul>
-  </section>
 </main>
 
 <!-- Filling screen -->
 <section class="studio" id="studio" hidden>
   <div class="studio-bar">
     <div class="wrap studio-bar-inner">
-      <button class="ghost" id="backBtn" type="button">
-        <span aria-hidden="true">←</span> 返回 demo 列表
+      <button class="ghost back" id="backBtn" type="button">
+        <span aria-hidden="true">←</span> 返回列表
       </button>
       <div class="studio-title" id="studioTitle">AI 填表</div>
       <div class="tpl-switch" id="tplSwitch" role="tablist" aria-label="选择表格" hidden></div>
@@ -78,6 +73,11 @@
       <div class="panel-head">
         <h2>1 · 给资料</h2>
         <p>Excel（.xlsx）、CSV、TXT 都可以，也可以直接把文字粘进来。</p>
+      </div>
+
+      <div class="panel-demo">
+        <button class="ghost block" id="demoBtn" type="button">填入示例资料</button>
+        <p class="dz-sub">没有现成资料？先灌一份示例看看表格长什么样。</p>
       </div>
 
       <label class="dropzone" id="dropzone" for="fileInput">
@@ -107,13 +107,19 @@
     </aside>
 
     <div class="paper-area">
+      <div class="demo-banner" id="demoBanner" hidden>
+        <span class="demo-banner-tag">示例</span>
+        <span>当前是示例数据，请修改成真实信息后再导出。</span>
+      </div>
       <div class="paper-toolbar">
         <span class="paper-hint">蓝色虚线格为可填位置，点一下即可编辑</span>
-        <span class="paper-legend"><i class="dot ai"></i>AI 填入<i class="dot empty"></i>留空</span>
+        <span class="paper-legend"><i class="dot ai"></i>已填写<i class="dot empty"></i>留空</span>
       </div>
       <div class="paper-scroll" id="paperScroll">
         <div class="paper-holder" id="paperHolder">
-          <iframe id="paper" title="表格预览"></iframe>
+          <div class="paper-fit" id="paperFit">
+            <iframe id="paper" title="表格预览"></iframe>
+          </div>
         </div>
       </div>
     </div>

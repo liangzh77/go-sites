@@ -650,7 +650,14 @@ func (s *service) handleExportXLSX(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows := [][]string{{tpl.Name + "（AI 填写结果）"}, {"分区", "字段", "填写内容"}}
+	// A sample sheet is marked inside the file as well as in its name: the
+	// marker has to survive someone renaming the download.
+	demo := r.URL.Query().Get("demo") == "1"
+	title := tpl.Name + "（AI 填写结果）"
+	if demo {
+		title = tpl.Name + "（示例数据，请勿使用）"
+	}
+	rows := [][]string{{title}, {"分区", "字段", "填写内容"}}
 	lastSection := ""
 	for _, f := range tpl.Fields {
 		section := f.Section
@@ -667,6 +674,9 @@ func (s *service) handleExportXLSX(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	filename := fmt.Sprintf("%s-%s.xlsx", tpl.Name, sess.CreatedAt.In(shanghai()).Format("20060102-1504"))
+	if demo {
+		filename = fmt.Sprintf("%s-%s-示例.xlsx", tpl.Name, sess.CreatedAt.In(shanghai()).Format("20060102-1504"))
+	}
 	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 	w.Header().Set("Content-Disposition", "attachment; filename=form.xlsx; filename*=UTF-8''"+urlEscape(filename))
 	_, _ = w.Write(data)

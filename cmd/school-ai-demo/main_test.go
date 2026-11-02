@@ -197,6 +197,60 @@ func TestManualSessionMakesAHandFilledFormExportable(t *testing.T) {
 	}
 }
 
+// The page fills a sheet with sample data so the form is not blank on first
+// visit. That sample must be impossible to mistake for a real student, so the
+// export carries the marker in the file name and in the first row.
+func TestExportMarksSampleData(t *testing.T) {
+	svc := newTestService(t, nil)
+	body := strings.NewReader(`{"template":"enrollment","values":{"f04":"示例学生"}}`)
+	req := httptest.NewRequest(http.MethodPost, defaultBasePath+"/api/sessions", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := do(t, svc, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("create status = %d: %s", rec.Code, rec.Body.String())
+	}
+	sess, _ := decodeBody(t, rec)["session"].(map[string]any)
+	id, _ := sess["id"].(string)
+	if id == "" {
+		t.Fatalf("no session id in %s", rec.Body.String())
+	}
+
+	cases := []struct {
+		name     string
+		query    string
+		wantName string
+		wantRow  string
+	}{
+		{"plain", "", "-foo", "学生入学登记表（AI 填写结果）"},
+		{"demo", "?demo=1", "-示例.xlsx", "学生入学登记表（示例数据，请勿使用）"},
+		{"demo ignored when not 1", "?demo=0", "-foo", "学生入学登记表（AI 填写结果）"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rec := do(t, svc, httptest.NewRequest(http.MethodGet,
+				defaultBasePath+"/api/sessions/"+id+"/xlsx"+c.query, nil))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d: %s", rec.Code, rec.Body.String())
+			}
+			disposition := rec.Header().Get("Content-Disposition")
+			if c.wantName == "-foo" {
+				if strings.Contains(disposition, urlEscape("-示例")) {
+					t.Fatalf("plain export is marked as a sample: %s", disposition)
+				}
+			} else if !strings.Contains(disposition, urlEscape(c.wantName)) {
+				t.Fatalf("file name = %s, want suffix %s", disposition, c.wantName)
+			}
+			sheet, err := readXLSX(rec.Body.Bytes())
+			if err != nil {
+				t.Fatalf("workbook does not parse: %v", err)
+			}
+			if got := cellAt(sheet.Rows[0], 0); got != c.wantRow {
+				t.Fatalf("first row = %q, want %q", got, c.wantRow)
+			}
+		})
+	}
+}
+
 func TestManualSessionRejectsUnknownTemplate(t *testing.T) {
 	svc := newTestService(t, nil)
 	body := strings.NewReader(`{"template":"nope","values":{}}`)
