@@ -8,3 +8,7 @@ wiki/
 # Local JavaScript dependencies and intermediate game builds.
 node_modules/
 /sources/*/dist/
+
+# Go build output must never be committed: `go build ./cmd/x` drops a
+# binary next to its sources in cmd/x/x.
+cmd/school-ai-demo/school-ai-demo
