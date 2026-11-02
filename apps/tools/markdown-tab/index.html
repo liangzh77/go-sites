@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta http-equiv="content-language" content="en">
+    <meta http-equiv="content-script-type" content="text/javascript">
+    <meta http-equiv="content-style-type" content="text/css">
+    <meta name="description" content="This is the online markdown editor with live preview.">
+
+    <link rel="stylesheet" type="text/css" href="css/style.css?v=1.10.1">
+    <link rel="stylesheet" type="text/css" href="./vendor/monaco/min/vs/editor/editor.main.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <title>Markdown Tab</title>
+    <!-- 本站镜像：源站 https://markdown-tab.vercel.app/ ，已改为相对路径本地托管、移除 Google Analytics -->
+    <script type="module" src="./assets/index-BeE-1xOi.js"></script>
+    <link rel="stylesheet" href="./assets/index-C-vOJggO.css">
+  </head>
+
+  <body>
+
+    <header>
+        <div id="menu-items">
+            <div><a href="./">Markdown Tab</a></div>
+            <div id="clear-all-button"><a href="#">Clear All</a></div>
+            <div id="reset-button"><a href="#">Reset</a></div>
+            <div id="copy-button"><a href="#">Copy</a></div>
+            <div id="sync-button"><input type="checkbox" id="sync-scroll-checkbox"><label for="sync-scroll-checkbox">Sync scroll</label></div>
+            <div id="github-button"><a href="#">GitHub</a></div>
+
+        </div>
+        <div id="tab-bar">
+            <div id="tabs-container">
+                <!-- 标签将在这里动态生成 -->
+            </div>
+            <button id="add-tab-button" title="Add new tab">+</button>
+        </div>
+    </header>
+
+    <div id="container" class="split-container">
+
+        <div id="edit" class="column editor-pane">
+            <div id="editor-wrapper">
+                <div id="editor"></div>
+            </div>
+        </div>
+
+        <div id="split-divider" class="split-divider"></div>
+
+        <div id="preview" class="column preview-pane">
+            <div id="preview-wrapper">
+                <div id="output" class="content markdown-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer></footer>
+  
+    <!-- 拖拽提示覆盖层 -->
+    <div id="drop-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 120, 215, 0.3); z-index: 9999; pointer-events: none; border: 4px dashed #0078D7;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <div style="font-size: 24px; font-weight: bold; color: #0078D7; margin-bottom: 10px;">📄 Drop Markdown File Here</div>
+            <div style="color: #666;">Support .md and .markdown files</div>
+        </div>
+    </div>
+
+    <!-- GitHub 提交模态框 -->
+    <div id="github-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 30px; border-radius: 10px; width: 450px; max-width: 90%;">
+            <h2 style="margin-top: 0; color: #333;">📤 Commit to GitHub</h2>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">GitHub Token (Personal Access Token)</label>
+                <input type="password" id="github-token" placeholder="ghp_xxxxxxxxxxxx" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                <div style="font-size: 11px; color: #666; margin-top: 4px;">Token needs <code>repo</code> scope. <a href="https://github.com/settings/tokens" target="_blank">Create one here</a></div>
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Repository</label>
+                <input type="text" id="github-repo" placeholder="username/repo-name" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Branch</label>
+                <input type="text" id="github-branch" value="main" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">File Path</label>
+                <input type="text" id="github-path" placeholder="path/to/file.md" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px; font-weight: bold;">Commit Message</label>
+                <input type="text" id="github-message" placeholder="Update markdown file" value="Update from Markdown Tab" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button id="github-cancel" style="padding: 8px 20px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">Cancel</button>
+                <button id="github-commit" style="padding: 8px 20px; background: #2ea44f; color: white; border: none; border-radius: 4px; cursor: pointer;">📤 Commit</button>
+            </div>
+            <div id="github-status" style="margin-top: 15px; font-size: 14px;"></div>
+        </div>
+    </div>
+
+</body>
+</html>

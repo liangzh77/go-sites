@@ -1,0 +1,295 @@
+html, body {
+  color: #333;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  font-family: Helvetica, arial, freesans, clean, sans-serif;
+  font-size: 1em;
+  line-height: 1.5em;
+  background-color: #fff;
+  overscroll-behavior-y: none;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height:100vh;
+}
+
+h1, h2, h3, h4, h5, h6, p {
+  font-size: 1em;
+  margin: 0;
+  padding: 0;
+  font-weight: normal;
+}
+
+p {
+  margin: 1em;
+}
+
+a:link,
+a:visited,
+a:hover
+a:active {
+  color: #333;
+  text-decoration: none;
+}
+
+img {
+  border: none;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  width: 100%;
+  background-color: #444;
+  font-size: 12px;
+  color: #fff;
+}
+
+header a:link, header a:hover, header a:visited, header a:active {
+  color: #fff;
+}
+
+header a:hover {
+  text-decoration: underline;
+}
+
+#menu-items {
+  display: flex;
+  align-items: center;
+  margin-right: 16px;
+}
+
+#clear-all-button {
+    margin-left: 16px;
+}
+
+#reset-button {
+    margin-left: 16px;
+}
+
+#copy-button {
+    margin-left: 16px;
+}
+
+#sync-button {
+    margin-left: 16px;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+header input[type="checkbox"] {
+    vertical-align: middle;
+    margin-right: 4px;
+    margin-top: 0px;
+}
+
+#github {
+    padding-right: 32px;
+}
+
+#github img {
+  display: block;
+  width: 16px;
+}
+
+#github a {
+  display: block;
+  width: 16px;
+}
+
+/* 标签栏样式 */
+#tab-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-grow: 1;
+  margin: 0 16px;
+  padding: 4px 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  min-width: 300px;
+}
+
+#tabs-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-grow: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+#tabs-container::-webkit-scrollbar {
+  height: 4px;
+}
+
+#tabs-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#tabs-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px 4px 12px;
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  font-size: 11px;
+  max-width: 180px;
+  min-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background-color 0.2s;
+  color: #fff;
+}
+
+.tab:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.tab.active {
+  background-color: #fff;
+  color: #333;
+  border-bottom: 1px solid #fff;
+  margin-bottom: -1px;
+  font-weight: 500;
+}
+
+.tab-text {
+  flex-grow: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-close {
+  margin-left: 6px;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: inherit;
+  border-radius: 3px;
+  opacity: 0.7;
+}
+
+.tab-close:hover {
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+#add-tab-button {
+  margin-left: 8px;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  color: #fff;
+}
+
+#add-tab-button:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+footer {
+  padding: 8px;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background-color: #fff;
+  color: #fff;
+  text-align: center;
+  justify-content: center;
+  align-items: center;
+}
+
+#container {
+  flex-grow: 1;
+  overflow: hidden;
+  width: 100%;
+  margin: 0 auto;
+  background-color: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  display: flex;
+}
+
+#editor-wrapper {
+  height: 100%;
+}
+
+#editor {
+  height: 100%;
+}
+
+#preview-wrapper {
+  padding: 8px 16px 16px 16px;
+}
+
+.column {
+  width: 50%;
+  padding: 0;
+  margin: 0;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+#preview.column {
+  overflow-y: scroll;
+  white-space: normal;
+}
+
+.split-container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.editor-pane,
+.preview-pane {
+  height: 100%;
+}
+
+.split-divider {
+  width: 5px;
+  background: #ccc;
+  cursor: col-resize;
+  z-index: 1;
+}
+
+.split-divider.hover {
+  background: #999;
+}
+
+.split-divider.active {
+  background: #666;
+}

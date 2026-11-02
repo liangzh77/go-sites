@@ -10,6 +10,34 @@
     @legacy_works path_regexp legacy_works ^/apps/works/(.*)$
     redir @legacy_works /mu/{re.legacy_works.1} permanent
 
+    # 应用短网址：/apps/tools/<名>、/apps/fun/<名> 对外统一暴露为根路径 /<名>/
+    # 只做 URL 映射，仓库目录结构保持 apps/tools、apps/fun 不变；
+    # 新增应用时，在对应清单里追加名字即可（旧的长地址会自动 301 到短地址）。
+    @short_app_tools path_regexp short_app_tools ^/(card910|image-stitch|list-chore|markdown-tab|pic-wall)(?<short_app_tools_rest>/.*)?$
+    handle @short_app_tools {
+        # 目录地址统一带斜杠，否则页面里的相对资源会解析到站点根
+        @short_app_tools_dir expression `{re.short_app_tools.short_app_tools_rest} == ""`
+        redir @short_app_tools_dir {path}/ 308
+        rewrite * /apps/tools/{re.short_app_tools.1}{re.short_app_tools.short_app_tools_rest}
+        root * /srv/sites/liangz77.cn/current
+        encode zstd gzip
+        file_server
+    }
+
+    @short_app_fun path_regexp short_app_fun ^/(snack-snake|digital-maze|tetris888|match-3-game|jump100|whoswolf|apollonius|fermat-point|parabolic-equation|pascal-brianchon|poly-deriv)(?<short_app_fun_rest>/.*)?$
+    handle @short_app_fun {
+        @short_app_fun_dir expression `{re.short_app_fun.short_app_fun_rest} == ""`
+        redir @short_app_fun_dir {path}/ 308
+        rewrite * /apps/fun/{re.short_app_fun.1}{re.short_app_fun.short_app_fun_rest}
+        root * /srv/sites/liangz77.cn/current
+        encode zstd gzip
+        file_server
+    }
+
+    # 旧的应用长地址永久跳转到短地址：/apps/tools/markdown-tab/… → /markdown-tab/…
+    @legacy_apps path_regexp legacy_apps ^/apps/(?:tools|fun)/([^/]+)(/.*)?$
+    redir @legacy_apps /{re.legacy_apps.1}{re.legacy_apps.2} permanent
+
     handle_path /mu/* {
         root * /srv/sites/liangz77.cn/current/apps/works
         file_server
