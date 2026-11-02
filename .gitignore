@@ -12,3 +12,4 @@ node_modules/
 # Go build output must never be committed: `go build ./cmd/x` drops a
 # binary next to its sources in cmd/x/x.
 cmd/school-ai-demo/school-ai-demo
+cmd/school-ai-demo/school-ai-demo-data/

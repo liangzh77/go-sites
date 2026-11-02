@@ -215,21 +215,52 @@ func TestNewAIClientFromEnvDefaults(t *testing.T) {
 	if c.configured() {
 		t.Fatal("a whitespace key should not count as configured")
 	}
-	if c.endpoint != defaultDeepseekURL || c.model != defaultModel {
+	if c.endpoint != defaultDeepseekBase+"/chat/completions" || c.model != defaultModel {
 		t.Fatalf("endpoint = %q, model = %q", c.endpoint, c.model)
 	}
 }
 
 func TestNewAIClientFromEnvOverrides(t *testing.T) {
 	t.Setenv(deepseekKeyEnv, "k")
-	t.Setenv(deepseekBaseEnv, "https://example.test/chat")
+	t.Setenv(deepseekBaseEnv, "https://example.test/v1")
 	t.Setenv(deepseekModelEnv, "deepseek-reasoner")
 	c := newAIClientFromEnv()
 	if !c.configured() {
 		t.Fatal("should be configured")
 	}
-	if c.endpoint != "https://example.test/chat" || c.model != "deepseek-reasoner" {
+	// A base is a base: the path is appended, so the same env value works for
+	// providers that do not share DeepSeek's URL.
+	if c.endpoint != "https://example.test/v1/chat/completions" || c.model != "deepseek-reasoner" {
 		t.Fatalf("endpoint = %q, model = %q", c.endpoint, c.model)
+	}
+}
+
+func TestCompletionsURLJoinsWithoutDuplicating(t *testing.T) {
+	cases := map[string]string{
+		"https://api.deepseek.com":                   "https://api.deepseek.com/chat/completions",
+		"https://api.deepseek.com/":                  "https://api.deepseek.com/chat/completions",
+		"https://api.deepseek.com/v1":                "https://api.deepseek.com/v1/chat/completions",
+		"https://opencode.ai/inference/go/openai/v1": "https://opencode.ai/inference/go/openai/v1/chat/completions",
+		// A full URL pasted into the base slot must not double the path.
+		"https://api.deepseek.com/chat/completions": "https://api.deepseek.com/chat/completions",
+		"": defaultDeepseekBase + "/chat/completions",
+	}
+	for in, want := range cases {
+		if got := completionsURL(in); got != want {
+			t.Errorf("completionsURL(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestOpencodeBaseNeedsASessionHeader(t *testing.T) {
+	t.Setenv(deepseekKeyEnv, "k")
+	t.Setenv(deepseekBaseEnv, "https://opencode.ai/inference/go/openai/v1")
+	if !newAIClientFromEnv().needsSession {
+		t.Fatal("an OpenCode base must send x-opencode-session")
+	}
+	t.Setenv(deepseekBaseEnv, "https://api.deepseek.com/v1")
+	if newAIClientFromEnv().needsSession {
+		t.Fatal("the official API does not want that header")
 	}
 }
 

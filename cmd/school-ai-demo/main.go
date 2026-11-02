@@ -58,6 +58,9 @@ type service struct {
 	ai       *aiClient
 	basePath string
 	now      func() time.Time
+	// dailyLimit caps paid model calls per Shanghai calendar day; 0 means
+	// unlimited. It is a field so tests can set it without the environment.
+	dailyLimit int
 }
 
 func main() {
@@ -73,7 +76,13 @@ func main() {
 	}
 	defer st.close()
 
-	svc := &service{st: st, ai: newAIClientFromEnv(), basePath: basePath, now: time.Now}
+	svc := &service{
+		st:         st,
+		ai:         newAIClientFromEnv(),
+		basePath:   basePath,
+		now:        time.Now,
+		dailyLimit: dailyLimitFromEnv(),
+	}
 	if err := svc.loadTemplates(); err != nil {
 		log.Fatalf("cannot load templates: %v", err)
 	}
@@ -91,8 +100,12 @@ func main() {
 		WriteTimeout: 150 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
-	log.Printf("school-ai-demo listening on %s (base path %s, model %s, key configured %t)",
-		addr, basePath, svc.ai.model, svc.ai.configured())
+	limitText := "unlimited"
+	if svc.dailyLimit > 0 {
+		limitText = strconv.Itoa(svc.dailyLimit) + "/day"
+	}
+	log.Printf("school-ai-demo listening on %s (base path %s, model %s, key configured %t, ai fills %s)",
+		addr, basePath, svc.ai.model, svc.ai.configured(), limitText)
 	log.Fatal(srv.ListenAndServe())
 }
 
@@ -156,12 +169,14 @@ func (s *service) routes() http.Handler {
 		log.Fatalf("embedded web assets: %v", err)
 	}
 	mux.HandleFunc("GET "+p+"/health", func(w http.ResponseWriter, r *http.Request) {
+		q, _ := s.st.quota(s.clock(), s.dailyLimit)
 		writeJSON(w, http.StatusOK, map[string]any{
 			"ok":       true,
 			"aiReady":  s.ai.configured(),
 			"model":    s.ai.model,
 			"time":     s.clock().UTC().Format(time.RFC3339),
 			"basePath": p,
+			"quota":    q,
 		})
 	})
 	mux.HandleFunc("GET "+p+"/api/state", s.handleState)
@@ -247,10 +262,18 @@ func (s *service) handleState(w http.ResponseWriter, r *http.Request) {
 		log.Printf("state: recent: %v", err)
 		recent = nil
 	}
+	// A quota read failure should not blank out the whole page; it only means
+	// the remaining count is unknown.
+	quota, err := s.st.quota(s.clock(), s.dailyLimit)
+	if err != nil {
+		log.Printf("state: quota: %v", err)
+		quota = s.quotaView(0)
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"ok":        true,
 		"templates": summaries,
 		"recent":    recent,
+		"quota":     quota,
 		"ai": map[string]any{
 			"configured": s.ai.configured(),
 			"model":      s.ai.model,
@@ -315,6 +338,35 @@ func (s *service) handleFill(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The quota is claimed after the material is known to be readable, so a
+	// broken upload cannot eat a slot, and before the model is called, so two
+	// requests cannot both pass the check on the last remaining call.
+	day := quotaDay(s.clock())
+	ok, used, err := s.st.reserveQuota(day, s.dailyLimit)
+	if err != nil {
+		log.Printf("fill: reserve quota: %v", err)
+		writeError(w, http.StatusInternalServerError, "记录今日用量失败，请稍后重试")
+		return
+	}
+	if !ok {
+		writeJSON(w, http.StatusTooManyRequests, map[string]any{
+			"ok":        false,
+			"code":      "QUOTA_EXCEEDED",
+			"error":     quotaExceededMessage(s.dailyLimit),
+			"quota":     s.quotaView(used),
+			"remaining": 0,
+		})
+		return
+	}
+	// A call that never reached the model should not be billed against the
+	// user's daily budget.
+	refund := true
+	defer func() {
+		if refund {
+			s.st.releaseQuota(day)
+		}
+	}()
+
 	sess, err := s.st.createSession(tpl, kind, name, material)
 	if err != nil {
 		log.Printf("fill: create session: %v", err)
@@ -344,6 +396,8 @@ func (s *service) handleFill(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "保存填写结果失败")
 		return
 	}
+	// The model answered, so this call counts against today's budget.
+	refund = false
 	sess, err = s.st.session(sess.ID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "读取填写结果失败")
@@ -467,6 +521,25 @@ func splitCSVLine(line string) []string {
 
 // cleanValues keeps the field ids the client sent, drops blank ones, and caps
 // each value so a stray paste cannot bloat the database.
+// quotaView renders today's budget for the UI. used lets a failed reservation
+// report the number the database actually holds.
+func (s *service) quotaView(used int) quotaState {
+	st := quotaState{
+		Day:       quotaDay(s.clock()),
+		Used:      used,
+		Limit:     s.dailyLimit,
+		Unlimited: s.dailyLimit <= 0,
+		ResetsAt:  nextReset(s.clock()),
+	}
+	if s.dailyLimit > 0 {
+		st.Remaining = s.dailyLimit - used
+		if st.Remaining < 0 {
+			st.Remaining = 0
+		}
+	}
+	return st
+}
+
 func cleanValues(in map[string]string) map[string]string {
 	out := make(map[string]string, len(in))
 	for k, v := range in {

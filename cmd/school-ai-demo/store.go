@@ -48,6 +48,14 @@ CREATE TABLE IF NOT EXISTS sessions (
 	updated_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_sessions_created ON sessions (created_at DESC);
+
+-- One row per calendar day (Asia/Shanghai) holding how many paid model calls
+-- were made. Kept in the database so a restart does not refill the budget.
+CREATE TABLE IF NOT EXISTS quota_days (
+	day        TEXT PRIMARY KEY,
+	used       INTEGER NOT NULL DEFAULT 0,
+	updated_at TEXT NOT NULL
+);
 `
 
 const (

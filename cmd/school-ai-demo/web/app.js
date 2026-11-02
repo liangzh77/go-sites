@@ -18,6 +18,8 @@
     values: {},           // fieldId -> string
     dirty: false,
     doc: null,            // the iframe's document
+    quota: null,          // today's AI budget, as the server reports it
+    aiOff: false,         // no API key configured on the server
   };
 
   // --- tiny helpers ---------------------------------------------------------
@@ -51,6 +53,7 @@
     if (!res.ok) {
       const err = new Error(data.error || ('请求失败（' + res.status + '）'));
       err.code = data.code || '';
+      if (data.quota) err.quota = data.quota;
       throw err;
     }
     return data;
@@ -79,6 +82,7 @@
     }
     state.templates = data.templates || [];
     state.ai = data.ai || state.ai;
+    state.quota = data.quota || state.quota;
     renderAIDisabled();
     renderDemos();
     renderRecent(data.recent || []);
@@ -86,10 +90,9 @@
 
   function renderAIDisabled() {
     // 没配 key 时按钮保持可点：点下去要给一句明确的说明，
-    // 而不是留一个灰按钮让人猜原因。
+    // 而不是留一个灰按钮让人猜原因。额度用完才是真的不能再点。
     const off = !state.ai.configured;
     $('aiNotice').hidden = !off;
-    $('fillBtn').disabled = false;
     if (off) {
       $('aiNoticeText').textContent =
         `服务器上没有配置 DeepSeek API Key（${state.ai.keyEnv}），提交会返回提示。` +
@@ -98,6 +101,48 @@
     } else {
       $('fillBtn').textContent = '开始 AI 填写';
     }
+    state.aiOff = off;
+    renderQuota();
+  }
+
+  // renderQuota draws today's budget. The limit is a server-side counter, not
+  // a browser one, so every page load re-reads it from /api/state.
+  function renderQuota() {
+    const q = state.quota;
+    if (!q || q.unlimited) {
+      $('quotaBar').hidden = true;
+      $('quotaInline').hidden = true;
+      $('fillBtn').disabled = !!state.aiOff;
+      return;
+    }
+    const spent = q.remaining <= 0;
+    $('quotaBar').hidden = false;
+    $('quotaText').textContent = `今日剩余 ${q.remaining} / ${q.limit}`;
+    $('quotaBar').classList.toggle('spent', spent);
+
+    const inline = $('quotaInline');
+    inline.hidden = false;
+    inline.textContent = spent
+      ? `今日 AI 填表次数已用完（${q.limit}/${q.limit}），明天 00:00 重置。`
+      : `AI 填表每天限 ${q.limit} 次，今天还剩 ${q.remaining} 次。`;
+    inline.classList.toggle('spent', spent);
+
+    if (spent) {
+      $('fillBtn').disabled = true;
+      $('fillBtn').textContent = state.aiOff ? 'AI 填写（未开通）' : '今日次数已用完';
+    } else {
+      $('fillBtn').disabled = false;
+    }
+  }
+
+  // afterFill re-reads the budget so the count drops as soon as a fill lands.
+  async function refreshQuota() {
+    try {
+      const res = await api('/api/state');
+      state.quota = res.quota || state.quota;
+      state.ai = res.ai || state.ai;
+      renderQuota();
+    } catch (e) { /* a stale count is not worth an error banner */ }
   }
 
   function renderDemos() {
@@ -409,7 +454,9 @@
     }
 
     $('fillBtn').disabled = true;
-    setStatus('info', '<span class="spin"></span>正在读取资料并让 AI 对齐字段，通常几秒到十几秒…');
+    // A reasoning model can take a while on the first call (cold connection),
+    // so say so rather than letting the button look stuck.
+    setStatus('info', '<span class="spin"></span>正在读取资料并让 AI 对齐字段，可能要十几秒，请不要关掉页面…');
     $('warnBox').hidden = true;
 
     try {
@@ -426,6 +473,7 @@
         });
       }
       applySession(res.session);
+      refreshQuota();
       const n = Object.keys((res.session && res.session.values) || {}).length;
       const filled = Object.keys(collectValues()).length;
       if (n === 0 && filled === 0) {
@@ -435,9 +483,18 @@
       }
       fitPaper();
     } catch (e) {
+      if (e.code === 'QUOTA_EXCEEDED') {
+        // The server is the authority on the budget; take its count so the
+        // page agrees with what the next request would see.
+        if (e.quota) { state.quota = e.quota; }
+        else if (state.quota) { state.quota = Object.assign({}, state.quota, { remaining: 0, used: state.quota.limit }); }
+        renderQuota();
+      }
       setStatus('err', escapeHTML(e.message));
     } finally {
-      $('fillBtn').disabled = false;
+      if (!state.quota || state.quota.unlimited || state.quota.remaining > 0) {
+        $('fillBtn').disabled = false;
+      }
     }
   }
 

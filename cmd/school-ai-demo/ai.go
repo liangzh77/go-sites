@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"sort"
@@ -20,38 +21,58 @@ import (
 // is a model call whose only job is to copy values out of the material.
 
 const (
-	deepseekKeyEnv     = "SCHOOL_AI_DEEPSEEK_API_KEY"
-	deepseekBaseEnv    = "SCHOOL_AI_DEEPSEEK_BASE_URL"
-	deepseekModelEnv   = "SCHOOL_AI_DEEPSEEK_MODEL"
-	defaultDeepseekURL = "https://api.deepseek.com/chat/completions"
-	defaultModel       = "deepseek-chat"
-	aiTimeout          = 90 * time.Second
-	maxMaterialRunes   = 24000
-	maxValueRunes      = 1200
+	deepseekKeyEnv       = "SCHOOL_AI_DEEPSEEK_API_KEY"
+	deepseekBackupKeyEnv = "SCHOOL_AI_DEEPSEEK_API_KEY_BACKUP"
+	deepseekBaseEnv      = "SCHOOL_AI_DEEPSEEK_BASE_URL"
+	deepseekModelEnv     = "SCHOOL_AI_DEEPSEEK_MODEL"
+	defaultDeepseekBase  = "https://api.deepseek.com/v1"
+	defaultModel         = "deepseek-chat"
+	aiTimeout            = 90 * time.Second
+	maxMaterialRunes     = 24000
+	maxValueRunes        = 1200
+	// The model spends tokens on reasoning before it writes the answer, so a
+	// small cap yields an empty content string. Leave room, or omit it.
+	maxTokens = 4096
+	userAgent = "school-ai-demo/1.0"
 )
 
-// aiClient talks to DeepSeek's OpenAI-compatible chat completions endpoint.
+// aiClient talks to an OpenAI-compatible chat completions endpoint. The base
+// URL is a base, not a full URL: "/chat/completions" is appended, so the same
+// env works for api.deepseek.com and for a subscription gateway that does not
+// share DeepSeek's path.
 type aiClient struct {
-	apiKey   string
-	endpoint string
-	model    string
-	http     *http.Client
+	apiKey       string
+	backupKey    string
+	endpoint     string // full URL, already joined with /chat/completions
+	model        string
+	http         *http.Client
+	needsSession bool // the OpenCode gateway rejects requests without one
+}
+
+// completionsURL joins the configured base with the chat completions path,
+// tolerating a base that already ends in it or in a trailing slash.
+func completionsURL(base string) string {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	if base == "" {
+		base = defaultDeepseekBase
+	}
+	base = strings.TrimSuffix(base, "/chat/completions")
+	return base + "/chat/completions"
 }
 
 func newAIClientFromEnv() *aiClient {
-	endpoint := strings.TrimSpace(os.Getenv(deepseekBaseEnv))
-	if endpoint == "" {
-		endpoint = defaultDeepseekURL
-	}
 	model := strings.TrimSpace(os.Getenv(deepseekModelEnv))
 	if model == "" {
 		model = defaultModel
 	}
+	base := strings.TrimSpace(os.Getenv(deepseekBaseEnv))
 	return &aiClient{
-		apiKey:   strings.TrimSpace(os.Getenv(deepseekKeyEnv)),
-		endpoint: endpoint,
-		model:    model,
-		http:     &http.Client{Timeout: aiTimeout},
+		apiKey:       strings.TrimSpace(os.Getenv(deepseekKeyEnv)),
+		backupKey:    strings.TrimSpace(os.Getenv(deepseekBackupKeyEnv)),
+		endpoint:     completionsURL(base),
+		model:        model,
+		http:         &http.Client{Timeout: aiTimeout},
+		needsSession: strings.Contains(strings.ToLower(base), "opencode"),
 	}
 }
 
@@ -59,7 +80,25 @@ func newAIClientFromEnv() *aiClient {
 // uses this to explain the state up front instead of failing at upload time.
 func (c *aiClient) configured() bool { return c.apiKey != "" }
 
+// hasBackup reports whether a second key is available for a retry.
+func (c *aiClient) hasBackup() bool { return c.backupKey != "" }
+
 var errNoAPIKey = errors.New("尚未配置 DeepSeek API Key")
+
+// errEmptyContent is what the model returns when it never got past reasoning;
+// it is worth a retry, unlike a malformed answer.
+var errEmptyContent = errors.New("模型没有返回内容，请重试")
+
+// retryableStatus marks the upstream answers that mean "this key is not
+// usable right now": auth, payment, and rate limiting. Those are the ones where
+// the backup key is worth trying.
+func retryableStatus(code int) bool {
+	switch code {
+	case http.StatusUnauthorized, http.StatusPaymentRequired, http.StatusTooManyRequests:
+		return true
+	}
+	return false
+}
 
 // fillResult is what the model produced, already filtered to real fields.
 type fillResult struct {
@@ -71,6 +110,10 @@ type fillResult struct {
 // fill asks the model to map material onto the template's fields. It returns
 // only ids that exist in the template, and only non-empty values: an empty or
 // unknown answer leaves the slot blank rather than guessing.
+//
+// One attempt goes to the primary key. If the gateway answers 401/402/429 and a
+// backup key is configured, the same request is retried once with it: a spent
+// subscription is not something the user filling in a form can fix.
 func (c *aiClient) fill(ctx context.Context, tpl templateRecord, material string) (fillResult, error) {
 	if c.apiKey == "" {
 		return fillResult{}, errNoAPIKey
@@ -80,6 +123,28 @@ func (c *aiClient) fill(ctx context.Context, tpl templateRecord, material string
 		return fillResult{Values: map[string]string{}, Model: c.model}, nil
 	}
 
+	// One session id per fill, reused by the retry: the gateway groups a
+	// conversation by it, and a retry is the same conversation.
+	sessionID := newUUID()
+
+	res, status, err := c.attempt(ctx, tpl, material, c.apiKey, sessionID)
+	if err == nil {
+		return res, nil
+	}
+	if c.hasBackup() && retryableStatus(status) {
+		log.Printf("fill: primary key returned %d, retrying with the backup key", status)
+		if res2, status2, err2 := c.attempt(ctx, tpl, material, c.backupKey, sessionID); err2 == nil {
+			return res2, nil
+		} else {
+			log.Printf("fill: backup key also failed (status %d): %v", status2, err2)
+		}
+	}
+	return fillResult{}, err
+}
+
+// attempt is one request to the model. The status is returned alongside the
+// error so the caller can decide whether another key is worth trying.
+func (c *aiClient) attempt(ctx context.Context, tpl templateRecord, material, apiKey, sessionID string) (fillResult, int, error) {
 	body := map[string]any{
 		"model": c.model,
 		"messages": []map[string]string{
@@ -89,30 +154,37 @@ func (c *aiClient) fill(ctx context.Context, tpl templateRecord, material string
 		"temperature":     0,
 		"response_format": map[string]string{"type": "json_object"},
 		"stream":          false,
+		"max_tokens":      maxTokens,
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {
-		return fillResult{}, err
+		return fillResult{}, 0, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewReader(raw))
 	if err != nil {
-		return fillResult{}, err
+		return fillResult{}, 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("User-Agent", userAgent)
+	if c.needsSession {
+		// The OpenCode gateway answers 400 MissingSessionID without this.
+		req.Header.Set("x-opencode-session", sessionID)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return fillResult{}, fmt.Errorf("调用 DeepSeek 失败: %w", friendlyNetErr(err))
+		return fillResult{}, 0, fmt.Errorf("调用模型失败: %w", friendlyNetErr(err))
 	}
 	defer resp.Body.Close()
 	payload, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
-		return fillResult{}, fmt.Errorf("读取 DeepSeek 响应失败: %w", err)
+		return fillResult{}, resp.StatusCode, fmt.Errorf("读取模型响应失败: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fillResult{}, fmt.Errorf("DeepSeek 返回 %d: %s", resp.StatusCode, deepseekErrText(payload))
+		return fillResult{}, resp.StatusCode,
+			fmt.Errorf("模型返回 %d: %s", resp.StatusCode, deepseekErrText(payload))
 	}
 
 	var completion struct {
@@ -123,20 +195,33 @@ func (c *aiClient) fill(ctx context.Context, tpl templateRecord, material string
 		} `json:"choices"`
 	}
 	if err := json.Unmarshal(payload, &completion); err != nil {
-		return fillResult{}, fmt.Errorf("解析 DeepSeek 响应失败: %w", err)
+		return fillResult{}, resp.StatusCode, fmt.Errorf("解析模型响应失败: %w", err)
 	}
 	if len(completion.Choices) == 0 {
-		return fillResult{}, errors.New("DeepSeek 没有返回内容")
+		return fillResult{}, resp.StatusCode, errors.New("模型没有返回内容")
 	}
-	return parseFillJSON(tpl, completion.Choices[0].Message.Content, c.model)
+	content := completion.Choices[0].Message.Content
+	if strings.TrimSpace(content) == "" {
+		// Reasoning-only answers come back as an empty string; say so instead
+		// of reporting an empty but successful fill.
+		return fillResult{}, resp.StatusCode, errEmptyContent
+	}
+	res, err := parseFillJSON(tpl, content, c.model)
+	return res, resp.StatusCode, err
 }
 
 // parseFillJSON keeps only usable answers: known ids, string values, non-empty.
+//
+// Reasoning models occasionally emit JSON that is nearly right: a stray brace
+// inside a key ({"fields{": ...}), a trailing comma, or the object wrapped in
+// prose. None of those should surface as a hard failure, so each parse attempt
+// falls back to the next repair before giving up.
 func parseFillJSON(tpl templateRecord, content, model string) (fillResult, error) {
 	text := strings.TrimSpace(content)
-	text = strings.TrimPrefix(text, "```json")
-	text = strings.TrimPrefix(text, "```")
-	text = strings.TrimSuffix(strings.TrimSpace(text), "```")
+	if text == "" {
+		return fillResult{}, errEmptyContent
+	}
+	text = repairJSON(text)
 
 	var envelope struct {
 		Fields   map[string]any `json:"fields"`
@@ -146,7 +231,12 @@ func parseFillJSON(tpl templateRecord, content, model string) (fillResult, error
 	// Accept both {"fields": {...}} and a bare {"f01": "..."} object.
 	raw := map[string]any{}
 	if err := json.Unmarshal([]byte(text), &raw); err != nil {
-		return fillResult{}, fmt.Errorf("模型返回的不是有效 JSON: %w", err)
+		// Last resort: keep the outermost object and drop what trails it.
+		if salvaged := outermostObject(text); salvaged != "" && json.Unmarshal([]byte(salvaged), &raw) == nil {
+			text = salvaged
+		} else {
+			return fillResult{}, fmt.Errorf("模型返回的不是有效 JSON: %w", err)
+		}
 	}
 	values := map[string]any{}
 	switch {
@@ -207,6 +297,117 @@ func parseFillJSON(tpl templateRecord, content, model string) (fillResult, error
 		}
 	}
 	return out, nil
+}
+
+// repairJSON strips markdown fences and fixes the malformations a reasoning
+// model actually produces, cheapest first. It never invents values: it only
+// removes syntax the model added by accident.
+func repairJSON(text string) string {
+	t := strings.TrimSpace(text)
+
+	// Wrapped in a code fence, possibly with a language tag and prose around it.
+	if i := strings.Index(t, "```"); i >= 0 {
+		rest := t[i+3:]
+		if nl := strings.IndexByte(rest, '\n'); nl >= 0 {
+			rest = rest[nl+1:]
+		}
+		if j := strings.Index(rest, "```"); j >= 0 {
+			rest = rest[:j]
+		}
+		t = strings.TrimSpace(rest)
+	}
+	// Prose before the object.
+	if i := strings.IndexByte(t, '{'); i > 0 {
+		t = t[i:]
+	}
+	// Prose after the object.
+	if j := strings.LastIndexByte(t, '}'); j >= 0 && j < len(t)-1 {
+		t = t[:j+1]
+	}
+	t = strings.ReplaceAll(t, "\"fields{\":", "\"fields\":")
+	t = strings.ReplaceAll(t, "\"values{\":", "\"values\":")
+	t = strings.ReplaceAll(t, "\"warnings{\":", "\"warnings\":")
+	t = strings.ReplaceAll(t, "\u201c", "\"")
+	t = strings.ReplaceAll(t, "\u201d", "\"")
+	return dropTrailingCommas(t)
+}
+
+// dropTrailingCommas removes a comma that sits just before a closing bracket,
+// which is the other common near-miss.
+func dropTrailingCommas(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	inString := false
+	escaped := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if inString {
+			b.WriteByte(c)
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == '"':
+				inString = false
+			}
+			continue
+		}
+		if c == '"' {
+			inString = true
+			b.WriteByte(c)
+			continue
+		}
+		if c == ',' {
+			j := i + 1
+			for j < len(s) && (s[j] == ' ' || s[j] == '\n' || s[j] == '\r' || s[j] == '\t') {
+				j++
+			}
+			if j < len(s) && (s[j] == '}' || s[j] == ']') {
+				continue // skip the comma
+			}
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
+}
+
+// outermostObject returns the substring from the first "{" to the matching
+// "}", or "" when the braces do not balance.
+func outermostObject(s string) string {
+	start := strings.IndexByte(s, '{')
+	if start < 0 {
+		return ""
+	}
+	depth := 0
+	inString := false
+	escaped := false
+	for i := start; i < len(s); i++ {
+		c := s[i]
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case c == '\\':
+				escaped = true
+			case c == '"':
+				inString = false
+			}
+			continue
+		}
+		switch c {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return s[start : i+1]
+			}
+		}
+	}
+	return ""
 }
 
 func hasKey(m map[string]any, key string) bool {

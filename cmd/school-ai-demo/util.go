@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -43,4 +45,18 @@ func isUnreserved(c byte) bool {
 func upperHex(n byte) string {
 	const digits = "0123456789ABCDEF"
 	return string([]byte{digits[n&0x0f]})
+}
+
+// newUUID returns a random RFC 4122 version 4 UUID. The OpenCode gateway wants
+// a per-conversation id in x-opencode-session, and any random UUID is fine.
+func newUUID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// A weaker fallback still satisfies "distinct per request"; the gateway
+		// only uses it to group calls.
+		return fmt.Sprintf("%d-0000-4000-8000-000000000000", time.Now().UnixNano())
+	}
+	b[6] = (b[6] & 0x0f) | 0x40 // version 4
+	b[8] = (b[8] & 0x3f) | 0x80 // variant 10
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
 }

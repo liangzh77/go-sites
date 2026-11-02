@@ -34,6 +34,11 @@
     <span id="aiNoticeText">服务器上还没有配置 DeepSeek API Key，上传后会提示错误，但表格仍可手动填写、打印和导出。</span>
   </div>
 
+  <div class="quota-bar" id="quotaBar" hidden>
+    <span id="quotaText">今日剩余 — / —</span>
+    <span class="quota-note">AI 填表每天限量，导出手动填写不受影响</span>
+  </div>
+
   <section class="demos" id="demoList" aria-live="polite">
     <h2 class="section-head">可用 demo</h2>
     <div class="cards" id="demoCards">
@@ -88,6 +93,7 @@
         <button class="ghost block" id="clearBtn" type="button">清空</button>
       </div>
 
+      <p class="quota-inline" id="quotaInline" hidden></p>
       <div class="status" id="status" hidden></div>
       <div class="warnbox" id="warnBox" hidden></div>
 
