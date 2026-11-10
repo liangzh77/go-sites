@@ -2,6 +2,15 @@
 
 `/keys/` 是一个独立的单用户 Go 服务，用于保存和管理不同厂商、入口与账号体系下的 API Key、模型参数和手动检测记录。服务代码在 `cmd/keys/`，数据库与主密钥不随代码发布覆盖。
 
+## 当前线上状态
+
+- 页面：`https://liangz77.cn/keys/`
+- 首次线上 release：`20261110-185644`
+- 服务：`go-sites-keys.service`，监听 `127.0.0.1:9020`
+- 数据库：`/srv/apps/go-sites-keys/shared/data/keys.db`
+- 主密钥：`/srv/secrets/liangz77-keys/master.key`，与数据库目录分开保存
+- 首次一致性备份已验证：SQLite integrity 为 `ok`
+
 ## 已实现范围
 
 - 一个 Provider 保存多把 Key；同一厂商可建立多个独立 Provider。
