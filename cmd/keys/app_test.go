@@ -267,7 +267,14 @@ func TestAuthTokenRejectsTamperingAndExpiredSessions(t *testing.T) {
 	if !auth.verifySessionToken(token, now) {
 		t.Fatal("fresh token did not verify")
 	}
-	tampered := token[:len(token)-1] + "A"
+	parts := strings.Split(token, ".")
+	signature := []byte(parts[2])
+	if signature[0] == 'A' {
+		signature[0] = 'B'
+	} else {
+		signature[0] = 'A'
+	}
+	tampered := strings.Join([]string{parts[0], parts[1], string(signature)}, ".")
 	if auth.verifySessionToken(tampered, now) {
 		t.Fatal("tampered token verified")
 	}
