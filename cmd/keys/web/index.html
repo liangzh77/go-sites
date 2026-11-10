@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#153c31">
+  <title>API 密钥管理</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <section class="login-shell" id="loginView">
+    <div class="login-card">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>KEY CABINET</span>
+      </div>
+      <p class="eyebrow">PRIVATE CONSOLE</p>
+      <h1>把每一把钥匙<br>放回正确的位置。</h1>
+      <p class="login-copy">厂商、密钥、模型与到期时间集中管理。所有敏感数据只保存在服务端，完整 Key 查看需要再次验证。</p>
+      <form id="loginForm" class="login-form" autocomplete="on">
+        <label for="loginPassword">管理密码</label>
+        <div class="password-field">
+          <input id="loginPassword" name="password" type="password" autocomplete="current-password" minlength="1" maxlength="4096" required>
+          <button type="button" class="text-button" id="togglePassword" aria-label="显示或隐藏密码">显示</button>
+        </div>
+        <p class="form-error" id="loginError" role="alert"></p>
+        <button class="primary-button wide" id="loginButton" type="submit">进入密钥柜</button>
+      </form>
+      <p class="login-footnote">服务端鉴权 · HttpOnly 会话 · AES-GCM 加密存储</p>
+    </div>
+    <aside class="login-aside" aria-label="安全提示">
+      <div class="aside-orbit orbit-one"></div>
+      <div class="aside-orbit orbit-two"></div>
+      <div class="aside-content">
+        <span class="aside-index">01 / ISOLATION</span>
+        <h2>演示页与密钥页<br>不在同一个安全边界。</h2>
+        <p>用户上传的演示 HTML 使用无同源权限的 CSP 沙箱。密钥服务另设鉴权、CSRF 校验与敏感响应禁缓存。</p>
+      </div>
+    </aside>
+  </section>
+
+  <div class="app-shell" id="appView" hidden>
+    <header class="topbar">
+      <a class="brand-link" href="/keys/">
+        <span class="brand-mark small" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>KEY CABINET</span>
+      </a>
+      <nav class="topnav" aria-label="页面导航">
+        <span class="nav-item active">密钥总览</span>
+        <a class="nav-item" href="/private">返回「我的」</a>
+      </nav>
+      <button class="ghost-button compact" id="logoutButton" type="button">退出</button>
+    </header>
+
+    <main class="page">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">KEY OPERATIONS / 2026</p>
+          <h1>API 密钥管理</h1>
+          <p class="hero-copy">同一 Provider 可保存多把 Key；检测结果与到期日期彼此独立。配置变化会自动把旧检测标记为过期。</p>
+        </div>
+        <div class="hero-actions">
+          <button class="secondary-button" id="batchTestButton" type="button">检测全部启用 Key</button>
+          <button class="primary-button" id="addProviderButton" type="button">＋ 新增 Provider</button>
+        </div>
+      </section>
+
+      <section class="stats-grid" aria-label="密钥概览">
+        <article class="stat-card">
+          <span class="stat-label">PROVIDERS</span>
+          <strong id="providerStat">0</strong>
+          <small id="providerStatHint">暂无配置</small>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">ACTIVE KEYS</span>
+          <strong id="keyStat">0</strong>
+          <small id="keyStatHint">停用的 Key 不计入</small>
+        </article>
+        <article class="stat-card positive">
+          <span class="stat-label">LAST CHECK</span>
+          <strong id="successStat">0</strong>
+          <small>最近检测为调用成功</small>
+        </article>
+        <article class="stat-card warning">
+          <span class="stat-label">EXPIRING</span>
+          <strong id="expiryStat">0</strong>
+          <small>已到期或进入提醒窗口</small>
+        </article>
+      </section>
+
+      <section class="toolbar" aria-label="搜索与筛选">
+        <div class="search-box">
+          <span aria-hidden="true">⌕</span>
+          <input id="searchInput" type="search" placeholder="搜索 Provider、Key 别名、备注或模型" autocomplete="off">
+        </div>
+        <label class="select-wrap">
+          <span class="sr-only">按 Provider 筛选</span>
+          <select id="providerFilter"><option value="">全部 Provider</option></select>
+        </label>
+        <label class="select-wrap">
+          <span class="sr-only">按检测状态筛选</span>
+          <select id="statusFilter">
+            <option value="">全部状态</option>
+            <option value="success">调用成功</option>
+            <option value="untested">未检测</option>
+            <option value="failure">检测异常</option>
+            <option value="stale">配置已修改</option>
+            <option value="disabled">已停用</option>
+          </select>
+        </label>
+        <label class="check-filter">
+          <input id="expiryFilter" type="checkbox">
+          <span>仅看即将到期</span>
+        </label>
+        <button class="icon-button" id="clearFiltersButton" type="button" title="清除筛选" aria-label="清除筛选">↺</button>
+      </section>
+
+      <div class="notice-bar">
+        <span class="notice-dot" aria-hidden="true"></span>
+        <p>真实检测会从网站服务器向厂商发送一次极小请求，可能产生少量费用。批量检测默认跳过停用 Key，不自动重试。</p>
+      </div>
+
+      <section id="providerList" class="provider-list" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <dialog id="providerDialog" class="modal">
+    <form id="providerForm" class="modal-card">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow" id="providerModalEyebrow">NEW PROVIDER</p>
+          <h2 id="providerModalTitle">新增 Provider</h2>
+        </div>
+        <button class="icon-button close-dialog" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="form-grid">
+        <label class="field span-2">
+          <span>厂商预设</span>
+          <select id="providerPreset" required></select>
+        </label>
+        <label class="field">
+          <span>显示名称</span>
+          <input id="providerName" maxlength="120" required>
+        </label>
+        <label class="field">
+          <span>入口类别</span>
+          <input id="providerCategory" maxlength="80" placeholder="官方、Coding Plan、中转站…">
+        </label>
+        <label class="field">
+          <span>接口协议</span>
+          <select id="providerProtocol" required></select>
+        </label>
+        <label class="field">
+          <span>认证方式</span>
+          <select id="providerAuth" required></select>
+        </label>
+        <label class="field span-2">
+          <span>API 地址</span>
+          <input id="providerBaseURL" type="url" maxlength="2048" placeholder="https://api.example.com/v1" required>
+          <small>必须为 HTTPS。只填写 Base URL，不包含查询参数或片段。</small>
+        </label>
+        <label class="field span-2">
+          <span>备注</span>
+          <textarea id="providerNote" rows="3" maxlength="4000" placeholder="例如：官方直连、计费单位、适用场景"></textarea>
+        </label>
+        <label class="switch-field span-2">
+          <input id="providerEnabled" type="checkbox" checked>
+          <span class="switch-ui"></span>
+          <span>启用该 Provider</span>
+        </label>
+      </div>
+      <p class="form-error" id="providerFormError" role="alert"></p>
+      <div class="modal-actions">
+        <button class="secondary-button close-dialog" type="button">取消</button>
+        <button class="primary-button" id="providerSubmitButton" type="submit">保存 Provider</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="keyDialog" class="modal">
+    <form id="keyForm" class="modal-card">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow" id="keyModalEyebrow">NEW KEY</p>
+          <h2 id="keyModalTitle">新增 Key</h2>
+          <p class="modal-subtitle" id="keyProviderName"></p>
+        </div>
+        <button class="icon-button close-dialog" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="form-grid">
+        <label class="field">
+          <span>别名</span>
+          <input id="keyAlias" maxlength="160" placeholder="官方主用、月付备用…" required>
+        </label>
+        <label class="field">
+          <span>测试模型</span>
+          <select id="keyTestModel"></select>
+        </label>
+        <label class="field span-2">
+          <span>API 密钥</span>
+          <input id="keySecret" type="password" maxlength="16384" autocomplete="new-password" placeholder="编辑时留空表示不修改">
+          <small>保存后列表只显示脱敏值；完整 Key 仅在重新验证后临时返回。</small>
+        </label>
+        <label class="field">
+          <span>购买日期</span>
+          <input id="keyPurchaseDate" type="date">
+        </label>
+        <label class="field">
+          <span>预计到期日</span>
+          <input id="keyExpiresOn" type="date">
+        </label>
+        <label class="field">
+          <span>提前提醒天数</span>
+          <input id="keyReminderDays" type="number" min="0" max="3650" value="30">
+        </label>
+        <label class="switch-field">
+          <input id="keyEnabled" type="checkbox" checked>
+          <span class="switch-ui"></span>
+          <span>启用 Key</span>
+        </label>
+        <label class="field span-2">
+          <span>备注</span>
+          <textarea id="keyNote" rows="4" maxlength="4000" placeholder="套餐、额度、用途或购买渠道"></textarea>
+        </label>
+      </div>
+      <p class="form-error" id="keyFormError" role="alert"></p>
+      <div class="modal-actions">
+        <button class="secondary-button close-dialog" type="button">取消</button>
+        <button class="primary-button" id="keySubmitButton" type="submit">保存 Key</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="modelDialog" class="modal">
+    <form id="modelForm" class="modal-card wide-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow" id="modelModalEyebrow">MODEL PROFILE</p>
+          <h2 id="modelModalTitle">新增模型配置</h2>
+          <p class="modal-subtitle" id="modelProviderName"></p>
+        </div>
+        <button class="icon-button close-dialog" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="form-grid three">
+        <label class="field span-2">
+          <span>模型 ID</span>
+          <input id="modelID" maxlength="300" required>
+          <small>必须与厂商控制台或模型列表中的 ID / Endpoint ID 完全一致。</small>
+        </label>
+        <label class="field">
+          <span>信息来源</span>
+          <input id="modelSource" maxlength="200" value="manual">
+        </label>
+        <label class="field">
+          <span>上下文上限</span>
+          <input id="modelContext" type="number" min="1" placeholder="未知留空">
+        </label>
+        <label class="field">
+          <span>最大输出</span>
+          <input id="modelOutput" type="number" min="1" placeholder="未知留空">
+        </label>
+        <label class="field">
+          <span>支持思考</span>
+          <select id="modelThinkingSupport">
+            <option value="">未知</option>
+            <option value="true">是</option>
+            <option value="false">否</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>思考等级</span>
+          <input id="modelThinkingLevel" maxlength="80" placeholder="例如 high；未知留空">
+        </label>
+        <label class="field">
+          <span>思考预算</span>
+          <input id="modelThinkingBudget" type="number" min="1" placeholder="未知留空">
+        </label>
+        <label class="switch-field">
+          <input id="modelDefault" type="checkbox">
+          <span class="switch-ui"></span>
+          <span>设为默认测试模型</span>
+        </label>
+        <label class="field span-all">
+          <span>额外测试参数（JSON，可选）</span>
+          <textarea id="modelTestParams" class="mono-input" rows="6" spellcheck="false" placeholder='{"temperature": 0}'></textarea>
+          <small>只在明确知道该模型支持时填写。服务端会拒绝覆盖 model、messages、input、contents、stream，并强制限制测试输出预算。</small>
+        </label>
+      </div>
+      <p class="form-error" id="modelFormError" role="alert"></p>
+      <div class="modal-actions">
+        <button class="secondary-button close-dialog" type="button">取消</button>
+        <button class="primary-button" id="modelSubmitButton" type="submit">保存模型配置</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="revealDialog" class="modal">
+    <form id="revealForm" class="modal-card compact-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">SENSITIVE ACTION</p>
+          <h2>查看完整密钥</h2>
+          <p class="modal-subtitle" id="revealKeyName"></p>
+        </div>
+        <button class="icon-button close-dialog" type="button" aria-label="关闭">×</button>
+      </div>
+      <div id="revealAuthBlock">
+        <p class="sensitive-copy">这是敏感操作。请输入管理密码重新验证，完整 Key 只会在本次弹窗内短暂显示。</p>
+        <label class="field">
+          <span>管理密码</span>
+          <input id="revealPassword" type="password" autocomplete="current-password" required>
+        </label>
+      </div>
+      <div id="revealSecretBlock" hidden>
+        <label class="field">
+          <span>完整 API Key</span>
+          <input id="revealSecret" class="mono-input" type="text" readonly>
+        </label>
+        <button class="secondary-button wide" id="copySecretButton" type="button">复制完整密钥</button>
+      </div>
+      <p class="form-error" id="revealFormError" role="alert"></p>
+      <div class="modal-actions" id="revealActions">
+        <button class="secondary-button close-dialog" type="button">关闭</button>
+        <button class="primary-button" id="revealSubmitButton" type="submit">验证并显示</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="discoveryDialog" class="modal">
+    <div class="modal-card wide-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">MODEL DISCOVERY</p>
+          <h2>选择发现的模型</h2>
+          <p class="modal-subtitle" id="discoveryProviderName"></p>
+        </div>
+        <button class="icon-button close-dialog" type="button" aria-label="关闭">×</button>
+      </div>
+      <p class="sensitive-copy">选择后会打开模型配置表单。上下文与思考能力不会根据模型名称猜测，仍显示为未知，直到你手动填写。</p>
+      <div id="discoveredModels" class="model-choice-list"></div>
+      <p class="form-error" id="discoveryError" role="alert"></p>
+      <div class="modal-actions">
+        <button class="secondary-button close-dialog" type="button">关闭</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="historyDialog" class="modal">
+    <div class="modal-card wide-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">DETECTION LOG</p>
+          <h2>检测历史</h2>
+          <p class="modal-subtitle" id="historyKeyName"></p>
+        </div>
+        <button class="icon-button close-dialog" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="history-wrap" id="historyContent"></div>
+      <div class="modal-actions">
+        <button class="secondary-button close-dialog" type="button">关闭</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="busyBar" class="busy-bar" hidden><span></span></div>
+
+  <script src="assets/app.js" defer></script>
+</body>
+</html>

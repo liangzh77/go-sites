@@ -84,6 +84,16 @@
         file_server
     }
 
+    # API 密钥管理：独立 Go 服务、独立 SQLite 与 systemd 单元。
+    # Caddy 保留 /keys 前缀，后端同时负责页面、API 与安全响应头。
+    handle /keys {
+        redir * /keys/ permanent
+    }
+
+    handle /keys/* {
+        reverse_proxy 127.0.0.1:9020
+    }
+
     handle /wiki {
         respond "Page removed" 410
     }

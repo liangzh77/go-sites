@@ -1065,6 +1065,12 @@ func (a *app) handleServeDemo(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// Uploaded demos are untrusted active content on the same hostname as the
+	// private services. Deliberately omit allow-same-origin: scripts still run,
+	// but the document gets an opaque origin and cannot read cookies, local
+	// storage, or same-origin responses belonging to the site or /keys.
+	w.Header().Set("Content-Security-Policy",
+		"sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads allow-pointer-lock allow-orientation-lock")
 
 	cleanSubPath := path.Clean("/" + subPath)
 	if cleanSubPath == "/" {
@@ -2884,6 +2890,10 @@ func markdownDemoCSS() string {
       padding: 2rem 0 4rem;
     }
 
+    main.md-page--wide {
+      width: min(1360px, calc(100vw - 2rem));
+    }
+
     .md-brand {
       display: flex;
       align-items: center;
@@ -3141,7 +3151,8 @@ func markdownDemoCSS() string {
       font-weight: 700;
       line-height: 1.45;
       text-align: center;
-      white-space: nowrap;
+      overflow-wrap: break-word;
+      white-space: normal;
     }
 
     .md-table-wrap .md-table td {
@@ -3194,6 +3205,10 @@ func markdownDemoCSS() string {
       main {
         width: min(100vw - 1rem, 1040px);
         padding: 1rem 0 2rem;
+      }
+
+      main.md-page--wide {
+        width: min(100vw - 1rem, 1360px);
       }
 
       .md-brand-text {
@@ -3570,6 +3585,10 @@ func renderMarkdownPageHTMLDocument(title, body, source string, includeSource bo
 		mindmapCSS = markdownMindmapCSS()
 		mindmapScript = markdownMindmapScript()
 	}
+	mainClass := "md-page"
+	if markdownHasWideTable(body) {
+		mainClass += " md-page--wide"
+	}
 	copyButton := ""
 	copyPayload := ""
 	copyScript := ""
@@ -3595,7 +3614,7 @@ func renderMarkdownPageHTMLDocument(title, body, source string, includeSource bo
   </style>
 </head>
 <body>
-  <main>
+  <main class="` + mainClass + `">
     <article>
       <div class="md-brand">
         <span class="md-brand-identity" aria-hidden="true">
@@ -3683,9 +3702,20 @@ func renderMarkdown(source string) string {
 }
 
 var (
-	markdownTablePattern       = regexp.MustCompile(`(?s)<table>\n.*?</table>`)
-	markdownTableHeaderPattern = regexp.MustCompile(`(?s)<table>\n<thead>\n<tr>\n(.*?)</tr>`)
+	markdownTablePattern        = regexp.MustCompile(`(?s)<table>\n.*?</table>`)
+	markdownTableHeaderPattern  = regexp.MustCompile(`(?s)<table>\n<thead>\n<tr>\n(.*?)</tr>`)
+	markdownTableColumnsPattern = regexp.MustCompile(`md-table--([0-9]+)col`)
 )
+
+func markdownHasWideTable(rendered string) bool {
+	for _, match := range markdownTableColumnsPattern.FindAllStringSubmatch(rendered, -1) {
+		columns, err := strconv.Atoi(match[1])
+		if err == nil && columns >= 5 {
+			return true
+		}
+	}
+	return false
+}
 
 func enhanceMarkdownTables(rendered string) string {
 	return markdownTablePattern.ReplaceAllStringFunc(rendered, func(table string) string {

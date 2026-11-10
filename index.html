@@ -2708,10 +2708,8 @@
                 this.demoPageName = '演示';
                 this.searchPageName = '搜索';
                 this.recommendationPageName = '推荐';
-                this.authSessionKey = 'go-sites:private-visible';
-                this.authSessionDurationMs = 7 * 24 * 60 * 60 * 1000;
                 this.recommendationStorageKey = 'go-sites:recommendations';
-                this.hasStoredAuthSession = this.hasValidStoredAuthSession();
+                this.hasStoredAuthSession = false;
                 this.isAuthenticated = false;
                 this.isEditingRecommendations = false;
                 this.searchQuery = '';
@@ -2728,9 +2726,10 @@
                 this.bindRouteEvents();
                 this.updateSiteVersionBadge();
                 this.updateAuthButton();
-                if (this.hasStoredAuthSession) {
-                    this.restoreAuthSession();
-                }
+                // The HttpOnly server session is the only source of truth for
+                // private visibility. localStorage/sessionStorage never grants
+                // access by itself.
+                this.restoreAuthSession();
             }
 
             getVisibleSourcePages() {
@@ -3606,57 +3605,7 @@
             }
 
             async ensureDemoSession() {
-                if (await this.verifyDemoSession()) {
-                    return true;
-                }
-
-                const configuredPassword = window.SITE_CONFIG?.privateArea?.password || '';
-                if (!configuredPassword) {
-                    return false;
-                }
-                return this.establishDemoSession(configuredPassword);
-            }
-
-            hasValidStoredAuthSession() {
-                try {
-                    const raw = localStorage.getItem(this.authSessionKey);
-                    if (raw) {
-                        const stored = JSON.parse(raw);
-                        if (Number(stored.expiresAt) > Date.now()) {
-                            return true;
-                        }
-                    }
-                } catch (error) {
-                    console.warn('Stored auth session is invalid', error);
-                }
-
-                this.clearStoredAuthSession();
-                if (sessionStorage.getItem(this.authSessionKey) === 'true') {
-                    this.storeAuthSession();
-                    sessionStorage.removeItem(this.authSessionKey);
-                    return true;
-                }
-                return false;
-            }
-
-            storeAuthSession() {
-                try {
-                    localStorage.setItem(
-                        this.authSessionKey,
-                        JSON.stringify({ expiresAt: Date.now() + this.authSessionDurationMs })
-                    );
-                } catch (error) {
-                    console.warn('Unable to store auth session', error);
-                }
-            }
-
-            clearStoredAuthSession() {
-                try {
-                    localStorage.removeItem(this.authSessionKey);
-                } catch (error) {
-                    console.warn('Unable to clear stored auth session', error);
-                }
-                sessionStorage.removeItem(this.authSessionKey);
+                return this.verifyDemoSession();
             }
 
             async verifyDemoSession() {
@@ -3674,7 +3623,6 @@
                 this.hasStoredAuthSession = false;
                 this.isEditingRecommendations = false;
                 this.demoItems = [];
-                this.clearStoredAuthSession();
                 this.updateAuthButton();
                 const nextPage = [this.privatePageName, this.demoPageName].includes(this.currentTab)
                     ? this.recommendationPageName
@@ -4585,17 +4533,19 @@
 
             async login(event) {
                 event.preventDefault();
-                const configuredPassword = window.SITE_CONFIG?.privateArea?.password || '';
                 const errorElement = document.getElementById('loginError');
+                const passwordInput = document.getElementById('loginPassword');
 
-                if (!configuredPassword) {
-                    errorElement.textContent = '请先在配置文件中设置密码';
+                if (!passwordInput.value) {
+                    errorElement.textContent = '请输入管理密码';
+                    passwordInput.select();
                     return;
                 }
 
-                const passwordInput = document.getElementById('loginPassword');
-                if (passwordInput.value !== configuredPassword) {
-                    errorElement.textContent = '密码错误';
+                errorElement.textContent = '';
+                const authenticated = await this.establishDemoSession(passwordInput.value);
+                if (!authenticated) {
+                    errorElement.textContent = '密码错误或登录服务暂时不可用';
                     passwordInput.select();
                     return;
                 }
@@ -4603,8 +4553,6 @@
                 this.isAuthenticated = true;
                 this.hasStoredAuthSession = true;
                 this.isEditingRecommendations = false;
-                this.storeAuthSession();
-                await this.establishDemoSession(passwordInput.value);
                 await this.loadDemos();
                 this.closeLogin();
                 this.updateAuthButton();
@@ -4621,7 +4569,6 @@
                 this.hasStoredAuthSession = false;
                 this.isEditingRecommendations = false;
                 this.demoItems = [];
-                this.clearStoredAuthSession();
                 this.updateAuthButton();
                 const nextPage = [this.privatePageName, this.demoPageName].includes(this.currentTab)
                     ? this.recommendationPageName

@@ -159,6 +159,27 @@ func TestMarkdownDemoRendersPolishedTablesAndFormats(t *testing.T) {
 	if count := strings.Count(page, `<div class="md-table-wrap">`); count != 2 {
 		t.Fatalf("responsive table wrapper count = %d, want 2:\n%s", count, page)
 	}
+	if !strings.Contains(page, `<main class="md-page">`) {
+		t.Fatalf("narrow Markdown page should keep the default reading width:\n%s", page)
+	}
+}
+
+func TestMarkdownDemoWidensPageForWideTables(t *testing.T) {
+	markdown := `| 人员 | 具体工作 | 需求复杂度 | 实际工作量 | 完成情况 | 能力与成果评价 | 综合评分 |
+|---|---|---|---|---|---|---|
+| 张三 | 完成功能 | 中 | 10 天 | 已上线 | 能独立交付 | 8 / 7 |`
+	page := renderMarkdownPage("宽表测试", markdown)
+
+	for _, want := range []string{
+		`<main class="md-page md-page--wide">`,
+		`main.md-page--wide {`,
+		`width: min(1360px, calc(100vw - 2rem));`,
+		`white-space: normal;`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("wide Markdown page missing adaptive layout %q:\n%s", want, page)
+		}
+	}
 }
 
 func TestEnhanceMarkdownTablesIsIdempotent(t *testing.T) {

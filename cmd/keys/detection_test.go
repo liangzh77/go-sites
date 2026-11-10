@@ -1,0 +1,200 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/netip"
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestDetectionRequestFormatsAndAuth(t *testing.T) {
+	tests := []struct {
+		name       string
+		protocol   string
+		authMode   string
+		pathSuffix string
+		assertBody func(*testing.T, map[string]any)
+		assertAuth func(*testing.T, http.Header)
+	}{
+		{
+			name: "openai chat", protocol: protocolOpenAIChat, authMode: authBearer,
+			pathSuffix: "/chat/completions",
+			assertBody: func(t *testing.T, body map[string]any) {
+				if body["max_tokens"] != float64(8) {
+					t.Fatalf("max_tokens = %#v", body["max_tokens"])
+				}
+				if body["model"] != "test-model" {
+					t.Fatalf("model = %#v", body["model"])
+				}
+			},
+			assertAuth: func(t *testing.T, header http.Header) {
+				if header.Get("Authorization") != "Bearer test-secret" {
+					t.Fatalf("Authorization = %q", header.Get("Authorization"))
+				}
+			},
+		},
+		{
+			name: "openai responses", protocol: protocolOpenAIResponses, authMode: authBearer,
+			pathSuffix: "/responses",
+			assertBody: func(t *testing.T, body map[string]any) {
+				if body["max_output_tokens"] != float64(8) || body["input"] == "" {
+					t.Fatalf("body = %#v", body)
+				}
+			},
+			assertAuth: func(t *testing.T, header http.Header) {
+				if header.Get("Authorization") == "" {
+					t.Fatal("missing bearer auth")
+				}
+			},
+		},
+		{
+			name: "anthropic", protocol: protocolAnthropic, authMode: authAnthropic,
+			pathSuffix: "/messages",
+			assertBody: func(t *testing.T, body map[string]any) {
+				if body["max_tokens"] != float64(8) {
+					t.Fatalf("body = %#v", body)
+				}
+			},
+			assertAuth: func(t *testing.T, header http.Header) {
+				if header.Get("x-api-key") != "test-secret" {
+					t.Fatal("missing x-api-key")
+				}
+				if header.Get("anthropic-version") != "2023-06-01" {
+					t.Fatal("missing anthropic-version")
+				}
+			},
+		},
+		{
+			name: "gemini", protocol: protocolGemini, authMode: authGemini,
+			pathSuffix: "/models/test-model:generateContent",
+			assertBody: func(t *testing.T, body map[string]any) {
+				config, ok := body["generationConfig"].(map[string]any)
+				if !ok || config["maxOutputTokens"] != float64(8) {
+					t.Fatalf("generationConfig = %#v", body["generationConfig"])
+				}
+			},
+			assertAuth: func(t *testing.T, header http.Header) {
+				if header.Get("x-goog-api-key") != "test-secret" {
+					t.Fatal("missing Gemini API key header")
+				}
+			},
+		},
+		{
+			name: "minimax", protocol: protocolMiniMax, authMode: authBearer,
+			pathSuffix: "/chatcompletion_v2",
+			assertBody: func(t *testing.T, body map[string]any) {
+				if body["max_tokens"] != float64(8) {
+					t.Fatalf("body = %#v", body)
+				}
+			},
+			assertAuth: func(t *testing.T, header http.Header) {
+				if header.Get("Authorization") == "" {
+					t.Fatal("missing bearer auth")
+				}
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var seenPath string
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				seenPath = r.URL.Path
+				test.assertAuth(t, r.Header)
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Fatal(err)
+				}
+				test.assertBody(t, body)
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"ok":true}`))
+			}))
+			defer server.Close()
+			d := newDetector()
+			d.client = server.Client()
+			target := DetectionTarget{
+				Key: APIKey{ID: "k_test", Alias: "test"},
+				Provider: Provider{
+					ID: "p_test", PresetID: "custom", Protocol: test.protocol,
+					BaseURL: server.URL, AuthMode: test.authMode,
+				},
+				Model: ModelConfig{
+					ModelID: "test-model", TestParams: json.RawMessage(`{}`),
+				},
+				Secret: "test-secret", Fingerprint: "fingerprint",
+				StartedAt: time.Now().UTC(),
+			}
+			result := d.testTarget(context.Background(), target)
+			if result.Status != statusSuccess {
+				t.Fatalf("status = %s, detail = %s", result.Status, result.Detail)
+			}
+			if seenPath != test.pathSuffix {
+				t.Fatalf("request path = %q, want %q", seenPath, test.pathSuffix)
+			}
+		})
+	}
+}
+
+func TestDetectionErrorClassification(t *testing.T) {
+	tests := []struct {
+		status int
+		body   string
+		want   string
+	}{
+		{http.StatusUnauthorized, `{"error":{"message":"bad key"}}`, statusAuthFailed},
+		{http.StatusPaymentRequired, `{"error":{"message":"no credit"}}`, statusQuota},
+		{http.StatusTooManyRequests, `{"error":{"message":"rate limit"}}`, statusRateLimited},
+		{http.StatusTooManyRequests, `{"error":{"message":"quota exhausted"}}`, statusQuota},
+		{http.StatusBadRequest, `{"error":{"message":"temperature unsupported"}}`, statusParameters},
+		{http.StatusBadRequest, `{"error":{"message":"model not found"}}`, statusModelDenied},
+		{http.StatusBadRequest, `{"error":{"code":"insufficient_quota","message":"billing"}}`, statusQuota},
+		{http.StatusBadRequest, `{"error":{"message":"invalid API key"}}`, statusAuthFailed},
+		{http.StatusBadGateway, `{"error":{"message":"upstream down"}}`, statusService},
+		{http.StatusTeapot, `not-json`, statusUnknown},
+	}
+	for _, test := range tests {
+		got, detail := classifyDetectionResponse(test.status, []byte(test.body), "super-secret-token")
+		if got != test.want {
+			t.Errorf("status %d body %s: got %s (%s), want %s", test.status, test.body, got, detail, test.want)
+		}
+		if strings.Contains(detail, "super-secret-token") {
+			t.Fatalf("detail leaked secret: %s", detail)
+		}
+	}
+}
+
+func TestPublicIPRejectsPrivateAndReservedRanges(t *testing.T) {
+	tests := map[string]bool{
+		"1.1.1.1":            true,
+		"2606:4700::1111":    true,
+		"127.0.0.1":          false,
+		"10.0.0.1":           false,
+		"169.254.169.254":    false,
+		"100.64.0.1":         false,
+		"192.168.1.2":        false,
+		"::1":                false,
+		"fe80::1":            false,
+		"64:ff9b::a9fe:a9fe": false,
+	}
+	for value, want := range tests {
+		addr := netip.MustParseAddr(value)
+		if got := isPublicIP(addr.AsSlice()); got != want {
+			t.Errorf("isPublicIP(%s) = %v, want %v", value, got, want)
+		}
+	}
+}
+
+func TestModelListParserHandlesOpenAIAndGemini(t *testing.T) {
+	openAI := parseModelList([]byte(`{"data":[{"id":"b"},{"id":"a"},{"id":"a"}]}`))
+	if strings.Join(openAI, ",") != "a,b" {
+		t.Fatalf("OpenAI models = %v", openAI)
+	}
+	gemini := parseModelList([]byte(`{"models":[{"name":"models/gemini-test"}]}`))
+	if len(gemini) != 1 || gemini[0] != "gemini-test" {
+		t.Fatalf("Gemini models = %v", gemini)
+	}
+}
