@@ -61,6 +61,20 @@ https://models.dev/api.json?type=all
 
 已手工覆盖且不为空的参数不会被官方目录覆盖；未知字段会由目录补齐。重复同步是幂等的，不会重复创建模型。
 
+### 导出配置文本
+
+页面顶部的“导出配置”支持按 Provider 或具体 Key 勾选。生成前必须重新输入管理密码，服务端会返回一份 `.env` 风格的纯文本：
+
+```text
+VOLCENGINE_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+VOLCENGINE_PROTOCOL=openai_chat
+VOLCENGINE_AUTH_MODE=bearer
+VOLCENGINE_MODEL=doubao-example
+VOLCENGINE_API_KEY=ep-or-key
+```
+
+同一 Provider 下导出多个 Key 时，变量前缀会自动追加 Key 别名并去重。包含空格、`#` 等字符的值会自动加引号。完整密钥只出现在重新验证后的响应中，不写入浏览器持久存储；关闭弹窗会立即清空文本和密码。
+
 ### 自定义 Provider
 
 - 地址必须是 HTTPS，不能包含用户名、密码、查询参数或片段。
@@ -293,6 +307,7 @@ POST   /keys/api/test-enabled
 POST   /keys/api/keys/{id}/reveal
 POST   /keys/api/keys/{id}/discover-models
 POST   /keys/api/providers/{id}/discover-models
+POST   /keys/api/export
 GET    /keys/api/keys/{id}/detections
 ```
 

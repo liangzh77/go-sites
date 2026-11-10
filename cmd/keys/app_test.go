@@ -215,6 +215,21 @@ func TestHTTPAuthenticationCSRFAndPageHeaders(t *testing.T) {
 		t.Fatalf("reveal Cache-Control = %q", reveal.header.Get("Cache-Control"))
 	}
 
+	exported := requestJSON(t, client, http.MethodPost,
+		server.URL+"/keys/api/export", map[string]any{
+			"password": "correct-password",
+			"keyIds":   []string{keyPayload.Key.ID},
+		}, loginPayload.CSRFToken)
+	if exported.status != http.StatusOK ||
+		!bytes.Contains(exported.body, []byte("sk-http-test-secret-value")) ||
+		!bytes.Contains(exported.body, []byte("_BASE_URL=https://api.example.com/v1")) ||
+		!bytes.Contains(exported.body, []byte("_MODEL=test-model")) {
+		t.Fatalf("export status = %d body=%s", exported.status, exported.body)
+	}
+	if exported.header.Get("Cache-Control") != "no-store, max-age=0" {
+		t.Fatalf("export Cache-Control = %q", exported.header.Get("Cache-Control"))
+	}
+
 	history := requestJSON(t, client, http.MethodGet,
 		server.URL+"/keys/api/keys/"+keyPayload.Key.ID+"/detections", nil, "")
 	if history.status != http.StatusOK {

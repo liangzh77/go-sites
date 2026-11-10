@@ -142,6 +142,21 @@ type ModelImportResult struct {
 	Models     []ModelConfig `json:"models"`
 }
 
+type ExportKey struct {
+	KeyID           string
+	ProviderID      string
+	ProviderName    string
+	PresetID        string
+	Protocol        string
+	AuthMode        string
+	BaseURL         string
+	KeyAlias        string
+	Model           string
+	Secret          string
+	ProviderEnabled bool
+	KeyEnabled      bool
+}
+
 type Detection struct {
 	ID           string `json:"id"`
 	KeyID        string `json:"keyId"`

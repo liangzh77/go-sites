@@ -66,6 +66,7 @@
         </div>
         <div class="hero-actions">
           <button class="secondary-button" id="batchTestButton" type="button">检测全部启用 Key</button>
+          <button class="secondary-button" id="exportButton" type="button">导出配置</button>
           <button class="primary-button" id="addProviderButton" type="button">＋ 新增 Provider</button>
         </div>
       </section>
@@ -368,6 +369,42 @@
         <button class="secondary-button close-dialog" type="button">关闭</button>
       </div>
     </div>
+  </dialog>
+
+  <dialog id="exportDialog" class="modal">
+    <form id="exportForm" class="modal-card wide-modal">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow">CONFIG EXPORT</p>
+          <h2>导出配置文本</h2>
+          <p class="modal-subtitle">选择 Provider 或具体 Key，重新验证后生成可复制的环境变量文本。</p>
+        </div>
+        <button class="icon-button close-dialog" type="button" aria-label="关闭">×</button>
+      </div>
+      <p class="sensitive-copy">导出内容包含完整 API Key。文本只在当前弹窗中生成，不会写入浏览器存储；关闭弹窗后立即清空。</p>
+      <div class="export-toolbar">
+        <button class="tiny-button" id="exportSelectAllButton" type="button">全选</button>
+        <button class="tiny-button" id="exportClearButton" type="button">清空</button>
+        <strong id="exportSelectionCount">已选择 0 个 Key</strong>
+      </div>
+      <div id="exportTree" class="export-tree"></div>
+      <div id="exportOutputBlock" hidden>
+        <label class="field">
+          <span>导出文本</span>
+          <textarea id="exportText" class="mono-input export-output" rows="16" readonly spellcheck="false"></textarea>
+        </label>
+      </div>
+      <label class="field export-password">
+        <span>管理密码</span>
+        <input id="exportPassword" type="password" autocomplete="current-password" required>
+      </label>
+      <p class="form-error" id="exportFormError" role="alert"></p>
+      <div class="modal-actions">
+        <button class="secondary-button close-dialog" type="button">关闭</button>
+        <button class="secondary-button" id="copyExportButton" type="button" hidden>复制文本</button>
+        <button class="primary-button" id="exportSubmitButton" type="submit">验证并生成</button>
+      </div>
+    </form>
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

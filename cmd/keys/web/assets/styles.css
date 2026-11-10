@@ -832,6 +832,83 @@ input::placeholder, textarea::placeholder { color: #9aa39e; }
   font-size: 10px;
   font-weight: 650;
 }
+.export-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.export-toolbar strong {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.export-tree {
+  max-height: 310px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(23, 36, 31, 0.02);
+}
+.export-provider {
+  padding: 13px 14px;
+  border-top: 1px solid var(--line);
+}
+.export-provider:first-child { border-top: 0; }
+.export-provider-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.export-provider-head small {
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 400;
+}
+.export-keys {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 10px 0 0 25px;
+}
+.export-key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.export-key code {
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 9px;
+  white-space: nowrap;
+}
+.export-tree input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--forest-bright);
+}
+.export-output {
+  min-height: 290px;
+  resize: vertical;
+  white-space: pre;
+  line-height: 1.55;
+}
+.export-password { margin-top: 16px; }
+.export-tree-empty {
+  padding: 30px 18px;
+  color: var(--ink-soft);
+  font-size: 12px;
+  text-align: center;
+}
 .history-wrap { overflow-x: auto; }
 .history-table { width: 100%; min-width: 650px; border-collapse: collapse; }
 .history-table th, .history-table td { padding: 11px 9px; border-top: 1px solid var(--line); font-size: 10px; text-align: left; }
@@ -968,6 +1045,7 @@ input::placeholder, textarea::placeholder { color: #9aa39e; }
   .modal-actions button { width: 100%; }
   .model-catalog-item { grid-template-columns: 1fr; gap: 12px; }
   .model-specs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .export-keys { grid-template-columns: 1fr; margin-left: 23px; }
   .toast { right: 12px; bottom: 12px; max-width: calc(100% - 24px); }
 }
 

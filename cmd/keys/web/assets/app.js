@@ -134,6 +134,7 @@
   function closeAllDialogs() {
     document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
     clearRevealState();
+    clearExportState();
   }
 
   function providerByID(id) {
@@ -913,6 +914,110 @@
     setFormError("discoveryError");
   }
 
+  function renderExportTree() {
+    const tree = $("exportTree");
+    if (!state.providers.length) {
+      tree.innerHTML = '<div class="export-tree-empty">暂无可导出的 Provider。</div>';
+      updateExportSelectionCount();
+      return;
+    }
+    tree.innerHTML = state.providers.map((provider) => {
+      const keys = provider.keys.map((key) => `<label class="export-key">
+        <input type="checkbox" data-export-key="${escapeAttr(key.id)}" data-provider-id="${escapeAttr(provider.id)}">
+        <span>${escapeHTML(key.alias)}${key.enabled ? "" : "（停用）"}</span>
+        <code>${escapeHTML(key.maskedKey)}</code>
+      </label>`).join("");
+      return `<section class="export-provider" data-provider-id="${escapeAttr(provider.id)}">
+        <label class="export-provider-head">
+          <input type="checkbox" data-export-provider="${escapeAttr(provider.id)}" ${provider.keys.length ? "" : "disabled"}>
+          <span>${escapeHTML(provider.name)}</span>
+          <small>${provider.keys.length} Keys${provider.enabled ? "" : " · 停用"}</small>
+        </label>
+        ${keys ? `<div class="export-keys">${keys}</div>` : '<div class="export-tree-empty">这个 Provider 没有 Key。</div>'}
+      </section>`;
+    }).join("");
+    updateExportSelectionCount();
+  }
+
+  function selectedExportKeyIDs() {
+    return [...document.querySelectorAll("#exportTree input[data-export-key]:checked")]
+      .map((input) => input.dataset.exportKey);
+  }
+
+  function updateExportSelectionCount() {
+    $("exportSelectionCount").textContent = `已选择 ${selectedExportKeyIDs().length} 个 Key`;
+  }
+
+  function syncExportProviderCheckbox(providerID) {
+    const providerCheckbox = document.querySelector(`#exportTree input[data-export-provider="${CSS.escape(providerID)}"]`);
+    if (!providerCheckbox) return;
+    const keyCheckboxes = [...document.querySelectorAll(`#exportTree input[data-provider-id="${CSS.escape(providerID)}"][data-export-key]`)];
+    const checked = keyCheckboxes.filter((input) => input.checked).length;
+    providerCheckbox.checked = keyCheckboxes.length > 0 && checked === keyCheckboxes.length;
+    providerCheckbox.indeterminate = checked > 0 && checked < keyCheckboxes.length;
+  }
+
+  function clearExportState() {
+    $("exportText").value = "";
+    $("exportPassword").value = "";
+    $("exportOutputBlock").hidden = true;
+    $("copyExportButton").hidden = true;
+    $("exportSubmitButton").hidden = false;
+    setFormError("exportFormError");
+  }
+
+  function openExportDialog() {
+    clearExportState();
+    renderExportTree();
+    openDialog($("exportDialog"));
+  }
+
+  async function submitExport(event) {
+    event.preventDefault();
+    const ids = selectedExportKeyIDs();
+    if (!ids.length) {
+      setFormError("exportFormError", "至少选择一个 Key");
+      return;
+    }
+    setFormError("exportFormError");
+    setButtonPending("exportSubmitButton", true, "验证并生成中…");
+    try {
+      const payload = await api("export", {
+        method: "POST",
+        body: {
+          password: $("exportPassword").value,
+          keyIds: ids,
+        },
+      });
+      $("exportPassword").value = "";
+      $("exportText").value = payload.text || "";
+      $("exportOutputBlock").hidden = false;
+      $("copyExportButton").hidden = false;
+      $("exportSubmitButton").hidden = true;
+      $("exportText").focus();
+      $("exportText").select();
+      showToast(`已生成 ${payload.count} 个 Key 的配置文本`);
+    } catch (error) {
+      setFormError("exportFormError", errorMessage(error));
+      $("exportPassword").select();
+    } finally {
+      setButtonPending("exportSubmitButton", false);
+    }
+  }
+
+  async function copyExportText() {
+    const text = $("exportText").value;
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      $("exportText").focus();
+      $("exportText").select();
+      document.execCommand("copy");
+    }
+    showToast("导出文本已复制");
+  }
+
   async function openHistory(keyID) {
     const found = keyByID(keyID);
     if (!found) return;
@@ -1048,6 +1153,42 @@
 
     $("addProviderButton").addEventListener("click", () => openProviderDialog());
     $("batchTestButton").addEventListener("click", () => batchTest());
+    $("exportButton").addEventListener("click", openExportDialog);
+    $("exportForm").addEventListener("submit", submitExport);
+    $("copyExportButton").addEventListener("click", copyExportText);
+    $("exportSelectAllButton").addEventListener("click", () => {
+      document.querySelectorAll("#exportTree input[data-export-key]").forEach((input) => {
+        input.checked = true;
+      });
+      document.querySelectorAll("#exportTree input[data-export-provider]").forEach((input) => {
+        if (!input.disabled) {
+          input.checked = true;
+          input.indeterminate = false;
+        }
+      });
+      updateExportSelectionCount();
+    });
+    $("exportClearButton").addEventListener("click", () => {
+      document.querySelectorAll("#exportTree input[type=checkbox]").forEach((input) => {
+        input.checked = false;
+        input.indeterminate = false;
+      });
+      clearExportState();
+      updateExportSelectionCount();
+    });
+    $("exportTree").addEventListener("change", (event) => {
+      const providerCheckbox = event.target.closest("input[data-export-provider]");
+      if (providerCheckbox) {
+        const providerID = providerCheckbox.dataset.exportProvider;
+        providerCheckbox.indeterminate = false;
+        document.querySelectorAll(`#exportTree input[data-provider-id="${CSS.escape(providerID)}"][data-export-key]`)
+          .forEach((input) => { input.checked = providerCheckbox.checked; });
+      }
+      const keyCheckbox = event.target.closest("input[data-export-key]");
+      if (keyCheckbox) syncExportProviderCheckbox(keyCheckbox.dataset.providerId);
+      updateExportSelectionCount();
+      clearExportState();
+    });
     providerList.addEventListener("click", (event) => {
       const button = event.target.closest("button[data-action]");
       if (button) handleAction(button);
@@ -1062,12 +1203,14 @@
       button.addEventListener("click", () => {
         const dialog = button.closest("dialog");
         if (dialog?.id === "revealDialog") clearRevealState();
+        if (dialog?.id === "exportDialog") clearExportState();
         dialog?.close();
       });
     });
     document.querySelectorAll("dialog").forEach((dialog) => {
       dialog.addEventListener("close", () => {
         if (dialog.id === "revealDialog") clearRevealState();
+        if (dialog.id === "exportDialog") clearExportState();
       });
     });
 

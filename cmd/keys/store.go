@@ -1193,6 +1193,69 @@ func (s *keyStore) revealSecret(keyID string) (string, error) {
 	return s.cipher.open(keyID, ciphertext)
 }
 
+func (s *keyStore) exportKeys(keyIDs []string) ([]ExportKey, error) {
+	seen := make(map[string]bool, len(keyIDs))
+	ids := make([]string, 0, len(keyIDs))
+	for _, id := range keyIDs {
+		id = strings.TrimSpace(id)
+		if id != "" && !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, invalid("keyIds", "至少选择一个 Key")
+	}
+	if len(ids) > 256 {
+		return nil, invalid("keyIds", "一次最多导出 256 个 Key")
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
+	args := make([]any, 0, len(ids))
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	rows, err := s.db.Query(`
+		SELECT k.id, k.provider_id, p.name, p.preset_id, p.protocol, p.auth_mode,
+		       p.base_url, k.alias, k.test_model, k.ciphertext, p.enabled, k.enabled
+		  FROM api_keys k JOIN providers p ON p.id = k.provider_id
+		 WHERE k.id IN (`+placeholders+`)`, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	entries := make([]ExportKey, 0, len(ids))
+	for rows.Next() {
+		var (
+			entry      ExportKey
+			ciphertext string
+			providerOn int
+			keyOn      int
+		)
+		if err := rows.Scan(
+			&entry.KeyID, &entry.ProviderID, &entry.ProviderName, &entry.PresetID,
+			&entry.Protocol, &entry.AuthMode, &entry.BaseURL, &entry.KeyAlias,
+			&entry.Model, &ciphertext, &providerOn, &keyOn,
+		); err != nil {
+			return nil, err
+		}
+		entry.ProviderEnabled = providerOn != 0
+		entry.KeyEnabled = keyOn != 0
+		entry.Secret, err = s.cipher.open(entry.KeyID, ciphertext)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(entries) != len(ids) {
+		return nil, errNotFound
+	}
+	sortExportKeys(entries)
+	return entries, nil
+}
+
 func (s *keyStore) providerCredential(keyID string) (Provider, string, error) {
 	var (
 		provider   Provider

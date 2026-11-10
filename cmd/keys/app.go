@@ -72,6 +72,7 @@ func (a *app) handler() http.Handler {
 	mux.HandleFunc("POST /keys/api/test-enabled", a.withMutation(a.handleTestEnabled))
 	mux.HandleFunc("POST /keys/api/keys/{id}/reveal", a.withMutation(a.handleRevealKey))
 	mux.HandleFunc("POST /keys/api/keys/{id}/discover-models", a.withMutation(a.handleDiscoverModels))
+	mux.HandleFunc("POST /keys/api/export", a.withMutation(a.handleExportKeys))
 	mux.HandleFunc("GET /keys/api/keys/{id}/detections", a.withSession(a.handleListDetections))
 
 	mux.HandleFunc("/keys/api/", func(w http.ResponseWriter, r *http.Request) {
@@ -432,6 +433,36 @@ func (a *app) handleDiscoverModels(w http.ResponseWriter, r *http.Request, _ str
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (a *app) handleExportKeys(w http.ResponseWriter, r *http.Request, _ string) {
+	if !a.auth.allowAttempt() {
+		writeError(w, http.StatusTooManyRequests, "LOGIN_RATE_LIMITED", "重新验证次数过多，请一分钟后再试")
+		return
+	}
+	var input struct {
+		Password string   `json:"password"`
+		KeyIDs   []string `json:"keyIds"`
+	}
+	if err := decodeJSON(w, r, &input, 64<<10); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	if !a.auth.verifyPassword(input.Password) {
+		a.auth.recordFailure()
+		writeError(w, http.StatusUnauthorized, "REAUTH_FAILED", "密码错误")
+		return
+	}
+	a.auth.recordSuccess()
+	entries, err := a.store.exportKeys(input.KeyIDs)
+	if err != nil {
+		writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"count": len(entries),
+		"text":  buildExportText(entries),
+	})
 }
 
 func (a *app) handleImportProviderModels(w http.ResponseWriter, r *http.Request, _ string) {
