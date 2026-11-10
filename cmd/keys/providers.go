@@ -79,6 +79,12 @@ var providerPresets = []ProviderPreset{
 		DiscoverModels: true, Documentation: "https://openrouter.ai/docs/api-reference/overview",
 	},
 	{
+		ID: "opencode-go", Name: "OpenCode Go", Category: "Coding Plan",
+		Protocol: protocolOpenAIChat, BaseURL: "https://opencode.ai/inference/go/openai/v1",
+		AuthMode: authBearer, DiscoverModels: true,
+		Documentation: "https://opencode.ai/docs/console/go/",
+	},
+	{
 		ID: "siliconflow", Name: "硅基流动", Category: "聚合 / 推理平台",
 		Protocol: protocolOpenAIChat, BaseURL: "https://api.siliconflow.cn/v1", AuthMode: authBearer,
 		DiscoverModels: true, Documentation: "https://docs.siliconflow.cn/",

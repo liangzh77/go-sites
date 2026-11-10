@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -196,5 +197,55 @@ func TestModelListParserHandlesOpenAIAndGemini(t *testing.T) {
 	gemini := parseModelList([]byte(`{"models":[{"name":"models/gemini-test"}]}`))
 	if len(gemini) != 1 || gemini[0] != "gemini-test" {
 		t.Fatalf("Gemini models = %v", gemini)
+	}
+}
+
+func TestOpenCodeGoSendsSessionHeaderForDetectionAndDiscovery(t *testing.T) {
+	var paths []string
+	var sessions []string
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		paths = append(paths, request.URL.Path)
+		sessions = append(sessions, request.Header.Get("x-opencode-session"))
+		body := `{"choices":[]}`
+		if strings.HasSuffix(request.URL.Path, "/models") {
+			body = `{"data":[{"id":"deepseek-v4.1-flash"}]}`
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    request,
+		}, nil
+	})}
+	d := newDetector()
+	d.client = client
+	provider := Provider{
+		ID: "p_open_code", PresetID: "opencode-go", Protocol: protocolOpenAIChat,
+		BaseURL: "https://opencode.ai/inference/go/openai/v1", AuthMode: authBearer,
+	}
+	target := DetectionTarget{
+		Key:      APIKey{ID: "k_open_code"},
+		Provider: provider,
+		Model:    ModelConfig{ModelID: "deepseek-v4.1-flash", TestParams: json.RawMessage(`{}`)},
+		Secret:   "oc_test", Fingerprint: "fp", StartedAt: time.Now().UTC(),
+	}
+	result := d.testTarget(context.Background(), target)
+	if result.Status != statusSuccess {
+		t.Fatalf("detection status = %s detail=%s", result.Status, result.Detail)
+	}
+	if _, err := d.discoverModels(context.Background(), provider, "oc_test"); err != nil {
+		t.Fatal(err)
+	}
+	if len(paths) != 2 || len(sessions) != 2 {
+		t.Fatalf("paths=%v sessions=%v", paths, sessions)
+	}
+	for _, session := range sessions {
+		if !strings.HasPrefix(session, "ses_") {
+			t.Fatalf("OpenCode session = %q", session)
+		}
+	}
+	if paths[0] != "/inference/go/openai/v1/chat/completions" ||
+		paths[1] != "/inference/go/openai/v1/models" {
+		t.Fatalf("OpenCode paths = %v", paths)
 	}
 }

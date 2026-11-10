@@ -79,6 +79,7 @@
 | 百度千帆 | `https://qianfan.baidubce.com/v2` | OpenAI Chat | 否 | 预设与通用协议测试通过，上线前需用当前账号文档再次核对认证与模型 ID |
 | 腾讯混元 | `https://api.hunyuan.cloud.tencent.com/v1` | OpenAI Chat | 否 | 官方兼容接口核对，自动协议测试通过，待真实联调；迁移到 TokenHub 时修改地址 |
 | OpenRouter | `https://openrouter.ai/api/v1` | OpenAI Chat | 是 | 官方协议核对，自动协议测试通过，待真实联调 |
+| OpenCode Go | `https://opencode.ai/inference/go/openai/v1` | OpenAI Chat | 是 | 官方协议核对；自动发送 `x-opencode-session`，自动协议测试通过 |
 | 硅基流动 | `https://api.siliconflow.cn/v1` | OpenAI Chat | 是 | 官方协议核对，自动协议测试通过，待真实联调 |
 | Groq | `https://api.groq.com/openai/v1` | OpenAI Chat | 是 | 官方协议核对，自动协议测试通过，待真实联调 |
 | Together AI | `https://api.together.xyz/v1` | OpenAI Chat | 是 | 官方协议核对，自动协议测试通过，待真实联调 |
@@ -100,6 +101,7 @@
 - [百度千帆文档](https://cloud.baidu.com/doc/WENXINWORKSHOP/index.html)
 - [腾讯混元 OpenAI 兼容接口](https://cloud.tencent.com/document/product/1729/111007)
 - [OpenRouter API](https://openrouter.ai/docs/api-reference/overview)
+- [OpenCode Go](https://opencode.ai/docs/console/go/)
 - [硅基流动 API](https://docs.siliconflow.cn/)
 - [Groq API](https://console.groq.com/docs/api-reference)
 - [Together AI Chat](https://docs.together.ai/reference/chat-completions)

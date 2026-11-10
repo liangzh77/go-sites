@@ -230,6 +230,7 @@ func (d *detector) testTarget(ctx context.Context, target DetectionTarget) Detec
 		return result
 	}
 	applyAuthHeaders(req.Header, target.Provider.AuthMode, target.Secret)
+	applyProviderSessionHeaders(req.Header, target.Provider)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "go-sites-keys/1.0")
@@ -340,6 +341,33 @@ func applyAuthHeaders(header http.Header, authMode, secret string) {
 	case authGemini:
 		header.Set("x-goog-api-key", secret)
 	}
+}
+
+func applyProviderSessionHeaders(header http.Header, provider Provider) {
+	if isOpenCodeGoProvider(provider) {
+		// OpenCode Go groups requests by conversation. A detection is one
+		// isolated conversation, so it receives its own stable session id.
+		header.Set("x-opencode-session", newOpenCodeSessionID())
+	}
+}
+
+func isOpenCodeGoProvider(provider Provider) bool {
+	parsed, err := url.Parse(provider.BaseURL)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(parsed.Hostname(), "opencode.ai") &&
+		strings.HasPrefix(strings.ToLower(parsed.Path), "/inference/go/")
+}
+
+func newOpenCodeSessionID() string {
+	id, err := newID("ses")
+	if err == nil {
+		return id
+	}
+	// Session ids group requests but are not credentials. The timestamp
+	// fallback keeps detection available even if the entropy source fails.
+	return fmt.Sprintf("ses_%d", time.Now().UnixNano())
 }
 
 func classifyDetectionResponse(statusCode int, body []byte, secret string) (string, string) {
@@ -507,6 +535,7 @@ func (d *detector) discoverModels(ctx context.Context, provider Provider, secret
 		return discoveryResult{}, err
 	}
 	applyAuthHeaders(req.Header, provider.AuthMode, secret)
+	applyProviderSessionHeaders(req.Header, provider)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "go-sites-keys/1.0")
 	resp, err := d.client.Do(req)
