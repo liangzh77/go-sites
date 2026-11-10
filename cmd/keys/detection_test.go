@@ -210,9 +210,9 @@ func TestOpenCodeGoSendsSessionHeaderForDetectionAndDiscovery(t *testing.T) {
 		}
 		body := `{"choices":[]}`
 		if request.URL.Hostname() == "models.dev" {
-			body = `{"opencode-go":{"models":{"deepseek-v4.1-flash":{"id":"deepseek-v4.1-flash","name":"DeepSeek V4.1 Flash","reasoning":true,"reasoning_options":[{"type":"effort","values":"low high max"}],"limit":{"context":1000000,"output":384000}}}}}`
+			body = `{"opencode-go":{"models":{"deepseek-v4.1-flash":{"id":"deepseek-v4.1-flash","name":"DeepSeek V4.1 Flash","reasoning":true,"reasoning_options":[{"type":"effort","values":"low high max"}],"limit":{"context":1000000,"output":384000}},"flex-model":{"id":"flex-model","name":"Flexible Model","reasoning":"true","reasoning_options":[{"type":"effort","values":["low","high"]}],"limit":{"context":"123000","output":45000}}}}}`
 		} else if strings.HasSuffix(request.URL.Path, "/models") {
-			body = `{"data":[{"id":"deepseek-v4.1-flash"}]}`
+			body = `{"data":[{"id":"deepseek-v4.1-flash"},{"id":"flex-model"}]}`
 		}
 		return &http.Response{
 			StatusCode: http.StatusOK,
@@ -253,9 +253,14 @@ func TestOpenCodeGoSendsSessionHeaderForDetectionAndDiscovery(t *testing.T) {
 		paths[1] != "/inference/go/openai/v1/models" {
 		t.Fatalf("OpenCode paths = %v", paths)
 	}
-	if len(discovery.Models) != 1 || discovery.Models[0].ContextWindow == nil ||
-		*discovery.Models[0].ContextWindow != 1000000 ||
+	if len(discovery.Models) != 2 ||
+		discovery.Models[0].ContextWindow == nil || *discovery.Models[0].ContextWindow != 1000000 ||
 		discovery.Models[0].MaxOutput == nil || *discovery.Models[0].MaxOutput != 384000 {
 		t.Fatalf("enriched discovery = %+v", discovery.Models)
+	}
+	if discovery.Models[1].ContextWindow == nil || *discovery.Models[1].ContextWindow != 123000 ||
+		discovery.Models[1].MaxOutput == nil || *discovery.Models[1].MaxOutput != 45000 ||
+		!strings.Contains(discovery.Models[1].ThinkingLevel, "low high") {
+		t.Fatalf("flexible model discovery = %+v", discovery.Models[1])
 	}
 }

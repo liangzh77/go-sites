@@ -724,8 +724,11 @@ func jsonString(raw json.RawMessage) string {
 }
 
 func jsonBool(raw json.RawMessage) *bool {
+	if len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return nil
+	}
 	var value bool
-	if len(raw) == 0 || json.Unmarshal(raw, &value) != nil {
+	if json.Unmarshal(raw, &value) != nil {
 		var text string
 		if json.Unmarshal(raw, &text) != nil {
 			return nil
@@ -740,7 +743,7 @@ func jsonBool(raw json.RawMessage) *bool {
 }
 
 func jsonInt64(raw json.RawMessage) *int64 {
-	if len(raw) == 0 {
+	if len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
 		return nil
 	}
 	var value int64
