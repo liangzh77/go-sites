@@ -199,7 +199,9 @@
         </label>
         <label class="field">
           <span>测试模型</span>
-          <select id="keyTestModel"></select>
+          <input id="keyTestModel" list="keyTestModelOptions" maxlength="300" placeholder="选择或直接输入 Model ID / Endpoint ID">
+          <datalist id="keyTestModelOptions"></datalist>
+          <small>可以从已同步模型中选择，也可以直接填写任意模型 ID 或推理接入点 ID。</small>
         </label>
         <label class="field span-2">
           <span>API 密钥</span>

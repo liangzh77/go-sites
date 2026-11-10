@@ -43,7 +43,7 @@ var providerPresets = []ProviderPreset{
 	{
 		ID: "volcengine", Name: "火山方舟", Category: "国内官方",
 		Protocol: protocolOpenAIChat, BaseURL: "https://ark.cn-beijing.volces.com/api/v3",
-		AuthMode: authBearer, DiscoverModels: false,
+		AuthMode: authBearer, DiscoverModels: true,
 		Documentation: "https://www.volcengine.com/docs/82379/1399008",
 	},
 	{

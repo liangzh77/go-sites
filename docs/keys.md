@@ -22,6 +22,8 @@
 - 模型 ID、上下文、最大输出、思考能力、思考等级 / 预算、额外测试参数、默认测试模型。
 - 从支持模型列表接口的 Provider 获取模型 ID；OpenCode Go 还会合并 Models.dev 官方目录中的上下文、最大输出、思考模式和附加能力。
 - OpenCode Go 创建 Provider 后自动导入全部当前模型；已有 Provider 可点击“同步模型”全量刷新，不需要逐个手工填写。
+- 火山方舟保存 Key 后自动调用 `GET /api/v3/models`，只导入支持 Chat Completions 的模型及参数。
+- 测试模型字段始终允许直接输入 Model ID 或 Endpoint ID；同步失败或使用自定义接入点时不会被空下拉框阻塞。
 - AES-256-GCM 加密落库、列表脱敏、重新验证后临时查看完整 Key。
 - 服务端 bcrypt 密码校验、HttpOnly / SameSite=Strict 会话、CSRF 校验和敏感响应禁缓存。
 - SQLite WAL、单文件备份命令、systemd 单元和部署 / 回滚入口。
@@ -90,7 +92,7 @@ https://models.dev/api.json?type=all
 | Mistral | `https://api.mistral.ai/v1` | OpenAI Chat | 是 | 官方协议核对，自动协议测试通过，待真实联调 |
 | DeepSeek | `https://api.deepseek.com` | OpenAI Chat / Responses | 是 | 官方协议核对，自动协议测试通过，待真实联调 |
 | 阿里云百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | OpenAI Chat | 否 | 官方兼容协议核对，自动协议测试通过，待真实联调 |
-| 火山方舟 | `https://ark.cn-beijing.volces.com/api/v3` | OpenAI Chat | 否 | 官方地址核对，自动协议测试通过，待真实联调；模型字段可能是 Endpoint ID |
+| 火山方舟 | `https://ark.cn-beijing.volces.com/api/v3` | OpenAI Chat | 是 | 官方模型接口已核对；自动导入 Chat 模型参数，同时允许填写 Endpoint ID |
 | Moonshot / Kimi | `https://api.moonshot.cn/v1` | OpenAI Chat | 是 | 官方地址核对，自动协议测试通过，待真实联调 |
 | 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | OpenAI Chat | 是 | 官方地址核对，自动协议测试通过，待真实联调 |
 | MiniMax | `https://api.minimax.chat/v1/text` | ChatCompletion v2 | 否 | 专用协议适配，自动协议测试通过，待真实联调；接口变更需重新核对文档 |

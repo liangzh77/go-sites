@@ -200,6 +200,49 @@ func TestModelListParserHandlesOpenAIAndGemini(t *testing.T) {
 	}
 }
 
+func TestVolcengineModelParserKeepsChatModelsAndMetadata(t *testing.T) {
+	payload := []byte(`{
+		"data": [
+			{
+				"id": "doubao-chat-260101",
+				"name": "doubao-chat",
+				"context_window": 262144,
+				"max_output_tokens": 131072,
+				"api_supported": {"chat/completions": true, "responses": true},
+				"effort": {"default_level": "high", "supported_levels": ["low", "high", "max"]},
+				"features": {"thinking": {"types": ["enabled", "disabled"]}, "tools": {"function_calling": true}}
+			},
+			{
+				"id": "doubao-image",
+				"name": "doubao-image",
+				"api_supported": {"images/generations": true}
+			},
+			{
+				"id": "qwen-chat",
+				"name": "qwen-chat",
+				"token_limits": {"context_window": "131072", "max_output_token_length": 32768},
+				"api_supported": {"chat/completions": true},
+				"features": {"thinking": {"types": []}}
+			}
+		]
+	}`)
+	models := parseVolcengineModels(payload)
+	if len(models) != 2 {
+		t.Fatalf("Volcengine chat models = %+v", models)
+	}
+	if models[0].ID != "doubao-chat-260101" ||
+		models[0].ContextWindow == nil || *models[0].ContextWindow != 262144 ||
+		models[0].MaxOutput == nil || *models[0].MaxOutput != 131072 ||
+		models[0].SupportsThinking == nil || !*models[0].SupportsThinking ||
+		!strings.Contains(models[0].ThinkingLevel, "low high max") {
+		t.Fatalf("Volcengine metadata = %+v", models[0])
+	}
+	if models[1].ContextWindow == nil || *models[1].ContextWindow != 131072 ||
+		models[1].MaxOutput == nil || *models[1].MaxOutput != 32768 {
+		t.Fatalf("Volcengine string limits = %+v", models[1])
+	}
+}
+
 func TestOpenCodeGoSendsSessionHeaderForDetectionAndDiscovery(t *testing.T) {
 	var paths []string
 	var sessions []string

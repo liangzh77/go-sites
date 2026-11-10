@@ -526,12 +526,12 @@
   }
 
   function populateKeyModelSelect(provider, selected = "") {
-    const options = ['<option value="">未指定测试模型</option>'];
+    const options = [];
     for (const model of provider.models) {
-      options.push(`<option value="${escapeAttr(model.modelId)}">${escapeHTML(model.modelId)}${model.defaultTest ? " · 默认" : ""}</option>`);
+      options.push(`<option value="${escapeAttr(model.modelId)}" label="${escapeAttr(modelDisplayName(model))}${model.defaultTest ? " · 默认" : ""}"></option>`);
     }
-    $("keyTestModel").innerHTML = options.join("");
-    const fallback = provider.models.find((model) => model.defaultTest)?.modelId || provider.models[0]?.modelId || "";
+    $("keyTestModelOptions").innerHTML = options.join("");
+    const fallback = provider.models.find((model) => model.defaultTest)?.modelId || "";
     $("keyTestModel").value = selected || fallback;
   }
 
@@ -556,7 +556,7 @@
     openDialog($("keyDialog"));
     window.setTimeout(() => $("keyAlias").focus(), 20);
     if (!provider.models.length) {
-      setFormError("keyFormError", "当前 Provider 尚无模型配置。Key 可以保存，但检测前必须先添加模型。");
+      setFormError("keyFormError", "当前 Provider 尚未同步模型。你可以直接输入 Model ID / Endpoint ID，或先保存 Key 后点击“同步模型”。");
     }
   }
 
@@ -577,15 +577,27 @@
     setFormError("keyFormError");
     setButtonPending("keySubmitButton", true, "保存中…");
     try {
+      let createdKey = null;
       if (state.editKeyID) {
         await api(`keys/${encodeURIComponent(state.editKeyID)}`, { method: "PUT", body });
         showToast("Key 已更新；配置变化已使旧检测结果过期");
       } else {
-        await api(`providers/${encodeURIComponent(provider.id)}/keys`, { method: "POST", body });
+        const response = await api(`providers/${encodeURIComponent(provider.id)}/keys`, { method: "POST", body });
+        createdKey = response.key;
         showToast("Key 已加密保存");
       }
       $("keyDialog").close();
       await loadBootstrap();
+      const preset = presetByID(provider.presetId);
+      if (createdKey && preset?.discoverModels) {
+        try {
+          const imported = await importProviderModels(provider.id);
+          await loadBootstrap();
+          showToast(`Key 已保存，并同步 ${imported.discovered} 个可用模型`);
+        } catch (error) {
+          showToast(`Key 已保存，但模型同步失败：${errorMessage(error)}`, "error");
+        }
+      }
     } catch (error) {
       setFormError("keyFormError", errorMessage(error));
     } finally {

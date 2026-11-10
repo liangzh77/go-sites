@@ -470,7 +470,7 @@ func (s *keyStore) createAPIKey(providerID string, input APIKeyInput) (APIKey, e
 		_ = tx.QueryRow(`
 			SELECT model_id FROM models
 			 WHERE provider_id = ?
-			 ORDER BY default_test DESC, model_id
+			   AND default_test = 1
 			 LIMIT 1`, providerID).Scan(&testModel)
 	}
 	if err := requireModel(tx, providerID, testModel); err != nil {
@@ -768,6 +768,10 @@ func (s *keyStore) importDiscoveredModels(providerID string, discovered []Discov
 	if err := requireProvider(tx, providerID); err != nil {
 		return ModelImportResult{}, err
 	}
+	var providerPresetID string
+	if err := tx.QueryRow(`SELECT preset_id FROM providers WHERE id = ?`, providerID).Scan(&providerPresetID); err != nil {
+		return ModelImportResult{}, err
+	}
 
 	seen := make(map[string]bool, len(discovered))
 	unique := make([]DiscoveredModel, 0, len(discovered))
@@ -792,15 +796,12 @@ func (s *keyStore) importDiscoveredModels(providerID string, discovered []Discov
 		return ModelImportResult{}, err
 	}
 	preferredDefault := existingDefault
-	if preferredDefault == "" {
+	if preferredDefault == "" && providerPresetID == "opencode-go" {
 		for _, item := range unique {
 			if item.ID == "deepseek-v4.1-flash" {
 				preferredDefault = item.ID
 				break
 			}
-		}
-		if preferredDefault == "" {
-			preferredDefault = unique[0].ID
 		}
 	}
 
@@ -859,7 +860,7 @@ func (s *keyStore) importDiscoveredModels(providerID string, discovered []Discov
 			if err != nil {
 				return ModelImportResult{}, err
 			}
-			isDefault := normalized.ModelID == preferredDefault
+			isDefault := preferredDefault != "" && normalized.ModelID == preferredDefault
 			if isDefault {
 				if _, err := tx.Exec(`UPDATE models SET default_test = 0 WHERE provider_id = ?`, providerID); err != nil {
 					return ModelImportResult{}, err
@@ -928,7 +929,7 @@ func (s *keyStore) importDiscoveredModels(providerID string, discovered []Discov
 			}
 		}
 		nextDefault := defaultTest != 0
-		if !nextDefault && existingDefault == "" && normalized.ModelID == preferredDefault {
+		if !nextDefault && existingDefault == "" && preferredDefault != "" && normalized.ModelID == preferredDefault {
 			nextDefault = true
 			changed = true
 		}

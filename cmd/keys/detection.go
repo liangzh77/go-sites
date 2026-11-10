@@ -562,7 +562,15 @@ func (d *detector) discoverModels(ctx context.Context, provider Provider, secret
 	}
 	models := make([]DiscoveredModel, 0, len(modelIDs))
 	metadataSource := "provider"
-	if isOpenCodeGoProvider(provider) {
+	if isVolcengineProvider(provider) {
+		models = parseVolcengineModels(data)
+		if len(models) == 0 {
+			for _, id := range modelIDs {
+				models = append(models, DiscoveredModel{ID: id, Source: "provider"})
+			}
+		}
+		metadataSource = "volcengine.models"
+	} else if isOpenCodeGoProvider(provider) {
 		catalog, err := d.fetchOpenCodeCatalog(ctx)
 		if err != nil {
 			return discoveryResult{}, err
@@ -801,6 +809,77 @@ func parseModelList(data []byte) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func isVolcengineProvider(provider Provider) bool {
+	if provider.PresetID == "volcengine" {
+		return true
+	}
+	parsed, err := url.Parse(provider.BaseURL)
+	return err == nil && strings.EqualFold(parsed.Hostname(), "ark.cn-beijing.volces.com")
+}
+
+func parseVolcengineModels(data []byte) []DiscoveredModel {
+	var root struct {
+		Data []json.RawMessage `json:"data"`
+	}
+	if json.Unmarshal(data, &root) != nil {
+		return nil
+	}
+	models := make([]DiscoveredModel, 0, len(root.Data))
+	for _, rawModel := range root.Data {
+		fields := jsonObject(rawModel)
+		modelID := jsonString(fields["id"])
+		apiSupported := jsonObject(fields["api_supported"])
+		chatSupported := jsonBool(apiSupported["chat/completions"])
+		if modelID == "" || chatSupported == nil || !*chatSupported {
+			continue
+		}
+		contextWindow := jsonInt64(fields["context_window"])
+		maxOutput := jsonInt64(fields["max_output_tokens"])
+		tokenLimits := jsonObject(fields["token_limits"])
+		if contextWindow == nil {
+			contextWindow = jsonInt64(tokenLimits["context_window"])
+		}
+		if maxOutput == nil {
+			maxOutput = jsonInt64(tokenLimits["max_output_token_length"])
+		}
+
+		effort := jsonObject(fields["effort"])
+		effortLevels := jsonStringList(effort["supported_levels"])
+		defaultLevel := jsonString(effort["default_level"])
+		features := jsonObject(fields["features"])
+		thinking := jsonObject(features["thinking"])
+		thinkingTypes := jsonStringList(thinking["types"])
+		supportsThinking := (*bool)(nil)
+		if effortLevels != "" || thinkingTypes != "" {
+			value := true
+			supportsThinking = &value
+		}
+		levelParts := make([]string, 0, 2)
+		if effortLevels != "" {
+			description := effortLevels
+			if defaultLevel != "" {
+				description += " (default " + defaultLevel + ")"
+			}
+			levelParts = append(levelParts, "effort: "+description)
+		}
+		if thinkingTypes != "" {
+			levelParts = append(levelParts, "thinking: "+thinkingTypes)
+		}
+
+		models = append(models, DiscoveredModel{
+			ID:               modelID,
+			Name:             jsonString(fields["name"]),
+			ContextWindow:    contextWindow,
+			MaxOutput:        maxOutput,
+			SupportsThinking: supportsThinking,
+			ThinkingLevel:    truncateText(strings.Join(levelParts, "; "), 80),
+			Metadata:         append(json.RawMessage(nil), rawModel...),
+			Source:           "volcengine.models",
+		})
+	}
+	return models
 }
 
 // batchDetect limits concurrent network calls while preserving a stable result
