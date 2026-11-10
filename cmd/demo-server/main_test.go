@@ -123,6 +123,57 @@ func TestMarkdownDemoPageUsesSitePalette(t *testing.T) {
 	}
 }
 
+func TestMarkdownDemoRendersPolishedTablesAndFormats(t *testing.T) {
+	markdown := `## 模块
+
+| 模块 | 规模 | 职责 |
+|---|---|---|
+| app | 99 文件 / 10 Ctrl | 统一入口 |
+
+| 层 | 选型 |
+|---|---|
+| 框架 | Spring Boot |
+
+> 引用内容
+
+- 列表内容
+
+` + "```text\n┌──┐\n│  │\n└──┘\n```"
+	page := renderMarkdownPage("格式测试", markdown)
+
+	for _, want := range []string{
+		`<div class="md-table-wrap">`,
+		`<table class="md-table md-table--3col">`,
+		`<table class="md-table md-table--2col">`,
+		`box-sizing: border-box;`,
+		`.md-table-wrap {`,
+		`table-layout: fixed;`,
+		`white-space: pre;`,
+		`blockquote {`,
+		`li::marker {`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("rendered markdown page missing polished format %q:\n%s", want, page)
+		}
+	}
+	if count := strings.Count(page, `<div class="md-table-wrap">`); count != 2 {
+		t.Fatalf("responsive table wrapper count = %d, want 2:\n%s", count, page)
+	}
+}
+
+func TestEnhanceMarkdownTablesIsIdempotent(t *testing.T) {
+	rendered := renderMarkdown("| 层 | 选型 |\n|---|---|\n| 框架 | Go |")
+	once := enhanceMarkdownTables(rendered)
+	twice := enhanceMarkdownTables(once)
+
+	if once != twice {
+		t.Fatalf("table enhancement is not idempotent:\nfirst:\n%s\nsecond:\n%s", once, twice)
+	}
+	if count := strings.Count(once, `<div class="md-table-wrap">`); count != 1 {
+		t.Fatalf("responsive table wrapper count = %d, want 1:\n%s", count, once)
+	}
+}
+
 func TestMarkdownDemoCopySourcePreservesExactAndUnsafeText(t *testing.T) {
 	markdown := "  # 标题\n\n- **加粗**\n\n<script>alert('x')</script>\n\n```html\n</script>\n```\n"
 	page := renderMarkdownPage("复制测试", markdown)

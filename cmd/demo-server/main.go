@@ -1903,6 +1903,7 @@ func (a *app) refreshStoredMarkdownDemoPages() error {
 			continue
 		}
 		source, hasSource := extractStoredMarkdownDemoSource(oldPage)
+		body = enhanceMarkdownTables(body)
 		nextPage := renderMarkdownPageHTML(item.Title, body)
 		if hasSource {
 			nextPage = renderMarkdownPageHTMLWithSource(item.Title, body, source)
@@ -2862,14 +2863,23 @@ func demoThemeCSS() string {
 
 func markdownDemoCSS() string {
 	return `
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
-      line-height: 1.72;
+      font-size: 16px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
 
     main {
-      width: min(900px, calc(100vw - 2rem));
+      width: min(1040px, calc(100vw - 2rem));
       margin: 0 auto;
       padding: 2rem 0 4rem;
     }
@@ -2950,72 +2960,239 @@ func markdownDemoCSS() string {
     }
 
     article {
-      padding: 2rem;
+      padding: clamp(1.25rem, 3vw, 2.25rem);
       border: 1px solid var(--go-site-border);
       border-radius: 8px;
       background: var(--go-site-surface);
       box-shadow: 0 1px 2px rgba(28, 30, 33, 0.1);
+      line-height: 1.75;
+      overflow-wrap: break-word;
     }
 
     h1,
     h2,
-    h3 {
+    h3,
+    h4,
+    h5,
+    h6 {
       color: var(--go-site-text);
-      line-height: 1.25;
+      line-height: 1.35;
+      text-wrap: balance;
     }
 
     h1 {
       margin-top: 0;
-      font-size: clamp(1.9rem, 5vw, 3rem);
+      margin-bottom: 1.15rem;
+      font-size: clamp(1.85rem, 5vw, 2.7rem);
+      letter-spacing: -0.025em;
     }
 
     h2 {
-      margin-top: 2rem;
-      padding-top: 0.5rem;
+      margin: 2.5rem 0 0.9rem;
+      padding: 0;
+      border: 0;
+      font-size: 1.45rem;
+      letter-spacing: -0.015em;
+    }
+
+    h3 {
+      margin: 1.8rem 0 0.7rem;
+      font-size: 1.16rem;
+    }
+
+    h4,
+    h5,
+    h6 {
+      margin: 1.5rem 0 0.55rem;
+      font-size: 1rem;
+    }
+
+    p {
+      margin: 0.85rem 0;
+    }
+
+    hr {
+      height: 0;
+      margin: 2.1rem 0;
+      border: 0;
       border-top: 1px solid var(--go-site-border-soft);
     }
 
-    code {
-      padding: 0.12rem 0.35rem;
+    ul,
+    ol {
+      margin: 0.85rem 0;
+      padding-left: 1.45rem;
+    }
+
+    li {
+      margin: 0.3rem 0;
+      padding-left: 0.15rem;
+    }
+
+    li::marker {
+      color: var(--go-site-primary);
+      font-weight: 700;
+    }
+
+    a {
+      text-decoration-thickness: 0.08em;
+      text-underline-offset: 0.18em;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
       border-radius: 6px;
-      background: var(--go-site-bg);
+    }
+
+    code {
+      font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.88em;
+      padding: 0.12rem 0.35rem;
+      border: 1px solid var(--go-site-border-soft);
+      border-radius: 5px;
+      background: var(--go-site-surface-soft);
+      color: #303338;
+      overflow-wrap: anywhere;
     }
 
     pre {
+      margin: 1.15rem 0;
       overflow-x: auto;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      padding: 0.9rem 1rem;
+      white-space: pre;
+      padding: 1rem 1.1rem;
       border: 1px solid var(--go-site-border);
-      border-left: 3px solid var(--go-site-primary);
+      border-left: 4px solid var(--go-site-primary);
       border-radius: 8px;
       background: var(--go-site-surface-soft);
       color: var(--go-site-text);
-      font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
-      line-height: 1.72;
+      font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.86rem;
+      line-height: 1.65;
+      tab-size: 4;
+      -webkit-overflow-scrolling: touch;
     }
 
     pre code {
       display: block;
       padding: 0;
+      border: 0;
       border-radius: 0;
       background: transparent;
       color: inherit;
       font: inherit;
-      white-space: inherit;
+      overflow-wrap: normal;
+      white-space: pre;
     }
 
     blockquote {
-      margin: 1rem 0;
-      padding: 0.4rem 1rem;
-      border-left: 3px solid var(--go-site-primary);
-      color: var(--go-site-muted);
-      background: var(--go-site-bg);
+      margin: 1.25rem 0;
+      padding: 0.8rem 1rem;
+      border: 0;
+      border-left: 4px solid var(--go-site-primary);
+      border-radius: 0 7px 7px 0;
+      color: var(--go-site-text);
+      background: #F7F9FC;
+    }
+
+    blockquote > :first-child {
+      margin-top: 0;
+    }
+
+    blockquote > :last-child {
+      margin-bottom: 0;
+    }
+
+    .md-table-wrap {
+      width: 100%;
+      margin: 1.15rem 0 1.65rem;
+      overflow-x: auto;
+      border: 1px solid #D8DCE1;
+      border-radius: 8px;
+      background: var(--go-site-surface);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .md-table-wrap .md-table {
+      width: 100%;
+      min-width: 680px;
+      margin: 0;
+      border: 0;
+      border-collapse: separate;
+      border-spacing: 0;
+      table-layout: fixed;
+      background: var(--go-site-surface);
+    }
+
+    .md-table-wrap .md-table--2col {
+      min-width: 620px;
+    }
+
+    .md-table-wrap .md-table--3col {
+      min-width: 760px;
+    }
+
+    .md-table-wrap .md-table th {
+      padding: 0.75rem 0.85rem;
+      border: 0;
+      border-bottom: 1px solid #D8DCE1;
+      background: #F7F8FA;
+      color: var(--go-site-text);
+      font-weight: 700;
+      line-height: 1.45;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .md-table-wrap .md-table td {
+      padding: 0.72rem 0.85rem;
+      border: 0;
+      border-bottom: 1px solid #ECEEF1;
+      line-height: 1.62;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .md-table-wrap .md-table th + th,
+    .md-table-wrap .md-table td + td {
+      border-left: 1px solid #ECEEF1;
+    }
+
+    .md-table-wrap .md-table tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .md-table-wrap .md-table tbody tr:hover td {
+      background: #F7F9FC;
+    }
+
+    .md-table-wrap .md-table td code {
+      padding: 0.1rem 0.38rem;
+      border-color: #E2E5E9;
+      background: #F3F4F6;
+      font-size: 0.86em;
+      white-space: nowrap;
+    }
+
+    .md-table-wrap .md-table--2col th:first-child {
+      width: 22%;
+    }
+
+    .md-table-wrap .md-table--3col th:first-child {
+      width: 20%;
+    }
+
+    .md-table-wrap .md-table--3col th:nth-child(2) {
+      width: 17%;
+    }
+
+    .md-table-wrap .md-table--3col tbody td:nth-child(-n + 2) {
+      text-align: center;
     }
 
     @media (max-width: 640px) {
       main {
-        width: min(100vw - 1rem, 900px);
+        width: min(100vw - 1rem, 1040px);
         padding: 1rem 0 2rem;
       }
 
@@ -3025,6 +3202,16 @@ func markdownDemoCSS() string {
 
       article {
         padding: 1.1rem;
+      }
+
+      h2 {
+        margin-top: 2.1rem;
+      }
+
+      .md-table-wrap {
+        margin-right: -0.35rem;
+        margin-left: -0.35rem;
+        width: calc(100% + 0.7rem);
       }
     }
 `
@@ -3492,7 +3679,28 @@ func renderMarkdown(source string) string {
 	if err := md.Convert([]byte(source), &out); err != nil {
 		return "<p>" + html.EscapeString(source) + "</p>\n"
 	}
-	return out.String()
+	return enhanceMarkdownTables(out.String())
+}
+
+var (
+	markdownTablePattern       = regexp.MustCompile(`(?s)<table>\n.*?</table>`)
+	markdownTableHeaderPattern = regexp.MustCompile(`(?s)<table>\n<thead>\n<tr>\n(.*?)</tr>`)
+)
+
+func enhanceMarkdownTables(rendered string) string {
+	return markdownTablePattern.ReplaceAllStringFunc(rendered, func(table string) string {
+		columns := 0
+		if match := markdownTableHeaderPattern.FindStringSubmatch(table); len(match) > 1 {
+			columns = strings.Count(match[1], "<th")
+		}
+
+		className := "md-table"
+		if columns > 0 {
+			className += fmt.Sprintf(" md-table--%dcol", columns)
+		}
+		table = strings.Replace(table, "<table>", `<table class="`+className+`">`, 1)
+		return "<div class=\"md-table-wrap\">\n" + table + "\n</div>"
+	})
 }
 
 func markdownTitleFromContent(source string) string {
