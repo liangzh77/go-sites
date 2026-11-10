@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -612,36 +613,6 @@ type modelsDevProvider struct {
 	Models map[string]json.RawMessage `json:"models"`
 }
 
-type modelsDevModel struct {
-	ID               string `json:"id"`
-	Name             string `json:"name"`
-	Description      string `json:"description"`
-	Reasoning        *bool  `json:"reasoning"`
-	ReasoningOptions []struct {
-		Type   string `json:"type"`
-		Values string `json:"values"`
-		Max    *int64 `json:"max"`
-	} `json:"reasoning_options"`
-	Attachment       *bool  `json:"attachment"`
-	ToolCall         *bool  `json:"tool_call"`
-	StructuredOutput *bool  `json:"structured_output"`
-	Temperature      *bool  `json:"temperature"`
-	ReleaseDate      string `json:"release_date"`
-	LastUpdated      string `json:"last_updated"`
-	Status           string `json:"status"`
-	Limit            struct {
-		Context int64 `json:"context"`
-		Input   int64 `json:"input"`
-		Output  int64 `json:"output"`
-	} `json:"limit"`
-	Provider struct {
-		NPM string `json:"npm"`
-		API string `json:"api"`
-	} `json:"provider"`
-	CanonicalModelID string `json:"canonical_model_id"`
-	OpenWeights      *bool  `json:"open_weights"`
-}
-
 func (d *detector) fetchOpenCodeCatalog(ctx context.Context) ([]DiscoveredModel, error) {
 	const endpoint = "https://models.dev/api.json?type=all"
 	requestCtx, cancel := context.WithTimeout(ctx, detectionTimeout)
@@ -674,41 +645,47 @@ func (d *detector) fetchOpenCodeCatalog(ctx context.Context) ([]DiscoveredModel,
 	}
 	models := make([]DiscoveredModel, 0, len(provider.Models))
 	for catalogID, rawModel := range provider.Models {
-		var model modelsDevModel
-		if err := json.Unmarshal(rawModel, &model); err != nil {
+		var fields map[string]json.RawMessage
+		if err := json.Unmarshal(rawModel, &fields); err != nil {
 			continue
 		}
-		if model.ID == "" {
-			model.ID = catalogID
+		modelID := jsonString(fields["id"])
+		if modelID == "" {
+			modelID = catalogID
 		}
-		if strings.EqualFold(model.Status, "deprecated") || strings.TrimSpace(model.ID) == "" {
+		if strings.EqualFold(jsonString(fields["status"]), "deprecated") || strings.TrimSpace(modelID) == "" {
 			continue
 		}
+		limitFields := jsonObject(fields["limit"])
+		contextValue := jsonInt64(limitFields["context"])
+		outputValue := jsonInt64(limitFields["output"])
 		var contextWindow, maxOutput *int64
-		if model.Limit.Context > 0 {
-			value := model.Limit.Context
-			contextWindow = &value
+		if contextValue != nil && *contextValue > 0 {
+			contextWindow = contextValue
 		}
-		if model.Limit.Output > 0 {
-			value := model.Limit.Output
-			maxOutput = &value
+		if outputValue != nil && *outputValue > 0 {
+			maxOutput = outputValue
 		}
+		reasoning := jsonBool(fields["reasoning"])
 		thinkingLevel := ""
 		var thinkingBudget *int64
-		parts := make([]string, 0, len(model.ReasoningOptions))
-		if model.Reasoning != nil && *model.Reasoning {
-			for _, option := range model.ReasoningOptions {
-				switch option.Type {
+		parts := make([]string, 0)
+		if reasoning != nil && *reasoning {
+			var options []json.RawMessage
+			_ = json.Unmarshal(fields["reasoning_options"], &options)
+			for _, optionRaw := range options {
+				option := jsonObject(optionRaw)
+				switch jsonString(option["type"]) {
 				case "effort":
-					if option.Values != "" {
-						parts = append(parts, "effort: "+option.Values)
+					if values := jsonStringList(option["values"]); values != "" {
+						parts = append(parts, "effort: "+values)
 					}
 				case "toggle":
 					parts = append(parts, "toggle")
 				case "budget_tokens":
-					if option.Max != nil && *option.Max > 0 {
-						thinkingBudget = option.Max
-						parts = append(parts, fmt.Sprintf("budget_tokens max %d", *option.Max))
+					if maxValue := jsonInt64(option["max"]); maxValue != nil && *maxValue > 0 {
+						thinkingBudget = maxValue
+						parts = append(parts, fmt.Sprintf("budget_tokens max %d", *maxValue))
 					} else {
 						parts = append(parts, "budget_tokens")
 					}
@@ -717,9 +694,9 @@ func (d *detector) fetchOpenCodeCatalog(ctx context.Context) ([]DiscoveredModel,
 		}
 		thinkingLevel = truncateText(strings.Join(parts, "; "), 80)
 		models = append(models, DiscoveredModel{
-			ID: model.ID, Name: model.Name, Description: model.Description,
+			ID: modelID, Name: jsonString(fields["name"]), Description: jsonString(fields["description"]),
 			ContextWindow: contextWindow, MaxOutput: maxOutput,
-			SupportsThinking: model.Reasoning, ThinkingLevel: thinkingLevel,
+			SupportsThinking: reasoning, ThinkingLevel: thinkingLevel,
 			ThinkingBudget: thinkingBudget, Metadata: append(json.RawMessage(nil), rawModel...),
 			Source: "models.dev",
 		})
@@ -729,6 +706,67 @@ func (d *detector) fetchOpenCodeCatalog(ctx context.Context) ([]DiscoveredModel,
 		return nil, errors.New("OpenCode 官方模型目录为空")
 	}
 	return models, nil
+}
+
+func jsonObject(raw json.RawMessage) map[string]json.RawMessage {
+	if len(raw) == 0 {
+		return nil
+	}
+	var value map[string]json.RawMessage
+	_ = json.Unmarshal(raw, &value)
+	return value
+}
+
+func jsonString(raw json.RawMessage) string {
+	var value string
+	_ = json.Unmarshal(raw, &value)
+	return strings.TrimSpace(value)
+}
+
+func jsonBool(raw json.RawMessage) *bool {
+	var value bool
+	if len(raw) == 0 || json.Unmarshal(raw, &value) != nil {
+		var text string
+		if json.Unmarshal(raw, &text) != nil {
+			return nil
+		}
+		parsed, err := strconv.ParseBool(strings.TrimSpace(text))
+		if err != nil {
+			return nil
+		}
+		value = parsed
+	}
+	return &value
+}
+
+func jsonInt64(raw json.RawMessage) *int64 {
+	if len(raw) == 0 {
+		return nil
+	}
+	var value int64
+	if json.Unmarshal(raw, &value) == nil {
+		return &value
+	}
+	var text string
+	if json.Unmarshal(raw, &text) == nil {
+		parsed, err := strconv.ParseInt(strings.TrimSpace(text), 10, 64)
+		if err == nil {
+			return &parsed
+		}
+	}
+	return nil
+}
+
+func jsonStringList(raw json.RawMessage) string {
+	var value string
+	if json.Unmarshal(raw, &value) == nil {
+		return strings.TrimSpace(value)
+	}
+	var values []string
+	if json.Unmarshal(raw, &values) == nil {
+		return strings.Join(values, " ")
+	}
+	return ""
 }
 
 func parseModelList(data []byte) []string {
