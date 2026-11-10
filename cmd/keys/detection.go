@@ -512,8 +512,9 @@ func nonEmpty(value, fallback string) string {
 }
 
 type discoveryResult struct {
-	Models    []string `json:"models"`
-	Truncated bool     `json:"truncated"`
+	Models         []DiscoveredModel `json:"models"`
+	Truncated      bool              `json:"truncated"`
+	MetadataSource string            `json:"metadataSource,omitempty"`
 }
 
 func (d *detector) discoverModels(ctx context.Context, provider Provider, secret string) (discoveryResult, error) {
@@ -554,16 +555,180 @@ func (d *detector) discoverModels(ctx context.Context, provider Provider, secret
 		}
 		return discoveryResult{}, errors.New("获取模型列表失败：" + detail)
 	}
-	models := parseModelList(data)
-	if len(models) == 0 {
+	modelIDs := parseModelList(data)
+	if len(modelIDs) == 0 {
 		return discoveryResult{}, errors.New("响应中没有可识别的模型 ID")
 	}
-	result := discoveryResult{Models: models}
+	models := make([]DiscoveredModel, 0, len(modelIDs))
+	metadataSource := "provider"
+	if isOpenCodeGoProvider(provider) {
+		catalog, err := d.fetchOpenCodeCatalog(ctx)
+		if err != nil {
+			return discoveryResult{}, err
+		}
+		byID := make(map[string]DiscoveredModel, len(catalog))
+		for _, model := range catalog {
+			byID[model.ID] = model
+		}
+		for _, id := range modelIDs {
+			if model, ok := byID[id]; ok {
+				models = append(models, model)
+			} else {
+				models = append(models, DiscoveredModel{ID: id, Source: "provider"})
+			}
+		}
+		metadataSource = "models.dev"
+	} else {
+		for _, id := range modelIDs {
+			models = append(models, DiscoveredModel{ID: id, Source: "provider"})
+		}
+	}
+	result := discoveryResult{Models: models, MetadataSource: metadataSource}
 	if len(result.Models) > 500 {
 		result.Models = result.Models[:500]
 		result.Truncated = true
 	}
 	return result, nil
+}
+
+func (d *detector) discoverProviderCatalog(ctx context.Context, provider Provider) (discoveryResult, error) {
+	if !isOpenCodeGoProvider(provider) {
+		return discoveryResult{}, errors.New("该 Provider 需要先添加启用的 Key 才能获取模型")
+	}
+	select {
+	case d.sem <- struct{}{}:
+		defer func() { <-d.sem }()
+	case <-ctx.Done():
+		return discoveryResult{}, ctx.Err()
+	}
+	models, err := d.fetchOpenCodeCatalog(ctx)
+	if err != nil {
+		return discoveryResult{}, err
+	}
+	return discoveryResult{Models: models, MetadataSource: "models.dev"}, nil
+}
+
+type modelsDevProvider struct {
+	Models map[string]json.RawMessage `json:"models"`
+}
+
+type modelsDevModel struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	Description      string `json:"description"`
+	Reasoning        *bool  `json:"reasoning"`
+	ReasoningOptions []struct {
+		Type   string `json:"type"`
+		Values string `json:"values"`
+		Max    *int64 `json:"max"`
+	} `json:"reasoning_options"`
+	Attachment       *bool  `json:"attachment"`
+	ToolCall         *bool  `json:"tool_call"`
+	StructuredOutput *bool  `json:"structured_output"`
+	Temperature      *bool  `json:"temperature"`
+	ReleaseDate      string `json:"release_date"`
+	LastUpdated      string `json:"last_updated"`
+	Status           string `json:"status"`
+	Limit            struct {
+		Context int64 `json:"context"`
+		Input   int64 `json:"input"`
+		Output  int64 `json:"output"`
+	} `json:"limit"`
+	Provider struct {
+		NPM string `json:"npm"`
+		API string `json:"api"`
+	} `json:"provider"`
+	CanonicalModelID string `json:"canonical_model_id"`
+	OpenWeights      *bool  `json:"open_weights"`
+}
+
+func (d *detector) fetchOpenCodeCatalog(ctx context.Context) ([]DiscoveredModel, error) {
+	const endpoint = "https://models.dev/api.json?type=all"
+	requestCtx, cancel := context.WithTimeout(ctx, detectionTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(requestCtx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "go-sites-keys/1.0")
+	resp, err := d.client.Do(req)
+	if err != nil {
+		return nil, errors.New("获取 OpenCode 官方模型目录失败：" + classifyNetworkError(err))
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("获取 OpenCode 官方模型目录失败：HTTP %d", resp.StatusCode)
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	if err != nil {
+		return nil, errors.New("读取 OpenCode 官方模型目录失败")
+	}
+	var catalog map[string]modelsDevProvider
+	if err := json.Unmarshal(data, &catalog); err != nil {
+		return nil, errors.New("解析 OpenCode 官方模型目录失败")
+	}
+	provider, ok := catalog["opencode-go"]
+	if !ok {
+		return nil, errors.New("OpenCode 官方模型目录中没有 opencode-go")
+	}
+	models := make([]DiscoveredModel, 0, len(provider.Models))
+	for catalogID, rawModel := range provider.Models {
+		var model modelsDevModel
+		if err := json.Unmarshal(rawModel, &model); err != nil {
+			continue
+		}
+		if model.ID == "" {
+			model.ID = catalogID
+		}
+		if strings.EqualFold(model.Status, "deprecated") || strings.TrimSpace(model.ID) == "" {
+			continue
+		}
+		var contextWindow, maxOutput *int64
+		if model.Limit.Context > 0 {
+			value := model.Limit.Context
+			contextWindow = &value
+		}
+		if model.Limit.Output > 0 {
+			value := model.Limit.Output
+			maxOutput = &value
+		}
+		thinkingLevel := ""
+		var thinkingBudget *int64
+		parts := make([]string, 0, len(model.ReasoningOptions))
+		if model.Reasoning != nil && *model.Reasoning {
+			for _, option := range model.ReasoningOptions {
+				switch option.Type {
+				case "effort":
+					if option.Values != "" {
+						parts = append(parts, "effort: "+option.Values)
+					}
+				case "toggle":
+					parts = append(parts, "toggle")
+				case "budget_tokens":
+					if option.Max != nil && *option.Max > 0 {
+						thinkingBudget = option.Max
+						parts = append(parts, fmt.Sprintf("budget_tokens max %d", *option.Max))
+					} else {
+						parts = append(parts, "budget_tokens")
+					}
+				}
+			}
+		}
+		thinkingLevel = truncateText(strings.Join(parts, "; "), 80)
+		models = append(models, DiscoveredModel{
+			ID: model.ID, Name: model.Name, Description: model.Description,
+			ContextWindow: contextWindow, MaxOutput: maxOutput,
+			SupportsThinking: model.Reasoning, ThinkingLevel: thinkingLevel,
+			ThinkingBudget: thinkingBudget, Metadata: append(json.RawMessage(nil), rawModel...),
+			Source: "models.dev",
+		})
+	}
+	sort.Slice(models, func(i, j int) bool { return models[i].ID < models[j].ID })
+	if len(models) == 0 {
+		return nil, errors.New("OpenCode 官方模型目录为空")
+	}
+	return models, nil
 }
 
 func parseModelList(data []byte) []string {

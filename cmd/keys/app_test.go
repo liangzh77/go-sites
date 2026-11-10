@@ -159,6 +159,14 @@ func TestHTTPAuthenticationCSRFAndPageHeaders(t *testing.T) {
 		t.Fatalf("key create response leaked plaintext: %s", keyResponse.body)
 	}
 
+	providerDiscovery := requestJSON(t, client, http.MethodPost,
+		server.URL+"/keys/api/providers/"+providerPayload.Provider.ID+"/discover-models",
+		map[string]any{}, loginPayload.CSRFToken)
+	if providerDiscovery.status != http.StatusOK ||
+		!bytes.Contains(providerDiscovery.body, []byte(`"discovered-model"`)) ||
+		!bytes.Contains(providerDiscovery.body, []byte(`"created":1`)) {
+		t.Fatalf("provider discovery status = %d body=%s", providerDiscovery.status, providerDiscovery.body)
+	}
 	discoveryResponse := requestJSON(t, client, http.MethodPost,
 		server.URL+"/keys/api/keys/"+keyPayload.Key.ID+"/discover-models", map[string]any{},
 		loginPayload.CSRFToken)

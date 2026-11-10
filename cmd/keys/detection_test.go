@@ -205,9 +205,13 @@ func TestOpenCodeGoSendsSessionHeaderForDetectionAndDiscovery(t *testing.T) {
 	var sessions []string
 	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 		paths = append(paths, request.URL.Path)
-		sessions = append(sessions, request.Header.Get("x-opencode-session"))
+		if request.URL.Hostname() == "opencode.ai" {
+			sessions = append(sessions, request.Header.Get("x-opencode-session"))
+		}
 		body := `{"choices":[]}`
-		if strings.HasSuffix(request.URL.Path, "/models") {
+		if request.URL.Hostname() == "models.dev" {
+			body = `{"opencode-go":{"models":{"deepseek-v4.1-flash":{"id":"deepseek-v4.1-flash","name":"DeepSeek V4.1 Flash","reasoning":true,"reasoning_options":[{"type":"effort","values":"low high max"}],"limit":{"context":1000000,"output":384000}}}}}`
+		} else if strings.HasSuffix(request.URL.Path, "/models") {
 			body = `{"data":[{"id":"deepseek-v4.1-flash"}]}`
 		}
 		return &http.Response{
@@ -233,10 +237,11 @@ func TestOpenCodeGoSendsSessionHeaderForDetectionAndDiscovery(t *testing.T) {
 	if result.Status != statusSuccess {
 		t.Fatalf("detection status = %s detail=%s", result.Status, result.Detail)
 	}
-	if _, err := d.discoverModels(context.Background(), provider, "oc_test"); err != nil {
+	discovery, err := d.discoverModels(context.Background(), provider, "oc_test")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if len(paths) != 2 || len(sessions) != 2 {
+	if len(paths) != 3 || len(sessions) != 2 {
 		t.Fatalf("paths=%v sessions=%v", paths, sessions)
 	}
 	for _, session := range sessions {
@@ -247,5 +252,10 @@ func TestOpenCodeGoSendsSessionHeaderForDetectionAndDiscovery(t *testing.T) {
 	if paths[0] != "/inference/go/openai/v1/chat/completions" ||
 		paths[1] != "/inference/go/openai/v1/models" {
 		t.Fatalf("OpenCode paths = %v", paths)
+	}
+	if len(discovery.Models) != 1 || discovery.Models[0].ContextWindow == nil ||
+		*discovery.Models[0].ContextWindow != 1000000 ||
+		discovery.Models[0].MaxOutput == nil || *discovery.Models[0].MaxOutput != 384000 {
+		t.Fatalf("enriched discovery = %+v", discovery.Models)
 	}
 }

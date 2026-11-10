@@ -81,7 +81,7 @@ var providerPresets = []ProviderPreset{
 	{
 		ID: "opencode-go", Name: "OpenCode Go", Category: "Coding Plan",
 		Protocol: protocolOpenAIChat, BaseURL: "https://opencode.ai/inference/go/openai/v1",
-		AuthMode: authBearer, DiscoverModels: true,
+		AuthMode: authBearer, DiscoverModels: true, AutoImportModels: true,
 		Documentation: "https://opencode.ai/docs/console/go/",
 	},
 	{

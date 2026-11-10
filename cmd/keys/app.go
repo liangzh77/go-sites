@@ -68,6 +68,7 @@ func (a *app) handler() http.Handler {
 	mux.HandleFunc("DELETE /keys/api/models/{id}", a.withMutation(a.handleDeleteModel))
 	mux.HandleFunc("POST /keys/api/keys/{id}/test", a.withMutation(a.handleTestKey))
 	mux.HandleFunc("POST /keys/api/providers/{id}/test", a.withMutation(a.handleTestProvider))
+	mux.HandleFunc("POST /keys/api/providers/{id}/discover-models", a.withMutation(a.handleImportProviderModels))
 	mux.HandleFunc("POST /keys/api/test-enabled", a.withMutation(a.handleTestEnabled))
 	mux.HandleFunc("POST /keys/api/keys/{id}/reveal", a.withMutation(a.handleRevealKey))
 	mux.HandleFunc("POST /keys/api/keys/{id}/discover-models", a.withMutation(a.handleDiscoverModels))
@@ -431,6 +432,52 @@ func (a *app) handleDiscoverModels(w http.ResponseWriter, r *http.Request, _ str
 		return
 	}
 	writeJSON(w, http.StatusOK, result)
+}
+
+func (a *app) handleImportProviderModels(w http.ResponseWriter, r *http.Request, _ string) {
+	providerID := r.PathValue("id")
+	provider, err := a.store.providerByID(providerID)
+	if err != nil {
+		writeStoreError(w, err)
+		return
+	}
+	var (
+		discovered discoveryResult
+		sourceErr  error
+	)
+	var keyID string
+	for _, key := range provider.Keys {
+		if key.Enabled {
+			keyID = key.ID
+			break
+		}
+	}
+	if keyID != "" {
+		_, secret, err := a.store.providerCredential(keyID)
+		if err != nil {
+			writeStoreError(w, err)
+			return
+		}
+		discovered, sourceErr = a.detector.discoverModels(r.Context(), provider, secret)
+	} else {
+		discovered, sourceErr = a.detector.discoverProviderCatalog(r.Context(), provider)
+	}
+	if sourceErr != nil {
+		writeError(w, http.StatusUnprocessableEntity, "MODEL_DISCOVERY_FAILED", sourceErr.Error())
+		return
+	}
+	result, err := a.store.importDiscoveredModels(providerID, discovered.Models)
+	if err != nil {
+		writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"discovered":     result.Discovered,
+		"created":        result.Created,
+		"updated":        result.Updated,
+		"models":         result.Models,
+		"metadataSource": discovered.MetadataSource,
+	})
 }
 
 func (a *app) handleListDetections(w http.ResponseWriter, r *http.Request, _ string) {

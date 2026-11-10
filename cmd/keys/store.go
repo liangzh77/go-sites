@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS models (
 	thinking_level     TEXT NOT NULL DEFAULT '',
 	thinking_budget    INTEGER,
 	test_params        TEXT NOT NULL DEFAULT '{}',
+	metadata_json      TEXT NOT NULL DEFAULT '{}',
 	default_test       INTEGER NOT NULL DEFAULT 0,
 	source             TEXT NOT NULL DEFAULT 'manual',
 	created_at         TEXT NOT NULL,
@@ -128,7 +129,43 @@ func openKeyStore(path string, cipher *secretCipher) (*keyStore, error) {
 		db.Close()
 		return nil, fmt.Errorf("initialize database: %w", err)
 	}
+	if err := ensureColumn(db, "models", "metadata_json", "TEXT NOT NULL DEFAULT '{}'"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate model metadata: %w", err)
+	}
 	return &keyStore{db: db, cipher: cipher}, nil
+}
+
+func ensureColumn(db *sql.DB, table, column, definition string) error {
+	rows, err := db.Query(`PRAGMA table_info(` + table + `)`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var (
+			cid          int
+			name         string
+			columnType   string
+			notNull      int
+			defaultValue any
+			primaryKey   int
+		)
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return err
+		}
+		if name == column {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	_, err = db.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + column + ` ` + definition)
+	return err
 }
 
 func (s *keyStore) close() error {
@@ -195,7 +232,8 @@ func (s *keyStore) listProviders() ([]Provider, error) {
 
 	modelRows, err := s.db.Query(`
 		SELECT id, provider_id, model_id, context_window, max_output, supports_thinking,
-		       thinking_level, thinking_budget, test_params, default_test, source, updated_at
+		       thinking_level, thinking_budget, test_params, metadata_json,
+		       default_test, source, updated_at
 		  FROM models
 		 ORDER BY default_test DESC, model_id`)
 	if err != nil {
@@ -249,10 +287,12 @@ func scanModel(scanner interface{ Scan(...any) error }) (ModelConfig, error) {
 		thinkingBudget   sql.NullInt64
 		defaultTest      int
 		testParams       string
+		metadata         string
 	)
 	err := scanner.Scan(
 		&m.ID, &m.ProviderID, &m.ModelID, &contextWindow, &maxOutput, &supportsThinking,
-		&m.ThinkingLevel, &thinkingBudget, &testParams, &defaultTest, &m.Source, &m.UpdatedAt,
+		&m.ThinkingLevel, &thinkingBudget, &testParams, &metadata,
+		&defaultTest, &m.Source, &m.UpdatedAt,
 	)
 	if err != nil {
 		return m, err
@@ -275,6 +315,11 @@ func scanModel(scanner interface{ Scan(...any) error }) (ModelConfig, error) {
 		m.TestParams = json.RawMessage(testParams)
 	} else {
 		m.TestParams = json.RawMessage(`{}`)
+	}
+	if json.Valid([]byte(metadata)) && strings.TrimSpace(metadata) != "" {
+		m.Metadata = json.RawMessage(metadata)
+	} else {
+		m.Metadata = json.RawMessage(`{}`)
 	}
 	return m, nil
 }
@@ -662,7 +707,8 @@ func (s *keyStore) updateModel(id string, input ModelInput) (ModelConfig, error)
 func (s *keyStore) modelByID(id string) (ModelConfig, error) {
 	row := s.db.QueryRow(`
 		SELECT id, provider_id, model_id, context_window, max_output, supports_thinking,
-		       thinking_level, thinking_budget, test_params, default_test, source, updated_at
+		       thinking_level, thinking_budget, test_params, metadata_json,
+		       default_test, source, updated_at
 		  FROM models WHERE id = ?`, id)
 	m, err := scanModel(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -703,6 +749,225 @@ func (s *keyStore) deleteModel(id string) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+func (s *keyStore) importDiscoveredModels(providerID string, discovered []DiscoveredModel) (ModelImportResult, error) {
+	if len(discovered) == 0 {
+		return ModelImportResult{}, invalid("models", "没有可导入的模型")
+	}
+	if len(discovered) > 200 {
+		return ModelImportResult{}, invalid("models", "一次最多导入 200 个模型")
+	}
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	tx, err := s.db.Begin()
+	if err != nil {
+		return ModelImportResult{}, err
+	}
+	defer tx.Rollback()
+	if err := requireProvider(tx, providerID); err != nil {
+		return ModelImportResult{}, err
+	}
+
+	seen := make(map[string]bool, len(discovered))
+	unique := make([]DiscoveredModel, 0, len(discovered))
+	for _, item := range discovered {
+		item.ID = strings.TrimSpace(item.ID)
+		if item.ID == "" || seen[item.ID] {
+			continue
+		}
+		seen[item.ID] = true
+		unique = append(unique, item)
+	}
+	if len(unique) == 0 {
+		return ModelImportResult{}, invalid("models", "没有有效模型 ID")
+	}
+
+	var existingDefault string
+	err = tx.QueryRow(`
+		SELECT model_id FROM models
+		 WHERE provider_id = ? AND default_test = 1
+		 LIMIT 1`, providerID).Scan(&existingDefault)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return ModelImportResult{}, err
+	}
+	preferredDefault := existingDefault
+	if preferredDefault == "" {
+		for _, item := range unique {
+			if item.ID == "deepseek-v4.1-flash" {
+				preferredDefault = item.ID
+				break
+			}
+		}
+		if preferredDefault == "" {
+			preferredDefault = unique[0].ID
+		}
+	}
+
+	now := nowString()
+	result := ModelImportResult{Discovered: len(unique)}
+	configurationChanged := false
+	for _, item := range unique {
+		incomingSource := strings.TrimSpace(item.Source)
+		if incomingSource == "" {
+			incomingSource = "models.dev"
+		}
+		input := ModelInput{
+			ModelID:          item.ID,
+			ContextWindow:    item.ContextWindow,
+			MaxOutput:        item.MaxOutput,
+			SupportsThinking: item.SupportsThinking,
+			ThinkingLevel:    item.ThinkingLevel,
+			ThinkingBudget:   item.ThinkingBudget,
+			TestParams:       json.RawMessage(`{}`),
+			Source:           incomingSource,
+		}
+		normalized, err := normalizeModelInput(input)
+		if err != nil {
+			return ModelImportResult{}, err
+		}
+		metadata := item.Metadata
+		if len(metadata) == 0 || !json.Valid(metadata) {
+			metadata = json.RawMessage(`{}`)
+		}
+		if len(metadata) > 64<<10 {
+			return ModelImportResult{}, invalid("metadata", "模型元数据过大")
+		}
+
+		var (
+			existingID       string
+			contextWindow    sql.NullInt64
+			maxOutput        sql.NullInt64
+			supportsThinking sql.NullInt64
+			thinkingLevel    string
+			thinkingBudget   sql.NullInt64
+			existingMetadata string
+			defaultTest      int
+			existingSource   string
+		)
+		err = tx.QueryRow(`
+			SELECT id, context_window, max_output, supports_thinking, thinking_level,
+			       thinking_budget, metadata_json, default_test, source
+			  FROM models WHERE provider_id = ? AND model_id = ?`,
+			providerID, normalized.ModelID,
+		).Scan(
+			&existingID, &contextWindow, &maxOutput, &supportsThinking,
+			&thinkingLevel, &thinkingBudget, &existingMetadata, &defaultTest, &existingSource,
+		)
+		if errors.Is(err, sql.ErrNoRows) {
+			id, err := newID("m")
+			if err != nil {
+				return ModelImportResult{}, err
+			}
+			isDefault := normalized.ModelID == preferredDefault
+			if isDefault {
+				if _, err := tx.Exec(`UPDATE models SET default_test = 0 WHERE provider_id = ?`, providerID); err != nil {
+					return ModelImportResult{}, err
+				}
+			}
+			_, err = tx.Exec(`
+				INSERT INTO models
+					(id, provider_id, model_id, context_window, max_output, supports_thinking,
+					 thinking_level, thinking_budget, test_params, metadata_json, default_test,
+					 source, created_at, updated_at)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, '{}', ?, ?, ?, ?, ?)`,
+				id, providerID, normalized.ModelID, nullableInt(normalized.ContextWindow),
+				nullableInt(normalized.MaxOutput), nullableBool(normalized.SupportsThinking),
+				normalized.ThinkingLevel, nullableInt(normalized.ThinkingBudget),
+				string(metadata), boolInt(isDefault), normalized.Source, now, now,
+			)
+			if err != nil {
+				return ModelImportResult{}, err
+			}
+			result.Created++
+			configurationChanged = true
+			continue
+		}
+		if err != nil {
+			return ModelImportResult{}, err
+		}
+
+		changed := false
+		nextContext := contextWindow
+		if !nextContext.Valid && normalized.ContextWindow != nil {
+			nextContext = sql.NullInt64{Int64: *normalized.ContextWindow, Valid: true}
+			changed = true
+		}
+		nextOutput := maxOutput
+		if !nextOutput.Valid && normalized.MaxOutput != nil {
+			nextOutput = sql.NullInt64{Int64: *normalized.MaxOutput, Valid: true}
+			changed = true
+		}
+		nextThinking := supportsThinking
+		if !nextThinking.Valid && normalized.SupportsThinking != nil {
+			nextThinking = sql.NullInt64{Int64: int64(boolInt(*normalized.SupportsThinking)), Valid: true}
+			changed = true
+		}
+		nextThinkingLevel := thinkingLevel
+		if strings.TrimSpace(nextThinkingLevel) == "" && normalized.ThinkingLevel != "" {
+			nextThinkingLevel = normalized.ThinkingLevel
+			changed = true
+		}
+		nextThinkingBudget := thinkingBudget
+		if !nextThinkingBudget.Valid && normalized.ThinkingBudget != nil {
+			nextThinkingBudget = sql.NullInt64{Int64: *normalized.ThinkingBudget, Valid: true}
+			changed = true
+		}
+		nextMetadata := existingMetadata
+		if string(metadata) != "{}" && nextMetadata != string(metadata) {
+			nextMetadata = string(metadata)
+			changed = true
+		}
+		nextSource := existingSource
+		if changed {
+			switch {
+			case existingSource == "" || existingSource == "manual":
+				nextSource = "manual+models.dev"
+			case existingSource == "provider":
+				nextSource = normalized.Source
+			}
+		}
+		nextDefault := defaultTest != 0
+		if !nextDefault && existingDefault == "" && normalized.ModelID == preferredDefault {
+			nextDefault = true
+			changed = true
+		}
+		if nextMetadata != existingMetadata || nextSource != existingSource || nextDefault != (defaultTest != 0) {
+			changed = true
+		}
+		if !changed {
+			continue
+		}
+		_, err = tx.Exec(`
+			UPDATE models
+			   SET context_window = ?, max_output = ?, supports_thinking = ?,
+			       thinking_level = ?, thinking_budget = ?, metadata_json = ?,
+			       default_test = ?, source = ?, updated_at = ?
+			 WHERE id = ?`,
+			nextContext, nextOutput, nextThinking, nextThinkingLevel, nextThinkingBudget,
+			nextMetadata, boolInt(nextDefault), nextSource, now, existingID,
+		)
+		if err != nil {
+			return ModelImportResult{}, err
+		}
+		result.Updated++
+		configurationChanged = true
+	}
+	if configurationChanged {
+		if err := invalidateProviderConfiguration(tx, providerID, now); err != nil {
+			return ModelImportResult{}, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return ModelImportResult{}, err
+	}
+	result.Models = make([]ModelConfig, 0, len(unique))
+	providerProvider, err := s.providerByID(providerID)
+	if err != nil {
+		return ModelImportResult{}, err
+	}
+	result.Models = providerProvider.Models
+	return result, nil
 }
 
 func (s *keyStore) detectionTarget(keyID string) (DetectionTarget, error) {
@@ -783,7 +1048,8 @@ func (s *keyStore) detectionTarget(keyID string) (DetectionTarget, error) {
 	}
 	modelRow := s.db.QueryRow(`
 		SELECT id, provider_id, model_id, context_window, max_output, supports_thinking,
-		       thinking_level, thinking_budget, test_params, default_test, source, updated_at
+		       thinking_level, thinking_budget, test_params, metadata_json,
+		       default_test, source, updated_at
 		  FROM models WHERE provider_id = ? AND model_id = ?`,
 		target.Provider.ID, target.Key.TestModel)
 	model, err := scanModel(modelRow)

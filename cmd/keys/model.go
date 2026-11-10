@@ -50,15 +50,16 @@ var authLabels = map[string]string{
 }
 
 type ProviderPreset struct {
-	ID              string `json:"id"`
-	Name            string `json:"name"`
-	Category        string `json:"category"`
-	Protocol        string `json:"protocol"`
-	BaseURL         string `json:"baseUrl"`
-	AuthMode        string `json:"authMode"`
-	DiscoverModels  bool   `json:"discoverModels"`
-	Documentation   string `json:"documentation"`
-	AddressRequired bool   `json:"addressRequired,omitempty"`
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	Category         string `json:"category"`
+	Protocol         string `json:"protocol"`
+	BaseURL          string `json:"baseUrl"`
+	AuthMode         string `json:"authMode"`
+	DiscoverModels   bool   `json:"discoverModels"`
+	AutoImportModels bool   `json:"autoImportModels"`
+	Documentation    string `json:"documentation"`
+	AddressRequired  bool   `json:"addressRequired,omitempty"`
 }
 
 type Provider struct {
@@ -115,9 +116,30 @@ type ModelConfig struct {
 	ThinkingLevel    string          `json:"thinkingLevel,omitempty"`
 	ThinkingBudget   *int64          `json:"thinkingBudget,omitempty"`
 	TestParams       json.RawMessage `json:"testParams"`
+	Metadata         json.RawMessage `json:"metadata,omitempty"`
 	DefaultTest      bool            `json:"defaultTest"`
 	Source           string          `json:"source"`
 	UpdatedAt        string          `json:"updatedAt"`
+}
+
+type DiscoveredModel struct {
+	ID               string          `json:"id"`
+	Name             string          `json:"name,omitempty"`
+	Description      string          `json:"description,omitempty"`
+	ContextWindow    *int64          `json:"contextWindow,omitempty"`
+	MaxOutput        *int64          `json:"maxOutput,omitempty"`
+	SupportsThinking *bool           `json:"supportsThinking,omitempty"`
+	ThinkingLevel    string          `json:"thinkingLevel,omitempty"`
+	ThinkingBudget   *int64          `json:"thinkingBudget,omitempty"`
+	Metadata         json.RawMessage `json:"metadata,omitempty"`
+	Source           string          `json:"source"`
+}
+
+type ModelImportResult struct {
+	Discovered int           `json:"discovered"`
+	Created    int           `json:"created"`
+	Updated    int           `json:"updated"`
+	Models     []ModelConfig `json:"models"`
 }
 
 type Detection struct {

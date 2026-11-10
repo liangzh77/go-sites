@@ -176,6 +176,65 @@ func TestExpiryDaysUsesShanghaiCivilDate(t *testing.T) {
 	}
 }
 
+func TestImportDiscoveredModelsEnrichesAndIsIdempotent(t *testing.T) {
+	store := testStore(t)
+	provider, existing, key := seedKey(t, store)
+	thinking := true
+	discovered := []DiscoveredModel{
+		{
+			ID: existing.ModelID, Name: "Mock Official", ContextWindow: int64Ptr(1000000),
+			MaxOutput: int64Ptr(128000), SupportsThinking: &thinking,
+			ThinkingLevel: "low high max", Metadata: json.RawMessage(`{"name":"Mock Official","tool_call":true}`),
+			Source: "models.dev",
+		},
+		{
+			ID: "deepseek-v4.1-flash", Name: "DeepSeek V4.1 Flash",
+			ContextWindow: int64Ptr(1000000), MaxOutput: int64Ptr(384000),
+			SupportsThinking: &thinking, ThinkingLevel: "low high max",
+			Metadata: json.RawMessage(`{"name":"DeepSeek V4.1 Flash","tool_call":true}`),
+			Source:   "models.dev",
+		},
+	}
+	result, err := store.importDiscoveredModels(provider.ID, discovered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Created != 1 || result.Updated != 1 || len(result.Models) != 2 {
+		t.Fatalf("first import result = %+v", result)
+	}
+	enriched := modelByModelID(result.Models, existing.ModelID)
+	if enriched == nil || enriched.ContextWindow == nil || *enriched.ContextWindow != 1000000 ||
+		enriched.MaxOutput == nil || *enriched.MaxOutput != 128000 ||
+		enriched.SupportsThinking == nil || !*enriched.SupportsThinking ||
+		enriched.ThinkingLevel != "low high max" || len(enriched.Metadata) == 0 {
+		t.Fatalf("enriched model = %+v", enriched)
+	}
+	refreshedKey, err := store.apiKeyByID(key.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !refreshedKey.StatusStale {
+		t.Fatal("model metadata import did not invalidate the existing detection")
+	}
+
+	second, err := store.importDiscoveredModels(provider.ID, discovered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Created != 0 || second.Updated != 0 {
+		t.Fatalf("second import should be idempotent, got %+v", second)
+	}
+}
+
+func modelByModelID(models []ModelConfig, modelID string) *ModelConfig {
+	for index := range models {
+		if models[index].ModelID == modelID {
+			return &models[index]
+		}
+	}
+	return nil
+}
+
 func mustDetectionTarget(t *testing.T, store *keyStore, keyID string) DetectionTarget {
 	t.Helper()
 	target, err := store.detectionTarget(keyID)

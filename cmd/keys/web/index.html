@@ -335,14 +335,15 @@
     <div class="modal-card wide-modal">
       <div class="modal-head">
         <div>
-          <p class="eyebrow">MODEL DISCOVERY</p>
-          <h2>选择发现的模型</h2>
+          <p class="eyebrow">MODEL CATALOG</p>
+          <h2>同步官方模型目录</h2>
           <p class="modal-subtitle" id="discoveryProviderName"></p>
         </div>
         <button class="icon-button close-dialog" type="button" aria-label="关闭">×</button>
       </div>
-      <p class="sensitive-copy">选择后会打开模型配置表单。上下文与思考能力不会根据模型名称猜测，仍显示为未知，直到你手动填写。</p>
-      <div id="discoveredModels" class="model-choice-list"></div>
+      <p class="sensitive-copy">服务端会合并 Provider 的可用模型 ID 与 OpenCode Models.dev 官方参数，然后一次性导入全部模型。上下文、最大输出和思考能力来自官方目录，不需要手工填写。</p>
+      <p id="discoverySummary" class="catalog-summary"></p>
+      <div id="discoveredModels" class="model-catalog-list"></div>
       <p class="form-error" id="discoveryError" role="alert"></p>
       <div class="modal-actions">
         <button class="secondary-button close-dialog" type="button">关闭</button>

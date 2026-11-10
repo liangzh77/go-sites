@@ -152,6 +152,57 @@
     return provider?.models.find((model) => model.id === id);
   }
 
+  function modelMetadata(model) {
+    if (!model?.metadata) return {};
+    if (typeof model.metadata === "object") return model.metadata;
+    try {
+      return JSON.parse(model.metadata);
+    } catch {
+      return {};
+    }
+  }
+
+  function modelDisplayName(model) {
+    return modelMetadata(model).name || model?.modelId || "未命名模型";
+  }
+
+  function tokenLimit(value) {
+    return typeof value === "number" ? value.toLocaleString("zh-CN") : "未知";
+  }
+
+  function modelCapabilityChips(model) {
+    const metadata = modelMetadata(model);
+    const chips = [];
+    if (model.supportsThinking === true) chips.push("思考");
+    if (metadata.tool_call === true) chips.push("工具调用");
+    if (metadata.structured_output === true) chips.push("结构化输出");
+    if (metadata.attachment === true) chips.push("附件");
+    if (metadata.temperature === true) chips.push("Temperature");
+    return chips;
+  }
+
+  function renderModelCatalogItem(model) {
+    const metadata = modelMetadata(model);
+    const chips = modelCapabilityChips(model);
+    return `<article class="model-catalog-item">
+      <div class="model-catalog-main">
+        <div class="model-catalog-title">
+          <strong>${escapeHTML(modelDisplayName(model))}</strong>
+          ${model.defaultTest ? '<span class="mini-badge">默认测试</span>' : ""}
+        </div>
+        <code>${escapeHTML(model.modelId)}</code>
+        ${metadata.description ? `<p>${escapeHTML(metadata.description)}</p>` : ""}
+      </div>
+      <div class="model-specs">
+        <span>上下文 <strong>${tokenLimit(model.contextWindow)}</strong></span>
+        <span>最大输出 <strong>${tokenLimit(model.maxOutput)}</strong></span>
+        <span>思考 <strong>${model.supportsThinking === true ? "支持" : model.supportsThinking === false ? "不支持" : "未知"}</strong></span>
+        ${model.thinkingLevel ? `<span>模式 <strong>${escapeHTML(model.thinkingLevel)}</strong></span>` : ""}
+        ${chips.length ? `<span>能力 <strong>${escapeHTML(chips.join(" · "))}</strong></span>` : ""}
+      </div>
+    </article>`;
+  }
+
   function protocolLabel(id) {
     return state.options.protocols.find((item) => item.id === id)?.label || id;
   }
@@ -285,11 +336,16 @@
   }
 
   function renderProvider(provider, keys) {
+    const visibleModels = provider.models.slice(0, 6);
+    const hiddenModelCount = Math.max(0, provider.models.length - visibleModels.length);
     const models = provider.models.length
-      ? provider.models.map((model) => `<span class="model-pill-group">
-          <button class="model-pill ${model.defaultTest ? "default" : ""}" type="button" data-action="edit-model" data-model-id="${escapeAttr(model.id)}" title="编辑模型配置">${escapeHTML(model.modelId)}${model.defaultTest ? " · default" : ""}</button>
+      ? visibleModels.map((model) => `<span class="model-pill-group">
+          <button class="model-pill ${model.defaultTest ? "default" : ""}" type="button" data-action="edit-model" data-model-id="${escapeAttr(model.id)}" title="${escapeAttr(modelDisplayName(model))}">${escapeHTML(modelDisplayName(model))}${model.defaultTest ? " · default" : ""}</button>
           <button class="model-delete" type="button" data-action="delete-model" data-model-id="${escapeAttr(model.id)}" title="删除模型配置" aria-label="删除模型 ${escapeAttr(model.modelId)}">×</button>
-        </span>`).join("")
+        </span>`).join("") +
+        (hiddenModelCount
+          ? `<button class="model-pill model-more" type="button" data-action="show-models" data-provider-id="${escapeAttr(provider.id)}">＋${hiddenModelCount} 个模型</button>`
+          : "")
       : '<span class="model-strip-label">NO MODEL PROFILES</span>';
     const visibleKeys = keys.length
       ? `<div class="table-wrap"><table class="key-table">
@@ -317,14 +373,14 @@
           <button class="tiny-button" type="button" data-action="test-provider" data-provider-id="${escapeAttr(provider.id)}">检测启用 Key</button>
           <button class="tiny-button" type="button" data-action="add-key" data-provider-id="${escapeAttr(provider.id)}">＋ Key</button>
           <button class="tiny-button" type="button" data-action="add-model" data-provider-id="${escapeAttr(provider.id)}">＋ 模型</button>
-          <button class="tiny-button" type="button" data-action="discover-models" data-provider-id="${escapeAttr(provider.id)}">发现模型</button>
+          <button class="tiny-button" type="button" data-action="discover-models" data-provider-id="${escapeAttr(provider.id)}">同步模型</button>
           <button class="tiny-button" type="button" data-action="edit-provider" data-provider-id="${escapeAttr(provider.id)}">配置</button>
           <button class="tiny-button danger" type="button" data-action="delete-provider" data-provider-id="${escapeAttr(provider.id)}">删除</button>
         </div>
       </header>
       ${visibleKeys}
       <footer class="provider-footer">
-        <div class="model-strip"><span class="model-strip-label">MODEL PROFILES</span>${models}</div>
+        <div class="model-strip"><span class="model-strip-label">MODEL PROFILES · ${provider.models.length}</span>${models}</div>
       </footer>
     </article>`;
   }
@@ -419,6 +475,13 @@
     window.setTimeout(() => $("providerName").focus(), 20);
   }
 
+  async function importProviderModels(providerID) {
+    return api(`providers/${encodeURIComponent(providerID)}/discover-models`, {
+      method: "POST",
+      body: {},
+    });
+  }
+
   async function submitProvider(event) {
     event.preventDefault();
     const body = {
@@ -434,15 +497,27 @@
     setFormError("providerFormError");
     setButtonPending("providerSubmitButton", true, "保存中…");
     try {
+      let createdProvider = null;
       if (state.editProviderID) {
         await api(`providers/${encodeURIComponent(state.editProviderID)}`, { method: "PUT", body });
         showToast("Provider 配置已更新，旧检测结果已标记为过期");
       } else {
-        await api("providers", { method: "POST", body });
+        const response = await api("providers", { method: "POST", body });
+        createdProvider = response.provider;
         showToast("Provider 已创建");
       }
       $("providerDialog").close();
       await loadBootstrap();
+      const preset = presetByID(body.presetId);
+      if (createdProvider && preset?.autoImportModels) {
+        try {
+          const imported = await importProviderModels(createdProvider.id);
+          await loadBootstrap();
+          showToast(`已自动导入 ${imported.discovered} 个官方模型`);
+        } catch (error) {
+          showToast(`Provider 已创建，但官方模型自动导入失败：${errorMessage(error)}`, "error");
+        }
+      }
     } catch (error) {
       setFormError("providerFormError", errorMessage(error));
     } finally {
@@ -776,36 +851,54 @@
     }
   }
 
+  function showModelCatalog(provider, models, summary) {
+    $("discoveryProviderName").textContent = provider.name;
+    $("discoverySummary").textContent = summary;
+    $("discoveredModels").innerHTML = models.length
+      ? models.map(renderModelCatalogItem).join("")
+      : '<p class="sensitive-copy">当前没有模型配置。</p>';
+    if (!$("discoveryDialog").open) openDialog($("discoveryDialog"));
+  }
+
   async function openDiscovery(providerID) {
     const provider = providerByID(providerID);
     if (!provider) return;
     const preset = presetByID(provider.presetId);
     if (preset && !preset.discoverModels) {
-      showToast("该 Provider 预设没有可靠的模型列表接口，请手动添加", "error");
-      return;
-    }
-    const key = provider.keys.find((item) => item.enabled);
-    if (!key) {
-      showToast("模型发现需要一把启用的 Key。请先添加或启用 Key", "error");
+      showToast("该 Provider 预设没有可靠的模型目录接口，请手动添加", "error");
       return;
     }
     $("discoveryProviderName").textContent = provider.name;
+    $("discoverySummary").textContent = "正在读取可用模型并合并官方参数…";
     $("discoveredModels").innerHTML = '<div class="skeleton-card short"></div>';
     setFormError("discoveryError");
     openDialog($("discoveryDialog"));
     try {
-      const payload = await api(`keys/${encodeURIComponent(key.id)}/discover-models`, { method: "POST", body: {} });
-      const existing = new Set(provider.models.map((model) => model.modelId));
-      $("discoveredModels").innerHTML = payload.models.length
-        ? payload.models.map((modelID) => `<button class="model-choice" type="button" data-action="choose-discovered-model" data-provider-id="${escapeAttr(provider.id)}" data-model-id="${escapeAttr(modelID)}"><span class="mono">${escapeHTML(modelID)}</span><span>${existing.has(modelID) ? "已配置 · 添加新配置" : "选择"}</span></button>`).join("")
-        : '<p class="sensitive-copy">未发现可用模型，请手动添加。</p>';
-      if (payload.truncated) {
-        $("discoveryError").textContent = "结果较多，仅显示前 500 个模型。";
-      }
+      const payload = await importProviderModels(provider.id);
+      const source = payload.metadataSource === "models.dev" ? "Models.dev 官方目录" : "Provider 模型接口";
+      showModelCatalog(
+        provider,
+        payload.models || [],
+        `已同步 ${payload.discovered} 个模型：新建 ${payload.created}，补充/更新 ${payload.updated}。参数来源：${source}。`,
+      );
+      await loadBootstrap();
     } catch (error) {
+      $("discoverySummary").textContent = "";
       $("discoveredModels").innerHTML = "";
       setFormError("discoveryError", errorMessage(error));
     }
+  }
+
+  function showProviderModels(providerID) {
+    const provider = providerByID(providerID);
+    if (!provider) return;
+    const metadataCount = provider.models.filter((model) => model.metadata && Object.keys(modelMetadata(model)).length).length;
+    showModelCatalog(
+      provider,
+      provider.models,
+      `共 ${provider.models.length} 个模型，其中 ${metadataCount} 个带官方参数。点击“同步模型”可刷新目录。`,
+    );
+    setFormError("discoveryError");
   }
 
   async function openHistory(keyID) {
@@ -847,6 +940,7 @@
       case "add-model": openModelDialog(provider); return true;
       case "test-provider": batchTest(provider.id); return true;
       case "discover-models": openDiscovery(provider.id); return true;
+      case "show-models": showProviderModels(provider.id); return true;
       default: return false;
     }
   }
@@ -859,14 +953,6 @@
     }
     if (action === "clear-filters") {
       clearFilters();
-      return;
-    }
-    if (action === "choose-discovered-model") {
-      const provider = providerByID(element.dataset.providerId);
-      if (provider) {
-        $("discoveryDialog").close();
-        openModelDialog(provider, null, element.dataset.modelId);
-      }
       return;
     }
     if (handleProviderAction(action, element)) return;

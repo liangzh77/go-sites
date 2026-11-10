@@ -20,7 +20,8 @@
 - 检测状态、HTTP 状态、耗时、模型与历史记录；配置变化后旧结果标记为过期。
 - 预计到期日、提前提醒天数、购买日期和备注。
 - 模型 ID、上下文、最大输出、思考能力、思考等级 / 预算、额外测试参数、默认测试模型。
-- 从支持模型列表接口的 Provider 获取模型 ID；不猜测上下文或思考能力。
+- 从支持模型列表接口的 Provider 获取模型 ID；OpenCode Go 还会合并 Models.dev 官方目录中的上下文、最大输出、思考模式和附加能力。
+- OpenCode Go 创建 Provider 后自动导入全部当前模型；已有 Provider 可点击“同步模型”全量刷新，不需要逐个手工填写。
 - AES-256-GCM 加密落库、列表脱敏、重新验证后临时查看完整 Key。
 - 服务端 bcrypt 密码校验、HttpOnly / SameSite=Strict 会话、CSRF 校验和敏感响应禁缓存。
 - SQLite WAL、单文件备份命令、systemd 单元和部署 / 回滚入口。
@@ -40,6 +41,23 @@
 每把 API Key 使用 AES-256-GCM 加密，密文与 Key 记录 ID 绑定。缺少或无法解析 `KEYS_MASTER_KEY` / `KEYS_MASTER_KEY_FILE` 时服务拒绝启动。
 
 数据库不包含可直接使用的明文 Key。列表接口只读取保存时生成的脱敏串；只有单条查看、检测和模型发现会解密对应记录。
+
+### 模型目录自动导入
+
+OpenCode Go 的推理模型接口 `GET /inference/go/v1/models` 提供当前 Key 可用的模型 ID，但参数并不在该响应中。服务端会同时读取 OpenCode 官方 Models.dev 目录：
+
+```text
+https://models.dev/api.json?type=all
+```
+
+目录中 `opencode-go` 的模型会与当前 Key 可见 ID 求交集，并自动写入：
+
+- 上下文上限和最大输出。
+- 是否支持思考。
+- effort / toggle / budget_tokens 等思考模式。
+- 工具调用、结构化输出、附件、Temperature、官方名称和描述等扩展元数据。
+
+已手工覆盖且不为空的参数不会被官方目录覆盖；未知字段会由目录补齐。重复同步是幂等的，不会重复创建模型。
 
 ### 自定义 Provider
 
@@ -272,6 +290,7 @@ POST   /keys/api/providers/{id}/test
 POST   /keys/api/test-enabled
 POST   /keys/api/keys/{id}/reveal
 POST   /keys/api/keys/{id}/discover-models
+POST   /keys/api/providers/{id}/discover-models
 GET    /keys/api/keys/{id}/detections
 ```
 
