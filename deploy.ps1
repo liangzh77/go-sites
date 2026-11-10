@@ -522,6 +522,9 @@ fi
 chown -R "$service_user:$service_group" "$SHARED_DIR"
 chmod 750 "$SHARED_DIR" "$DATA_DIR"
 chmod 600 "$CONFIG"
+if [[ -f "$DATA_DIR/keys.db" ]]; then
+  chmod 600 "$DATA_DIR"/keys.db*
+fi
 
 old_target=''
 if [[ -L "$APP_ROOT/current" ]]; then
@@ -545,6 +548,7 @@ EnvironmentFile=$CONFIG
 ExecStart=$APP_ROOT/current/go-sites-keys
 Restart=on-failure
 RestartSec=3
+UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

@@ -12,6 +12,7 @@ EnvironmentFile=/srv/apps/go-sites-keys/shared/keys.env
 ExecStart=/srv/apps/go-sites-keys/current/go-sites-keys
 Restart=on-failure
 RestartSec=3
+UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
