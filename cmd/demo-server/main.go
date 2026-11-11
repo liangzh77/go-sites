@@ -1061,9 +1061,20 @@ func (a *app) handleServeDemo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item, ok := a.findDemo(slug)
-	if !ok || item.Disabled {
+	if !ok {
 		http.NotFound(w, r)
 		return
+	}
+	if item.Disabled {
+		// A private demo uses the same server-side session as the site's
+		// existing password login. Hide its resources from caches as well as
+		// anonymous visitors because a previously cached public response must
+		// not remain readable after the demo is made private.
+		setPrivateDemoCacheHeaders(w)
+		if !a.isAuthenticated(r) {
+			a.servePrivateDemoGate(w, r, item)
+			return
+		}
 	}
 	// Uploaded demos are untrusted active content on the same hostname as the
 	// private services. Deliberately omit allow-same-origin: scripts still run,
@@ -1083,6 +1094,162 @@ func (a *app) handleServeDemo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.serveDemoFile(w, r, item, demoRoot, target, slug)
+}
+
+func setPrivateDemoCacheHeaders(w http.ResponseWriter) {
+	w.Header().Set("Cache-Control", "private, no-store, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+}
+
+func (a *app) servePrivateDemoGate(w http.ResponseWriter, r *http.Request, item demoItem) {
+	w.Header().Set("Content-Security-Policy",
+		"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
+	http.ServeContent(w, r, "private-demo.html", time.Time{}, strings.NewReader(renderPrivateDemoGate(item.Title)))
+}
+
+func renderPrivateDemoGate(title string) string {
+	safeTitle := html.EscapeString(strings.TrimSpace(title))
+	if safeTitle == "" {
+		safeTitle = "演示页面"
+	}
+	return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>` + safeTitle + ` · 私有演示</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18212f;
+      --muted: #657183;
+      --line: rgba(24, 33, 47, .12);
+      --primary: #0866ff;
+      --surface: rgba(255, 255, 255, .94);
+      --page: #f0f2f5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 18% 12%, rgba(8, 102, 255, .13), transparent 34%),
+        radial-gradient(circle at 86% 88%, rgba(79, 168, 116, .12), transparent 30%),
+        var(--page);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(100%, 430px);
+      padding: 30px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--surface);
+      box-shadow: 0 24px 70px rgba(29, 42, 64, .13);
+      backdrop-filter: blur(16px);
+    }
+    .seal {
+      width: 38px;
+      height: 38px;
+      margin-bottom: 20px;
+      border-radius: 12px;
+      background: var(--primary);
+      box-shadow: inset 0 0 0 9px rgba(255, 255, 255, .2);
+    }
+    h1 { margin: 0 0 8px; font-size: clamp(24px, 7vw, 30px); letter-spacing: -.03em; }
+    .demo-title { margin: 0 0 22px; color: var(--muted); line-height: 1.6; }
+    .demo-title strong { color: var(--ink); font-weight: 650; }
+    label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 650; }
+    input {
+      width: 100%;
+      height: 46px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      outline: none;
+      color: var(--ink);
+      background: #fff;
+      font: inherit;
+    }
+    input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(8, 102, 255, .13); }
+    .error { min-height: 22px; margin: 8px 0; color: #b42318; font-size: 13px; }
+    button {
+      width: 100%;
+      height: 46px;
+      border: 0;
+      border-radius: 12px;
+      color: #fff;
+      background: var(--primary);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(.94); }
+    button:disabled { cursor: wait; opacity: .62; }
+    .hint { margin: 16px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="seal" aria-hidden="true"></div>
+    <h1>私有演示</h1>
+    <p class="demo-title"><strong>` + safeTitle + `</strong><br>这是私有页面，请输入网站登录密码后继续。</p>
+    <form id="privateDemoForm">
+      <label for="privateDemoPassword">网站登录密码</label>
+      <input id="privateDemoPassword" type="password" autocomplete="current-password" autofocus required>
+      <p id="privateDemoError" class="error" role="alert"></p>
+      <button id="privateDemoSubmit" type="submit">打开私有演示</button>
+      <p class="hint">登录后会使用网站的安全会话，密码不会保存在当前页面。</p>
+    </form>
+  </main>
+  <script>
+    (() => {
+      const form = document.getElementById('privateDemoForm');
+      const input = document.getElementById('privateDemoPassword');
+      const error = document.getElementById('privateDemoError');
+      const submit = document.getElementById('privateDemoSubmit');
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        error.textContent = '';
+        if (!input.value) {
+          error.textContent = '请输入网站登录密码';
+          input.focus();
+          return;
+        }
+        submit.disabled = true;
+        try {
+          const response = await fetch('/api/demo/session', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: input.value })
+          });
+          if (!response.ok) {
+            error.textContent = response.status === 401
+              ? '密码错误，请重试'
+              : '登录服务暂时不可用，请稍后再试';
+            input.select();
+            return;
+          }
+          window.location.reload();
+        } catch {
+          error.textContent = '网络连接失败，请稍后再试';
+        } finally {
+          submit.disabled = false;
+        }
+      });
+    })();
+  </script>
+</body>
+</html>`
 }
 
 func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, item demoItem, demoRoot, target, slug string) {

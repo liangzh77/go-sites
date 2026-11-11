@@ -775,7 +775,6 @@
 
         tr.is-disabled-demo .name-line a {
             color: var(--ink-soft);
-            pointer-events: none;
         }
 
         .name-line {
@@ -2653,9 +2652,9 @@
         <div class="login-modal-backdrop" data-close-login></div>
         <form id="loginForm" class="login-dialog">
             <h2 id="loginTitle">输入密码</h2>
-            <p class="login-note">回到只属于你的收藏角落。</p>
-            <label class="password-label" for="loginPassword">访问密码</label>
-            <input id="loginPassword" class="password-input" type="password" autocomplete="current-password" placeholder="请输入密码" required>
+            <p class="login-note">登录后可访问私有演示与管理入口。</p>
+            <label class="password-label" for="loginPassword">网站登录密码</label>
+            <input id="loginPassword" class="password-input" type="password" autocomplete="current-password" placeholder="请输入网站登录密码" required>
             <p id="loginError" class="login-error" role="alert"></p>
             <div class="login-actions">
                 <button class="login-action" type="button" data-close-login>取消</button>
@@ -3157,7 +3156,7 @@
                             nameLine.appendChild(this.createDemoNameInput(tool));
                         } else {
                             const nameLink = document.createElement('a');
-                            nameLink.href = tool.disabled ? '#' : this.getLinkAddress(tool['地址']);
+                            nameLink.href = this.getLinkAddress(tool['地址']);
                             nameLink.target = '_blank';
                             nameLink.textContent = tool['名称'];
                             nameLine.appendChild(nameLink);
@@ -3291,7 +3290,7 @@
                 } else {
                     const nameLink = document.createElement('a');
                     nameLink.className = 'mobile-card-name';
-                    nameLink.href = tool.disabled ? '#' : this.getLinkAddress(tool['地址']);
+                    nameLink.href = this.getLinkAddress(tool['地址']);
                     nameLink.target = '_blank';
                     nameLink.textContent = tool['名称'];
                     summary.appendChild(nameLink);
@@ -3474,7 +3473,9 @@
                 toggleButton.className = 'demo-action-btn';
                 toggleButton.dataset.demoAction = tool.disabled ? 'enable' : 'disable';
                 toggleButton.dataset.demoSlug = tool.demoSlug;
-                toggleButton.textContent = tool.disabled ? '启用' : '禁用';
+                toggleButton.textContent = tool.disabled ? '设为公开' : '设为私有';
+                toggleButton.title = tool.disabled ? '取消密码保护并公开链接' : '设为私有，访问时需输入网站登录密码';
+                toggleButton.setAttribute('aria-label', toggleButton.title);
                 actions.appendChild(toggleButton);
 
                 const deleteButton = document.createElement('button');
@@ -4011,7 +4012,7 @@
                     if (!response.ok) {
                         throw new Error(await this.readErrorMessage(response));
                     }
-                    this.setDemoStatus(disabled ? '已禁用' : '已启用');
+                    this.setDemoStatus(disabled ? '已设为私有，访问时需输入网站登录密码' : '已设为公开');
                     await this.loadDemos();
                     this.switchToPage(this.demoPageName);
                 } catch (error) {
@@ -4125,8 +4126,8 @@
                 const tools = this.demoItems.map(item => ({
                     "名称": item.title,
                     "地址": item.address,
-                    "备注": item.disabled ? "已禁用" : "已启用",
-                    "功能": item.feature || `${item.disabled ? '已禁用' : '已启用'} · ${this.getDemoKindLabel(item.kind)}`,
+                    "备注": item.disabled ? "私有（需密码）" : "公开",
+                    "功能": item.feature || `${item.disabled ? '私有（需密码）' : '公开'} · ${this.getDemoKindLabel(item.kind)}`,
                     demoFeature: item.feature || '',
                     demoSlug: item.slug,
                     disabled: item.disabled,
@@ -4537,7 +4538,7 @@
                 const passwordInput = document.getElementById('loginPassword');
 
                 if (!passwordInput.value) {
-                    errorElement.textContent = '请输入管理密码';
+                    errorElement.textContent = '请输入网站登录密码';
                     passwordInput.select();
                     return;
                 }
