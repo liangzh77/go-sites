@@ -454,7 +454,7 @@ func TestServeDemoRedirectsSlugToDirectory(t *testing.T) {
 	}
 }
 
-func TestPrivateDemoRequiresExistingSiteSession(t *testing.T) {
+func TestPrivateDemoRequiresSeparatePasswordSession(t *testing.T) {
 	dataDir := t.TempDir()
 	a := &app{
 		dataDir:       dataDir,
@@ -471,20 +471,29 @@ func TestPrivateDemoRequiresExistingSiteSession(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(demoDir, "index.html"), []byte(`<h1>private content</h1>`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := a.saveManifestLocked(manifest{Demos: []demoItem{{
-		Title: "Private Demo", Slug: "private-demo", Disabled: true,
-	}}}); err != nil {
+	otherDir := filepath.Join(a.demosDir, "other-private-demo")
+	if err := os.MkdirAll(otherDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.WriteFile(filepath.Join(otherDir, "index.html"), []byte(`<h1>other private content</h1>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.saveManifestLocked(manifest{Demos: []demoItem{
+		{Title: "Private Demo", Slug: "private-demo", Disabled: true},
+		{Title: "Other Private Demo", Slug: "other-private-demo", Disabled: true},
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	handler := a.routes()
 
 	gateRequest := httptest.NewRequest(http.MethodGet, "/demo/private-demo/", nil)
 	gateResponse := httptest.NewRecorder()
-	a.handleServeDemo(gateResponse, gateRequest)
+	handler.ServeHTTP(gateResponse, gateRequest)
 	if gateResponse.Code != http.StatusOK {
 		t.Fatalf("private gate status = %d, body = %s", gateResponse.Code, gateResponse.Body.String())
 	}
 	gateBody := gateResponse.Body.String()
-	for _, want := range []string{"私有演示", "网站登录密码", "/api/demo/session"} {
+	for _, want := range []string{"私有演示", "网站登录密码", "/api/demo/private-session/private-demo"} {
 		if !strings.Contains(gateBody, want) {
 			t.Fatalf("private gate missing %q:\n%s", want, gateBody)
 		}
@@ -502,15 +511,43 @@ func TestPrivateDemoRequiresExistingSiteSession(t *testing.T) {
 	loginRequest := httptest.NewRequest(http.MethodPost, "/api/demo/session", strings.NewReader(`{"password":"site-login-password"}`))
 	loginRequest.Header.Set("Content-Type", "application/json")
 	loginResponse := httptest.NewRecorder()
-	a.handleSession(loginResponse, loginRequest)
+	handler.ServeHTTP(loginResponse, loginRequest)
 	if loginResponse.Code != http.StatusOK || len(loginResponse.Result().Cookies()) != 1 {
 		t.Fatalf("private demo login failed: %d %s", loginResponse.Code, loginResponse.Body.String())
 	}
 
+	siteSessionRequest := httptest.NewRequest(http.MethodGet, "/demo/private-demo/", nil)
+	siteSessionRequest.AddCookie(loginResponse.Result().Cookies()[0])
+	siteSessionResponse := httptest.NewRecorder()
+	handler.ServeHTTP(siteSessionResponse, siteSessionRequest)
+	if !strings.Contains(siteSessionResponse.Body.String(), "私有演示") {
+		t.Fatalf("site login bypassed the private demo gate:\n%s", siteSessionResponse.Body.String())
+	}
+
+	wrongPasswordRequest := httptest.NewRequest(http.MethodPost, "/api/demo/private-session/private-demo", strings.NewReader(`{"password":"wrong-password"}`))
+	wrongPasswordRequest.Header.Set("Content-Type", "application/json")
+	wrongPasswordResponse := httptest.NewRecorder()
+	handler.ServeHTTP(wrongPasswordResponse, wrongPasswordRequest)
+	if wrongPasswordResponse.Code != http.StatusUnauthorized || len(wrongPasswordResponse.Result().Cookies()) != 0 {
+		t.Fatalf("wrong private password = %d, cookies = %v", wrongPasswordResponse.Code, wrongPasswordResponse.Result().Cookies())
+	}
+
+	privateLoginRequest := httptest.NewRequest(http.MethodPost, "/api/demo/private-session/private-demo", strings.NewReader(`{"password":"site-login-password"}`))
+	privateLoginRequest.Header.Set("Content-Type", "application/json")
+	privateLoginResponse := httptest.NewRecorder()
+	handler.ServeHTTP(privateLoginResponse, privateLoginRequest)
+	if privateLoginResponse.Code != http.StatusOK || len(privateLoginResponse.Result().Cookies()) != 1 {
+		t.Fatalf("private demo session failed: %d %s", privateLoginResponse.Code, privateLoginResponse.Body.String())
+	}
+	privateCookie := privateLoginResponse.Result().Cookies()[0]
+	if privateCookie.Name != privateDemoCookieName || privateCookie.Path != "/demo/" || !privateCookie.HttpOnly {
+		t.Fatalf("private demo cookie = %+v", privateCookie)
+	}
+
 	privateRequest := httptest.NewRequest(http.MethodGet, "/demo/private-demo/", nil)
-	privateRequest.AddCookie(loginResponse.Result().Cookies()[0])
+	privateRequest.AddCookie(privateCookie)
 	privateResponse := httptest.NewRecorder()
-	a.handleServeDemo(privateResponse, privateRequest)
+	handler.ServeHTTP(privateResponse, privateRequest)
 	if privateResponse.Code != http.StatusOK {
 		t.Fatalf("private demo status = %d, body = %s", privateResponse.Code, privateResponse.Body.String())
 	}
@@ -519,6 +556,14 @@ func TestPrivateDemoRequiresExistingSiteSession(t *testing.T) {
 	}
 	if got := privateResponse.Header().Get("Cache-Control"); got != "private, no-store, max-age=0" {
 		t.Fatalf("private demo Cache-Control = %q", got)
+	}
+
+	otherRequest := httptest.NewRequest(http.MethodGet, "/demo/other-private-demo/", nil)
+	otherRequest.AddCookie(privateCookie)
+	otherResponse := httptest.NewRecorder()
+	handler.ServeHTTP(otherResponse, otherRequest)
+	if !strings.Contains(otherResponse.Body.String(), "私有演示") {
+		t.Fatalf("private grant unlocked a different demo:\n%s", otherResponse.Body.String())
 	}
 }
 

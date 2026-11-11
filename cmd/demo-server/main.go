@@ -36,6 +36,7 @@ import (
 
 const (
 	cookieName                  = "go_sites_demo_session"
+	privateDemoCookieName       = "go_sites_demo_private_session"
 	sessionMaxAgeSec            = 60 * 60 * 24 * 7
 	maxUploadBytes              = 25 << 20
 	markdownDemoFaviconVersion  = "20260618-bulb-logo"
@@ -159,6 +160,7 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("GET /api/demo/monitor/events", a.requireAuth(a.handleMonitorEvents))
 	mux.HandleFunc("GET /api/demo/session", a.handleSessionStatus)
 	mux.HandleFunc("POST /api/demo/session", a.handleSession)
+	mux.HandleFunc("POST /api/demo/private-session/{slug}", a.handlePrivateDemoSession)
 	mux.HandleFunc("GET /api/demos", a.handleListDemos)
 	mux.HandleFunc("POST /api/demos", a.requireAuth(a.handleCreateDemo))
 	mux.HandleFunc("POST /api/demos/publish", a.requireAPIKey(a.handlePublishDemo))
@@ -198,20 +200,7 @@ func (a *app) handleWechatCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) handleSession(w http.ResponseWriter, r *http.Request) {
-	if a.adminPassword == "" {
-		writeError(w, http.StatusServiceUnavailable, "AUTH_NOT_CONFIGURED", "Demo administration password is not configured.")
-		return
-	}
-
-	var input struct {
-		Password string `json:"password"`
-	}
-	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&input); err != nil {
-		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body.")
-		return
-	}
-	if input.Password != a.adminPassword {
-		writeError(w, http.StatusUnauthorized, "INVALID_PASSWORD", "Invalid password.")
+	if !a.authenticatePasswordRequest(w, r) {
 		return
 	}
 
@@ -223,6 +212,52 @@ func (a *app) handleSession(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		Secure:   r.Header.Get("X-Forwarded-Proto") == "https",
 		MaxAge:   sessionMaxAgeSec,
+	})
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (a *app) authenticatePasswordRequest(w http.ResponseWriter, r *http.Request) bool {
+	if a.adminPassword == "" {
+		writeError(w, http.StatusServiceUnavailable, "AUTH_NOT_CONFIGURED", "Demo administration password is not configured.")
+		return false
+	}
+
+	var input struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 4096)).Decode(&input); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_JSON", "Invalid request body.")
+		return false
+	}
+	if input.Password != a.adminPassword {
+		writeError(w, http.StatusUnauthorized, "INVALID_PASSWORD", "Invalid password.")
+		return false
+	}
+	return true
+}
+
+func (a *app) handlePrivateDemoSession(w http.ResponseWriter, r *http.Request) {
+	if !a.authenticatePasswordRequest(w, r) {
+		return
+	}
+
+	item, ok := a.findDemo(r.PathValue("slug"))
+	if !ok {
+		writeError(w, http.StatusNotFound, "NOT_FOUND", "Demo not found.")
+		return
+	}
+	if !item.Disabled {
+		writeError(w, http.StatusConflict, "DEMO_NOT_PRIVATE", "Demo is not private.")
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     privateDemoCookieName,
+		Value:    a.privateDemoSessionToken(item),
+		Path:     "/demo/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   r.Header.Get("X-Forwarded-Proto") == "https",
 	})
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
@@ -1067,11 +1102,13 @@ func (a *app) handleServeDemo(w http.ResponseWriter, r *http.Request) {
 	}
 	if item.Disabled {
 		// A private demo uses the same server-side session as the site's
-		// existing password login. Hide its resources from caches as well as
-		// anonymous visitors because a previously cached public response must
-		// not remain readable after the demo is made private.
+		// existing password, but a separate short-lived grant. This prevents a
+		// normal site login from silently bypassing the private landing page.
+		// Hide its resources from caches as well as anonymous visitors because a
+		// previously cached public response must not remain readable after the
+		// demo is made private.
 		setPrivateDemoCacheHeaders(w)
-		if !a.isAuthenticated(r) {
+		if !a.isPrivateDemoAuthenticated(r, item) {
 			a.servePrivateDemoGate(w, r, item)
 			return
 		}
@@ -1107,14 +1144,15 @@ func (a *app) servePrivateDemoGate(w http.ResponseWriter, r *http.Request, item 
 		"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Robots-Tag", "noindex, nofollow")
-	http.ServeContent(w, r, "private-demo.html", time.Time{}, strings.NewReader(renderPrivateDemoGate(item.Title)))
+	http.ServeContent(w, r, "private-demo.html", time.Time{}, strings.NewReader(renderPrivateDemoGate(item.Title, item.Slug)))
 }
 
-func renderPrivateDemoGate(title string) string {
+func renderPrivateDemoGate(title, slug string) string {
 	safeTitle := html.EscapeString(strings.TrimSpace(title))
 	if safeTitle == "" {
 		safeTitle = "演示页面"
 	}
+	sessionURL := html.EscapeString("/api/demo/private-session/" + url.PathEscape(slug))
 	return `<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -1201,12 +1239,12 @@ func renderPrivateDemoGate(title string) string {
     <div class="seal" aria-hidden="true"></div>
     <h1>私有演示</h1>
     <p class="demo-title"><strong>` + safeTitle + `</strong><br>这是私有页面，请输入网站登录密码后继续。</p>
-    <form id="privateDemoForm">
+    <form id="privateDemoForm" data-session-url="` + sessionURL + `">
       <label for="privateDemoPassword">网站登录密码</label>
       <input id="privateDemoPassword" type="password" autocomplete="current-password" autofocus required>
       <p id="privateDemoError" class="error" role="alert"></p>
       <button id="privateDemoSubmit" type="submit">打开私有演示</button>
-      <p class="hint">登录后会使用网站的安全会话，密码不会保存在当前页面。</p>
+      <p class="hint">登录后会使用当前演示的独立安全会话，本次浏览器会话内无需重复输入；密码不会保存在页面中。</p>
     </form>
   </main>
   <script>
@@ -1226,7 +1264,7 @@ func renderPrivateDemoGate(title string) string {
         }
         submit.disabled = true;
         try {
-          const response = await fetch('/api/demo/session', {
+          const response = await fetch(form.dataset.sessionUrl, {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json' },
@@ -2209,6 +2247,11 @@ func (a *app) isAuthenticated(r *http.Request) bool {
 	return err == nil && hmac.Equal([]byte(cookie.Value), []byte(a.sessionToken()))
 }
 
+func (a *app) isPrivateDemoAuthenticated(r *http.Request, item demoItem) bool {
+	cookie, err := r.Cookie(privateDemoCookieName)
+	return err == nil && hmac.Equal([]byte(cookie.Value), []byte(a.privateDemoSessionToken(item)))
+}
+
 func (a *app) isAPIAuthenticated(r *http.Request) bool {
 	key := strings.TrimSpace(r.Header.Get("X-Demo-API-Key"))
 	if key == "" {
@@ -2223,6 +2266,12 @@ func (a *app) isAPIAuthenticated(r *http.Request) bool {
 func (a *app) sessionToken() string {
 	mac := hmac.New(sha256.New, a.sessionSecret)
 	mac.Write([]byte("go-sites-demo-admin"))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func (a *app) privateDemoSessionToken(item demoItem) string {
+	mac := hmac.New(sha256.New, a.sessionSecret)
+	mac.Write([]byte("go-sites-demo-private\x00" + item.Slug + "\x00" + item.UpdatedAt))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
