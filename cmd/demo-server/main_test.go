@@ -551,8 +551,12 @@ func TestPrivateDemoRequiresSeparatePasswordSession(t *testing.T) {
 	if privateResponse.Code != http.StatusOK {
 		t.Fatalf("private demo status = %d, body = %s", privateResponse.Code, privateResponse.Body.String())
 	}
-	if strings.Contains(privateResponse.Body.String(), "私有演示") || !strings.Contains(privateResponse.Body.String(), "private content") {
+	if strings.Contains(privateResponse.Body.String(), `id="privateDemoForm"`) || !strings.Contains(privateResponse.Body.String(), "private content") {
 		t.Fatalf("private demo did not serve content after login:\n%s", privateResponse.Body.String())
+	}
+	if !strings.Contains(privateResponse.Body.String(), "退出私有演示") ||
+		!strings.Contains(privateResponse.Body.String(), `action="/demo/private-demo/?logout=1"`) {
+		t.Fatalf("private demo is missing logout control:\n%s", privateResponse.Body.String())
 	}
 	if got := privateResponse.Header().Get("Cache-Control"); got != "private, no-store, max-age=0" {
 		t.Fatalf("private demo Cache-Control = %q", got)
@@ -564,6 +568,18 @@ func TestPrivateDemoRequiresSeparatePasswordSession(t *testing.T) {
 	handler.ServeHTTP(otherResponse, otherRequest)
 	if !strings.Contains(otherResponse.Body.String(), "私有演示") {
 		t.Fatalf("private grant unlocked a different demo:\n%s", otherResponse.Body.String())
+	}
+
+	logoutRequest := httptest.NewRequest(http.MethodPost, "/demo/private-demo/?logout=1", nil)
+	logoutRequest.AddCookie(privateCookie)
+	logoutResponse := httptest.NewRecorder()
+	handler.ServeHTTP(logoutResponse, logoutRequest)
+	if logoutResponse.Code != http.StatusSeeOther || logoutResponse.Header().Get("Location") != "/demo/private-demo/" {
+		t.Fatalf("private logout = %d, location = %q", logoutResponse.Code, logoutResponse.Header().Get("Location"))
+	}
+	logoutCookies := logoutResponse.Result().Cookies()
+	if len(logoutCookies) != 1 || logoutCookies[0].Name != privateDemoCookieName || logoutCookies[0].MaxAge >= 0 {
+		t.Fatalf("private logout cookies = %+v", logoutCookies)
 	}
 }
 

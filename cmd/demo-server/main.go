@@ -44,6 +44,7 @@ const (
 	markdownMindmapStyleMarker  = "go-sites-markdown-mindmap-style"
 	markdownMindmapScriptMarker = "data-md-mindmap-script"
 	markdownSourceMarker        = `id="markdown-source"`
+	privateDemoControlsMarker   = "go-sites-private-demo-controls"
 )
 
 var markdownHrefAttributePattern = regexp.MustCompile(`href="([^"]*)"`)
@@ -1108,6 +1109,10 @@ func (a *app) handleServeDemo(w http.ResponseWriter, r *http.Request) {
 		// previously cached public response must not remain readable after the
 		// demo is made private.
 		setPrivateDemoCacheHeaders(w)
+		if r.Method == http.MethodPost && r.URL.Query().Get("logout") == "1" {
+			a.clearPrivateDemoSession(w, r, item)
+			return
+		}
 		if !a.isPrivateDemoAuthenticated(r, item) {
 			a.servePrivateDemoGate(w, r, item)
 			return
@@ -1131,6 +1136,19 @@ func (a *app) handleServeDemo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.serveDemoFile(w, r, item, demoRoot, target, slug)
+}
+
+func (a *app) clearPrivateDemoSession(w http.ResponseWriter, r *http.Request, item demoItem) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     privateDemoCookieName,
+		Value:    "",
+		Path:     "/demo/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   r.Header.Get("X-Forwarded-Proto") == "https",
+		MaxAge:   -1,
+	})
+	http.Redirect(w, r, "/demo/"+url.PathEscape(item.Slug)+"/", http.StatusSeeOther)
 }
 
 func setPrivateDemoCacheHeaders(w http.ResponseWriter) {
@@ -1291,7 +1309,12 @@ func renderPrivateDemoGate(title, slug string) string {
 }
 
 func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, item demoItem, demoRoot, target, slug string) {
-	if !isDemoHTMLFile(target) || (!strings.EqualFold(item.Kind, "markdown") && !strings.EqualFold(item.Kind, "markdown-folder")) {
+	if !isDemoHTMLFile(target) {
+		http.ServeFile(w, r, target)
+		return
+	}
+	isMarkdown := strings.EqualFold(item.Kind, "markdown") || strings.EqualFold(item.Kind, "markdown-folder")
+	if !isMarkdown && !item.Disabled {
 		http.ServeFile(w, r, target)
 		return
 	}
@@ -1307,16 +1330,69 @@ func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, item demoIte
 		return
 	}
 
-	page := injectDemoThemeHTML(string(data))
-	page = injectMarkdownMindmapHTML(page)
-	if item.Kind == "markdown-folder" && strings.Contains(string(data), demoThemeMarker) {
-		page = injectMarkdownFolderTreeHTML(page, demoRoot, target, slug)
+	page := string(data)
+	if isMarkdown {
+		page = injectDemoThemeHTML(page)
+		page = injectMarkdownMindmapHTML(page)
+		if strings.EqualFold(item.Kind, "markdown-folder") && strings.Contains(string(data), demoThemeMarker) {
+			page = injectMarkdownFolderTreeHTML(page, demoRoot, target, slug)
+		}
 	}
-	w.Header().Set("Cache-Control", "no-store, max-age=0")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Expires", "0")
+	if item.Disabled {
+		page = injectPrivateDemoControlsHTML(page, slug)
+	}
+	if item.Disabled {
+		setPrivateDemoCacheHeaders(w)
+	} else {
+		w.Header().Set("Cache-Control", "no-store, max-age=0")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	http.ServeContent(w, r, info.Name(), info.ModTime(), strings.NewReader(page))
+}
+
+func injectPrivateDemoControlsHTML(page, slug string) string {
+	if strings.Contains(page, privateDemoControlsMarker) {
+		return page
+	}
+	action := html.EscapeString("/demo/" + url.PathEscape(slug) + "/?logout=1")
+	injection := `<style id="go-sites-private-demo-controls-style">
+  #go-sites-private-demo-controls {
+    position: fixed !important;
+    top: max(12px, env(safe-area-inset-top)) !important;
+    right: max(12px, env(safe-area-inset-right)) !important;
+    z-index: 2147483647 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #go-sites-private-demo-controls button {
+    appearance: none !important;
+    min-height: 36px !important;
+    margin: 0 !important;
+    padding: 7px 13px !important;
+    border: 1px solid rgba(24, 33, 47, .16) !important;
+    border-radius: 999px !important;
+    color: #18212f !important;
+    background: rgba(255, 255, 255, .94) !important;
+    box-shadow: 0 8px 24px rgba(24, 33, 47, .16) !important;
+    font: 600 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    cursor: pointer !important;
+    backdrop-filter: blur(10px) !important;
+  }
+  #go-sites-private-demo-controls button:hover {
+    background: #fff !important;
+    box-shadow: 0 10px 28px rgba(24, 33, 47, .22) !important;
+  }
+</style>
+<form id="go-sites-private-demo-controls" method="post" action="` + action + `">
+  <button type="submit">退出私有演示</button>
+</form>`
+	lowerPage := strings.ToLower(page)
+	if index := strings.LastIndex(lowerPage, "</body>"); index >= 0 {
+		return page[:index] + injection + page[index:]
+	}
+	return page + injection
 }
 
 func isDemoHTMLFile(name string) bool {
