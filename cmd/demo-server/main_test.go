@@ -148,6 +148,8 @@ func TestMarkdownDemoRendersPolishedTablesAndFormats(t *testing.T) {
 		`box-sizing: border-box;`,
 		`.md-table-wrap {`,
 		`table-layout: fixed;`,
+		`overflow-wrap: anywhere;`,
+		`white-space: normal;`,
 		`white-space: pre;`,
 		`blockquote {`,
 		`li::marker {`,

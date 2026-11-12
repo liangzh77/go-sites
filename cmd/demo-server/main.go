@@ -3452,6 +3452,7 @@ func markdownDemoCSS() string {
       border: 0;
       border-bottom: 1px solid #ECEEF1;
       line-height: 1.62;
+      overflow-wrap: anywhere;
       text-align: left;
       vertical-align: middle;
     }
@@ -3474,7 +3475,8 @@ func markdownDemoCSS() string {
       border-color: #E2E5E9;
       background: #F3F4F6;
       font-size: 0.86em;
-      white-space: nowrap;
+      overflow-wrap: anywhere;
+      white-space: normal;
     }
 
     .md-table-wrap .md-table--2col th:first-child {
