@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -197,6 +199,68 @@ func TestEnhanceMarkdownTablesIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestEnhanceMarkdownTablesAddsColumnWidthsToExistingTable(t *testing.T) {
+	existing := `<div class="md-table-wrap">
+<table class="md-table md-table--3col">
+<thead>
+<tr>
+<th>仓库</th>
+<th>作用</th>
+<th>提交数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>yuntian-automatic-delivery</code></td>
+<td>投放前端</td>
+<td>53</td>
+</tr>
+</tbody>
+</table>
+</div>`
+
+	enhanced := enhanceMarkdownTables(existing)
+	if count := strings.Count(enhanced, "<colgroup>"); count != 1 {
+		t.Fatalf("existing table column group count = %d, want 1:\n%s", count, enhanced)
+	}
+	if strings.Count(enhanced, `<div class="md-table-wrap">`) != 1 {
+		t.Fatalf("existing table wrapper was duplicated:\n%s", enhanced)
+	}
+}
+
+func TestMarkdownTableColumnsFollowContentWidths(t *testing.T) {
+	rendered := renderMarkdown(`| 仓库 | 作用 | 10月以来提交（不含合并） |
+|---|---|---|
+| ` + "`ks-ad-build`" + ` | 快手批量搭建后端 | 180 |
+| ` + "`yuntian-automatic-delivery`" + ` | 投放前端（含 E2E） | 53 |
+| ` + "`ks-auto-drama-build`" + ` | 快手自动铺剧 | 19 |`)
+
+	matches := regexp.MustCompile(`<col style="width: ([0-9.]+)%">`).FindAllStringSubmatch(rendered, -1)
+	if len(matches) != 3 {
+		t.Fatalf("column width count = %d, want 3:\n%s", len(matches), rendered)
+	}
+
+	widths := make([]float64, len(matches))
+	total := 0.0
+	for i, match := range matches {
+		width, err := strconv.ParseFloat(match[1], 64)
+		if err != nil {
+			t.Fatal(err)
+		}
+		widths[i] = width
+		total += width
+	}
+	if total < 99.99 || total > 100.01 {
+		t.Fatalf("column widths sum to %.2f%%, want 100%%:\n%s", total, rendered)
+	}
+	if widths[0] <= widths[1] || widths[2] <= widths[1] {
+		t.Fatalf("content-heavy columns should be wider than the short action column: %v\n%s", widths, rendered)
+	}
+	if widths[2] >= 50 {
+		t.Fatalf("short numeric column is still too wide: %v\n%s", widths, rendered)
+	}
+}
+
 func TestMarkdownDemoCopySourcePreservesExactAndUnsafeText(t *testing.T) {
 	markdown := "  # 标题\n\n- **加粗**\n\n<script>alert('x')</script>\n\n```html\n</script>\n```\n"
 	page := renderMarkdownPage("复制测试", markdown)
@@ -246,16 +310,49 @@ func TestMarkdownDemoPageIncludesMindmapRenderer(t *testing.T) {
 			t.Fatalf("rendered markdown page missing mindmap enhancement %q:\n%s", want, page)
 		}
 	}
+	if strings.Contains(page, markdownMermaidScriptMarker) {
+		t.Fatalf("mindmap-only page should not load the general Mermaid bundle:\n%s", page)
+	}
 }
 
-func TestInjectMarkdownMindmapHTMLUpdatesStoredPage(t *testing.T) {
+func TestMarkdownDemoPageIncludesGeneralMermaidRenderer(t *testing.T) {
+	page := renderMarkdownPage("流程图", "```mermaid\nflowchart LR\n  A[开始] --> B[完成]\n```")
+
+	for _, want := range []string{
+		`<code class="language-mermaid">flowchart LR`,
+		`/assets/vendor/mermaid-12.3.0/mermaid.min.js?v=12.3.0`,
+		markdownMermaidStyleMarker,
+		markdownMermaidScriptMarker,
+		`securityLevel: "strict"`,
+		`suppressErrorRendering: true`,
+		`className = "md-mermaid"`,
+		`/^\s*mindmap\b/i`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("rendered markdown page missing general Mermaid renderer %q:\n%s", want, page)
+		}
+	}
+	if strings.Contains(page, markdownMindmapScriptMarker) {
+		t.Fatalf("flowchart page should not include the custom mindmap renderer:\n%s", page)
+	}
+}
+
+func TestMarkdownDemoPageOmitsMermaidRendererWithoutDiagrams(t *testing.T) {
+	page := renderMarkdownPage("普通文档", "# 标题\n\n正文")
+
+	if strings.Contains(page, markdownMermaidStyleMarker) || strings.Contains(page, markdownMermaidScriptMarker) {
+		t.Fatalf("plain Markdown page should not include Mermaid assets:\n%s", page)
+	}
+}
+
+func TestInjectMarkdownMermaidHTMLUpdatesStoredPage(t *testing.T) {
 	page := `<!doctype html><html><head><style ` + demoThemeMarker + `></style></head><body><main><article><pre><code class="language-mermaid">mindmap
   root((MagicCut))
     创作剪辑
       自由创作
 </code></pre></article></main></body></html>`
 
-	enhanced := injectMarkdownMindmapHTML(page)
+	enhanced := injectMarkdownMermaidHTML(page)
 	for _, want := range []string{
 		markdownMindmapStyleMarker,
 		markdownMindmapScriptMarker,
@@ -267,6 +364,30 @@ func TestInjectMarkdownMindmapHTMLUpdatesStoredPage(t *testing.T) {
 	}
 	if strings.Count(enhanced, markdownMindmapScriptMarker) != 1 {
 		t.Fatalf("mindmap script injected more than once:\n%s", enhanced)
+	}
+	if strings.Contains(enhanced, markdownMermaidScriptMarker) {
+		t.Fatalf("mindmap-only page should not load the general Mermaid bundle:\n%s", enhanced)
+	}
+}
+
+func TestInjectMarkdownMermaidHTMLUpdatesStoredFlowchartPage(t *testing.T) {
+	page := `<!doctype html><html><head><style ` + demoThemeMarker + `></style></head><body><main><article><pre><code class="language-mermaid">flowchart LR
+  A[开始] --> B[完成]
+</code></pre></article></main></body></html>`
+
+	enhanced := injectMarkdownMermaidHTML(page)
+	for _, want := range []string{
+		markdownMermaidStyleMarker,
+		markdownMermaidScriptMarker,
+		`/assets/vendor/mermaid-12.3.0/mermaid.min.js?v=12.3.0`,
+		`securityLevel: "strict"`,
+	} {
+		if !strings.Contains(enhanced, want) {
+			t.Fatalf("enhanced flowchart page missing %q:\n%s", want, enhanced)
+		}
+	}
+	if strings.Contains(enhanced, markdownMindmapScriptMarker) {
+		t.Fatalf("flowchart page should not include the custom mindmap renderer:\n%s", enhanced)
 	}
 }
 

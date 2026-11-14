@@ -40,7 +40,10 @@ const (
 	sessionMaxAgeSec            = 60 * 60 * 24 * 7
 	maxUploadBytes              = 25 << 20
 	markdownDemoFaviconVersion  = "20260618-bulb-logo"
+	markdownMermaidAssetVersion = "12.3.0"
 	demoThemeMarker             = `id="go-sites-demo-theme"`
+	markdownMermaidStyleMarker  = "go-sites-markdown-mermaid-style"
+	markdownMermaidScriptMarker = "data-md-mermaid-script"
 	markdownMindmapStyleMarker  = "go-sites-markdown-mindmap-style"
 	markdownMindmapScriptMarker = "data-md-mindmap-script"
 	markdownSourceMarker        = `id="markdown-source"`
@@ -1333,7 +1336,7 @@ func (a *app) serveDemoFile(w http.ResponseWriter, r *http.Request, item demoIte
 	page := string(data)
 	if isMarkdown {
 		page = injectDemoThemeHTML(page)
-		page = injectMarkdownMindmapHTML(page)
+		page = injectMarkdownMermaidHTML(page)
 		if strings.EqualFold(item.Kind, "markdown-folder") && strings.Contains(string(data), demoThemeMarker) {
 			page = injectMarkdownFolderTreeHTML(page, demoRoot, target, slug)
 		}
@@ -1420,23 +1423,56 @@ func injectDemoThemeHTML(page string) string {
 	return injection + page
 }
 
-func injectMarkdownMindmapHTML(page string) string {
-	if !markdownPageHasMermaidMindmap(page) {
+func injectMarkdownMermaidHTML(page string) string {
+	if !markdownPageHasMermaid(page) {
 		return page
 	}
-	if !strings.Contains(page, markdownMindmapStyleMarker) {
-		page = injectBeforeClosingTag(page, "</style>", markdownMindmapCSS())
+	hasGeneralMermaid := markdownPageHasGeneralMermaid(page)
+	hasMindmap := markdownPageHasMermaidMindmap(page)
+	if hasGeneralMermaid {
+		if !strings.Contains(page, markdownMermaidStyleMarker) {
+			page = injectBeforeClosingTag(page, "</style>", markdownMermaidCSS())
+		}
+		if !strings.Contains(page, markdownMermaidScriptMarker) {
+			page = injectBeforeClosingTag(page, "</body>", markdownMermaidScript())
+		}
 	}
-	if !strings.Contains(page, markdownMindmapScriptMarker) {
-		page = injectBeforeClosingTag(page, "</body>", markdownMindmapScript())
+	if hasMindmap {
+		if !strings.Contains(page, markdownMindmapStyleMarker) {
+			page = injectBeforeClosingTag(page, "</style>", markdownMindmapCSS())
+		}
+		if !strings.Contains(page, markdownMindmapScriptMarker) {
+			page = injectBeforeClosingTag(page, "</body>", markdownMindmapScript())
+		}
 	}
 	return page
 }
 
-func markdownPageHasMermaidMindmap(page string) bool {
-	lowerPage := strings.ToLower(page)
-	return strings.Contains(lowerPage, "language-mermaid") && strings.Contains(lowerPage, "mindmap")
+func markdownPageHasMermaid(page string) bool {
+	return strings.Contains(strings.ToLower(page), "language-mermaid")
 }
+
+func markdownPageHasGeneralMermaid(page string) bool {
+	for _, match := range markdownMermaidCodePattern.FindAllStringSubmatch(page, -1) {
+		source := strings.TrimSpace(html.UnescapeString(match[1]))
+		if source != "" && !strings.HasPrefix(strings.ToLower(source), "mindmap") {
+			return true
+		}
+	}
+	return false
+}
+
+func markdownPageHasMermaidMindmap(page string) bool {
+	for _, match := range markdownMermaidCodePattern.FindAllStringSubmatch(page, -1) {
+		source := strings.TrimSpace(html.UnescapeString(match[1]))
+		if strings.HasPrefix(strings.ToLower(source), "mindmap") {
+			return true
+		}
+	}
+	return false
+}
+
+var markdownMermaidCodePattern = regexp.MustCompile(`(?s)<code class="language-mermaid">(.*?)</code>`)
 
 const markdownFolderTreeMarker = `data-md-folder-tree`
 
@@ -3479,18 +3515,6 @@ func markdownDemoCSS() string {
       white-space: normal;
     }
 
-    .md-table-wrap .md-table--2col th:first-child {
-      width: 22%;
-    }
-
-    .md-table-wrap .md-table--3col th:first-child {
-      width: 20%;
-    }
-
-    .md-table-wrap .md-table--3col th:nth-child(2) {
-      width: 17%;
-    }
-
     .md-table-wrap .md-table--3col tbody td:nth-child(-n + 2) {
       text-align: center;
     }
@@ -3523,6 +3547,147 @@ func markdownDemoCSS() string {
         width: calc(100% + 0.7rem);
       }
     }
+`
+}
+
+func markdownMermaidCSS() string {
+	return `
+    /* ` + markdownMermaidStyleMarker + ` */
+    .md-mermaid {
+      margin: 1.25rem 0 1.75rem;
+      padding: 1rem;
+      overflow-x: auto;
+      border: 1px solid var(--go-site-border-soft);
+      border-radius: 8px;
+      background: #FFFFFF;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .md-mermaid svg {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: 0 auto;
+    }
+
+    .md-mermaid[data-state="loading"] .md-mermaid-fallback {
+      opacity: 0.55;
+    }
+
+    .md-mermaid[data-state="ready"] .md-mermaid-fallback {
+      display: none;
+    }
+
+    .md-mermaid-fallback {
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      font-size: 0.82rem;
+      line-height: 1.55;
+      white-space: pre;
+    }
+
+    .md-mermaid-error {
+      margin-bottom: 0.7rem;
+      color: #B42318;
+      font-size: 0.875rem;
+      font-weight: 650;
+    }
+
+    @media (max-width: 640px) {
+      .md-mermaid {
+        padding: 0.75rem;
+      }
+    }
+`
+}
+
+func markdownMermaidScript() string {
+	return `
+  <script src="/assets/vendor/mermaid-` + markdownMermaidAssetVersion + `/mermaid.min.js?v=` + markdownMermaidAssetVersion + `" data-md-mermaid-library></script>
+  <script ` + markdownMermaidScriptMarker + `>
+    (() => {
+      if (!window.mermaid) return;
+
+      const fontFamily = '"Avenir Next", "PingFang SC", "Microsoft YaHei", "Segoe UI", Arial, sans-serif';
+      const blocks = Array.from(document.querySelectorAll("pre > code.language-mermaid"))
+        .filter(code => !/^\s*mindmap\b/i.test(code.textContent || ""));
+      if (!blocks.length) return;
+
+      window.mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        suppressErrorRendering: true,
+        theme: "base",
+        fontFamily,
+        themeVariables: {
+          background: "#FFFFFF",
+          primaryColor: "#EAF2FF",
+          primaryTextColor: "#1C1E21",
+          primaryBorderColor: "#B7D0FF",
+          lineColor: "#6D7A8C",
+          secondaryColor: "#F5F6F7",
+          tertiaryColor: "#FFFFFF",
+          clusterBkg: "#F7F9FC",
+          clusterBorder: "#D8DCE1",
+          edgeLabelBackground: "#FFFFFF",
+          fontFamily
+        },
+        flowchart: {
+          curve: "basis",
+          htmlLabels: false,
+          useMaxWidth: true
+        },
+        sequence: {
+          useMaxWidth: true,
+          wrap: true
+        }
+      });
+
+      const jobs = [];
+      blocks.forEach((code, index) => {
+        const pre = code.closest("pre");
+        if (!pre) return;
+
+        const source = code.textContent || "";
+        const host = document.createElement("div");
+        host.className = "md-mermaid";
+        host.dataset.state = "loading";
+        host.setAttribute("role", "img");
+        host.setAttribute("aria-label", "Mermaid 图表");
+
+        const fallback = document.createElement("pre");
+        fallback.className = "md-mermaid-fallback";
+        const fallbackCode = document.createElement("code");
+        fallbackCode.textContent = source;
+        fallback.appendChild(fallbackCode);
+        host.appendChild(fallback);
+        pre.replaceWith(host);
+        jobs.push({ host, source, index });
+      });
+
+      (async () => {
+        for (const job of jobs) {
+          try {
+            const result = await window.mermaid.render(
+              "md-mermaid-" + Date.now() + "-" + job.index,
+              job.source
+            );
+            job.host.innerHTML = result.svg;
+            job.host.dataset.state = "ready";
+          } catch (error) {
+            job.host.dataset.state = "error";
+            const message = document.createElement("div");
+            message.className = "md-mermaid-error";
+            message.textContent = "Mermaid 图表渲染失败";
+            job.host.prepend(message);
+            console.error("Mermaid render failed", error);
+          }
+        }
+      })();
+    })();
+  </script>
 `
 }
 
@@ -3873,8 +4038,14 @@ func renderMarkdownPageHTMLWithSource(title, body, source string) string {
 }
 
 func renderMarkdownPageHTMLDocument(title, body, source string, includeSource bool) string {
+	mermaidCSS := ""
+	mermaidScript := ""
 	mindmapCSS := ""
 	mindmapScript := ""
+	if markdownPageHasGeneralMermaid(body) {
+		mermaidCSS = markdownMermaidCSS()
+		mermaidScript = markdownMermaidScript()
+	}
 	if markdownPageHasMermaidMindmap(body) {
 		mindmapCSS = markdownMindmapCSS()
 		mindmapScript = markdownMindmapScript()
@@ -3904,7 +4075,7 @@ func renderMarkdownPageHTMLDocument(title, body, source string, includeSource bo
   <title>` + html.EscapeString(title) + `</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=` + markdownDemoFaviconVersion + `">
   <style ` + demoThemeMarker + `>
-` + demoThemeCSS() + markdownDemoCSS() + mindmapCSS + `
+` + demoThemeCSS() + markdownDemoCSS() + mermaidCSS + mindmapCSS + `
   </style>
 </head>
 <body>
@@ -3920,7 +4091,7 @@ func renderMarkdownPageHTMLDocument(title, body, source string, includeSource bo
 ` + body + `
     </article>
   </main>
-` + copyPayload + mindmapScript + copyScript + `
+` + copyPayload + mermaidScript + mindmapScript + copyScript + `
 </body>
 </html>`
 }
@@ -3996,8 +4167,12 @@ func renderMarkdown(source string) string {
 }
 
 var (
-	markdownTablePattern        = regexp.MustCompile(`(?s)<table>\n.*?</table>`)
-	markdownTableHeaderPattern  = regexp.MustCompile(`(?s)<table>\n<thead>\n<tr>\n(.*?)</tr>`)
+	markdownPlainTablePattern   = regexp.MustCompile(`(?s)<table>\n.*?</table>`)
+	markdownTablePattern        = regexp.MustCompile(`(?s)<table(?:\s[^>]*)?>\n.*?</table>`)
+	markdownTableOpenPattern    = regexp.MustCompile(`^<table\b[^>]*>`)
+	markdownHeaderCellPattern   = regexp.MustCompile(`(?s)<th\b[^>]*>(.*?)</th>`)
+	markdownBodyCellPattern     = regexp.MustCompile(`(?s)<td\b[^>]*>(.*?)</td>`)
+	markdownHTMLTagPattern      = regexp.MustCompile(`<[^>]+>`)
 	markdownTableColumnsPattern = regexp.MustCompile(`md-table--([0-9]+)col`)
 )
 
@@ -4012,11 +4187,8 @@ func markdownHasWideTable(rendered string) bool {
 }
 
 func enhanceMarkdownTables(rendered string) string {
-	return markdownTablePattern.ReplaceAllStringFunc(rendered, func(table string) string {
-		columns := 0
-		if match := markdownTableHeaderPattern.FindStringSubmatch(table); len(match) > 1 {
-			columns = strings.Count(match[1], "<th")
-		}
+	rendered = markdownPlainTablePattern.ReplaceAllStringFunc(rendered, func(table string) string {
+		columns := len(markdownHeaderCellPattern.FindAllStringSubmatch(table, -1))
 
 		className := "md-table"
 		if columns > 0 {
@@ -4025,6 +4197,71 @@ func enhanceMarkdownTables(rendered string) string {
 		table = strings.Replace(table, "<table>", `<table class="`+className+`">`, 1)
 		return "<div class=\"md-table-wrap\">\n" + table + "\n</div>"
 	})
+	return markdownTablePattern.ReplaceAllStringFunc(rendered, addMarkdownTableColumnWidths)
+}
+
+func addMarkdownTableColumnWidths(table string) string {
+	if strings.Contains(table, "<colgroup>") {
+		return table
+	}
+
+	headers := markdownHeaderCellPattern.FindAllStringSubmatch(table, -1)
+	columns := len(headers)
+	if columns == 0 {
+		return table
+	}
+
+	weights := make([]float64, columns)
+	for i, header := range headers {
+		weights[i] = markdownCellDisplayWidth(header[1])
+	}
+	for i, cell := range markdownBodyCellPattern.FindAllStringSubmatch(table, -1) {
+		column := i % columns
+		if width := markdownCellDisplayWidth(cell[1]); width > weights[column] {
+			weights[column] = width
+		}
+	}
+
+	total := 0.0
+	for i := range weights {
+		weights[i] += 3
+		total += weights[i]
+	}
+	if total == 0 {
+		return table
+	}
+
+	open := markdownTableOpenPattern.FindStringIndex(table)
+	if open == nil {
+		return table
+	}
+
+	var columnsHTML strings.Builder
+	columnsHTML.WriteString("<colgroup>")
+	for _, weight := range weights {
+		columnsHTML.WriteString(`<col style="width: `)
+		columnsHTML.WriteString(strconv.FormatFloat(weight/total*100, 'f', 2, 64))
+		columnsHTML.WriteString(`%">`)
+	}
+	columnsHTML.WriteString("</colgroup>")
+	return table[:open[1]] + "\n" + columnsHTML.String() + table[open[1]:]
+}
+
+func markdownCellDisplayWidth(cell string) float64 {
+	text := html.UnescapeString(markdownHTMLTagPattern.ReplaceAllString(cell, ""))
+	text = strings.Join(strings.Fields(text), " ")
+
+	width := 0.0
+	for _, r := range text {
+		if unicode.IsSpace(r) {
+			width += 0.5
+		} else if r <= unicode.MaxASCII {
+			width++
+		} else {
+			width += 2
+		}
+	}
+	return width
 }
 
 func markdownTitleFromContent(source string) string {
