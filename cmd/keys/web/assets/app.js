@@ -17,6 +17,7 @@
     pending: new Set(),
     toastTimer: 0,
     quotaTooltipKeyID: "",
+    quotaTooltipTimer: 0,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -329,9 +330,28 @@
       }));
   }
 
+  function formatQuotaRemaining(value, now = Date.now()) {
+    if (!value) return "剩余时间未知";
+    const reset = new Date(value).valueOf();
+    if (Number.isNaN(reset)) return "剩余时间未知";
+    const milliseconds = reset - now;
+    if (milliseconds <= 0) return "即将重置";
+    const totalMinutes = Math.max(1, Math.ceil(milliseconds / 60_000));
+    const days = Math.floor(totalMinutes / (24 * 60));
+    const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+    const minutes = totalMinutes % 60;
+    if (days > 0) return `${days} 天 ${hours} 小时`;
+    if (hours > 0) return `${hours} 小时 ${minutes} 分`;
+    return `${minutes} 分钟`;
+  }
+
   function quotaMeterHTML(label, meter) {
     const percent = Number(meter.percent || 0);
     const level = percent >= 90 ? "danger" : percent >= 70 ? "warning" : "";
+    const remaining = formatQuotaRemaining(meter.resetsAt);
+    const resetText = remaining === "剩余时间未知" || remaining === "即将重置"
+      ? remaining
+      : `剩余 ${remaining}`;
     return `<div class="quota-meter">
       <div class="quota-meter-head">
         <span>${label}</span>
@@ -340,8 +360,9 @@
       <progress class="quota-progress ${level}" max="100" value="${Math.min(percent, 100)}"></progress>
       <div class="quota-meter-foot">
         <span>${formatUSD(meter.usedUsd)} / ${formatUSD(meter.limitUsd)}</span>
-        <span>${meter.limited ? "已触顶" : `重置 ${formatQuotaReset(meter.resetsAt)}`}</span>
+        <span>${meter.limited ? "已触顶 · " : ""}${resetText}</span>
       </div>
+      <small class="quota-reset-at">重置于 ${formatQuotaReset(meter.resetsAt)}</small>
     </div>`;
   }
 
@@ -389,9 +410,25 @@
     tooltip.innerHTML = renderQuotaTooltip(found.key);
     tooltip.hidden = false;
     positionQuotaTooltip(trigger);
+    window.clearInterval(state.quotaTooltipTimer);
+    state.quotaTooltipTimer = window.setInterval(() => {
+      if (!state.quotaTooltipKeyID) return;
+      const current = keyByID(state.quotaTooltipKeyID);
+      const currentTrigger = document.querySelector(
+        `.quota-trigger[data-quota-key-id="${CSS.escape(state.quotaTooltipKeyID)}"]`,
+      );
+      if (!current || !currentTrigger || tooltip.hidden) {
+        hideQuotaTooltip();
+        return;
+      }
+      tooltip.innerHTML = renderQuotaTooltip(current.key);
+      positionQuotaTooltip(currentTrigger);
+    }, 60_000);
   }
 
   function hideQuotaTooltip() {
+    window.clearInterval(state.quotaTooltipTimer);
+    state.quotaTooltipTimer = 0;
     state.quotaTooltipKeyID = "";
     $("keyQuotaTooltip").hidden = true;
   }

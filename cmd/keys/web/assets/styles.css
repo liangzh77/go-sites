@@ -1007,6 +1007,14 @@ input::placeholder, textarea::placeholder { color: #9aa39e; }
   font-family: var(--mono);
   font-size: 8px;
 }
+.quota-reset-at {
+  display: block;
+  margin-top: 4px;
+  color: rgba(247, 242, 232, 0.36);
+  font-family: var(--mono);
+  font-size: 7px;
+  text-align: right;
+}
 .quota-warning,
 .quota-hint {
   margin: 9px 0 0;
