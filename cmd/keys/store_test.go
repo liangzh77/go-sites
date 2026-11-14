@@ -226,6 +226,41 @@ func TestImportDiscoveredModelsEnrichesAndIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestDetectionPersistsOpenCodeQuota(t *testing.T) {
+	store := testStore(t)
+	_, _, key := seedKey(t, store)
+	target := mustDetectionTarget(t, store, key.ID)
+	detection := detectionFromTarget(target, statusSuccess)
+	quota := &OpenCodeGoQuota{
+		Rolling: QuotaMeter{
+			UsedUSD: 0.52520194, LimitUSD: 12, RemainingUSD: 11.47479806,
+			Percent: 4.38, ResetsAt: "2026-11-14T08:24:19Z",
+		},
+		Weekly: QuotaMeter{
+			UsedUSD: 11.50180085, LimitUSD: 30, RemainingUSD: 18.49819915,
+			Percent: 38.34, ResetsAt: "2026-11-16T00:00:00Z",
+		},
+		Monthly: QuotaMeter{
+			UsedUSD: 54.44321667, LimitUSD: 60, RemainingUSD: 5.55678333,
+			Percent: 90.74, ResetsAt: "2026-11-24T01:39:00Z",
+		},
+		FetchedAt: nowString(),
+	}
+	detection.Quota = quota
+	detection.QuotaFetchedAt = quota.FetchedAt
+	if _, err := store.saveDetection(detection); err != nil {
+		t.Fatal(err)
+	}
+	current, err := store.apiKeyByID(key.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Quota == nil || current.Quota.Monthly.Percent != 90.74 ||
+		current.QuotaFetchedAt != quota.FetchedAt {
+		t.Fatalf("persisted quota = %+v", current.Quota)
+	}
+}
+
 func modelByModelID(models []ModelConfig, modelID string) *ModelConfig {
 	for index := range models {
 		if models[index].ModelID == modelID {

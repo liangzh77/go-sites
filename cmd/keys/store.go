@@ -55,6 +55,9 @@ CREATE TABLE IF NOT EXISTS api_keys (
 	status_fingerprint   TEXT NOT NULL DEFAULT '',
 	status_started_at    TEXT NOT NULL DEFAULT '',
 	config_rev           INTEGER NOT NULL DEFAULT 1,
+	quota_json           TEXT NOT NULL DEFAULT '{}',
+	quota_fetched_at     TEXT NOT NULL DEFAULT '',
+	quota_error          TEXT NOT NULL DEFAULT '',
 	created_at           TEXT NOT NULL,
 	updated_at           TEXT NOT NULL
 );
@@ -133,6 +136,19 @@ func openKeyStore(path string, cipher *secretCipher) (*keyStore, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate model metadata: %w", err)
 	}
+	for _, column := range []struct {
+		name       string
+		definition string
+	}{
+		{"quota_json", "TEXT NOT NULL DEFAULT '{}'"},
+		{"quota_fetched_at", "TEXT NOT NULL DEFAULT ''"},
+		{"quota_error", "TEXT NOT NULL DEFAULT ''"},
+	} {
+		if err := ensureColumn(db, "api_keys", column.name, column.definition); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("migrate key quota: %w", err)
+		}
+	}
 	return &keyStore{db: db, cipher: cipher}, nil
 }
 
@@ -210,7 +226,8 @@ func (s *keyStore) listProviders() ([]Provider, error) {
 		SELECT id, provider_id, alias, masked_key, enabled, test_model, purchase_date,
 		       expires_on, reminder_days, note, status, status_detail, tested_model,
 		       tested_at, duration_ms, http_status, status_stale, status_fingerprint,
-		       status_started_at, created_at, updated_at, config_rev
+		       status_started_at, created_at, updated_at, config_rev,
+		       quota_json, quota_fetched_at, quota_error
 		  FROM api_keys
 		 ORDER BY created_at, alias`)
 	if err != nil {
@@ -261,12 +278,14 @@ func scanAPIKey(scanner interface{ Scan(...any) error }) (APIKey, error) {
 		enabled   int
 		stale     int
 		reminders int
+		quotaJSON string
 	)
 	err := scanner.Scan(
 		&k.ID, &k.ProviderID, &k.Alias, &k.MaskedKey, &enabled, &k.TestModel,
 		&k.PurchaseDate, &k.ExpiresOn, &reminders, &k.Note, &k.Status, &k.StatusDetail,
 		&k.TestedModel, &k.TestedAt, &k.DurationMS, &k.HTTPStatus, &stale,
 		&k.StatusFingerprint, &k.StatusStartedAt, &k.CreatedAt, &k.UpdatedAt, &k.ConfigRev,
+		&quotaJSON, &k.QuotaFetchedAt, &k.QuotaError,
 	)
 	if err != nil {
 		return k, err
@@ -275,6 +294,13 @@ func scanAPIKey(scanner interface{ Scan(...any) error }) (APIKey, error) {
 	k.StatusStale = stale != 0
 	k.ReminderDays = reminders
 	k.ExpiryDays = expiryDays(k.ExpiresOn)
+	if json.Valid([]byte(quotaJSON)) && strings.TrimSpace(quotaJSON) != "{}" {
+		var quota OpenCodeGoQuota
+		if json.Unmarshal([]byte(quotaJSON), &quota) == nil {
+			quota.FetchedAt = k.QuotaFetchedAt
+			k.Quota = &quota
+		}
+	}
 	return k, nil
 }
 
@@ -548,7 +574,9 @@ func (s *keyStore) updateAPIKey(id string, input APIKeyInput) (APIKey, error) {
 			UPDATE api_keys
 			   SET alias = ?, ciphertext = ?, masked_key = ?, enabled = ?, test_model = ?,
 			       purchase_date = ?, expires_on = ?, reminder_days = ?, note = ?,
-			       status_stale = 1, config_rev = config_rev + 1, updated_at = ?
+			       status_stale = 1, config_rev = config_rev + 1,
+			       quota_json = '{}', quota_fetched_at = '', quota_error = '',
+			       updated_at = ?
 			 WHERE id = ?`,
 			normalized.Alias, ciphertext, maskSecret(*normalized.Secret),
 			boolInt(*normalized.Enabled), normalized.TestModel, normalized.PurchaseDate,
@@ -569,7 +597,8 @@ func (s *keyStore) apiKeyByID(id string) (APIKey, error) {
 		SELECT id, provider_id, alias, masked_key, enabled, test_model, purchase_date,
 		       expires_on, reminder_days, note, status, status_detail, tested_model,
 		       tested_at, duration_ms, http_status, status_stale, status_fingerprint,
-		       status_started_at, created_at, updated_at, config_rev
+		       status_started_at, created_at, updated_at, config_rev,
+		       quota_json, quota_fetched_at, quota_error
 		  FROM api_keys WHERE id = ?`, id)
 	k, err := scanAPIKey(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -991,6 +1020,9 @@ func (s *keyStore) detectionTarget(keyID string) (DetectionTarget, error) {
 		keyCreated  string
 		keyUpdated  string
 		keyRevision int64
+		quotaJSON   string
+		quotaAt     string
+		quotaErr    string
 		ciphertext  string
 	)
 	err := s.db.QueryRow(`
@@ -998,7 +1030,8 @@ func (s *keyStore) detectionTarget(keyID string) (DetectionTarget, error) {
 		       k.purchase_date, k.expires_on, k.reminder_days, k.note, k.status,
 		       k.status_detail, k.tested_model, k.tested_at, k.duration_ms, k.http_status,
 		       k.status_stale, k.status_fingerprint, k.status_started_at, k.created_at,
-		       k.updated_at, k.config_rev, k.ciphertext,
+		       k.updated_at, k.config_rev, k.quota_json, k.quota_fetched_at,
+		       k.quota_error, k.ciphertext,
 		       p.id, p.name, p.preset_id, p.category, p.protocol, p.base_url, p.auth_mode,
 		       p.note, p.enabled, p.created_at, p.updated_at, p.config_rev
 		  FROM api_keys k JOIN providers p ON p.id = k.provider_id
@@ -1008,7 +1041,7 @@ func (s *keyStore) detectionTarget(keyID string) (DetectionTarget, error) {
 		&enabled, &target.Key.TestModel, &purchase, &expires, &reminders,
 		&target.Key.Note, &keyStatus, &keyDetail, &testedModel, &testedAt, &duration,
 		&httpStatus, &stale, &fingerprint, &statusStart, &keyCreated, &keyUpdated,
-		&keyRevision, &ciphertext,
+		&keyRevision, &quotaJSON, &quotaAt, &quotaErr, &ciphertext,
 		&target.Provider.ID, &target.Provider.Name, &target.Provider.PresetID,
 		&target.Provider.Category, &target.Provider.Protocol, &target.Provider.BaseURL,
 		&target.Provider.AuthMode, &target.Provider.Note, &providerOn,
@@ -1036,6 +1069,15 @@ func (s *keyStore) detectionTarget(keyID string) (DetectionTarget, error) {
 	target.Key.CreatedAt = keyCreated
 	target.Key.UpdatedAt = keyUpdated
 	target.Key.ConfigRev = keyRevision
+	target.Key.QuotaFetchedAt = quotaAt
+	target.Key.QuotaError = quotaErr
+	if json.Valid([]byte(quotaJSON)) && strings.TrimSpace(quotaJSON) != "{}" {
+		var quota OpenCodeGoQuota
+		if json.Unmarshal([]byte(quotaJSON), &quota) == nil {
+			quota.FetchedAt = quotaAt
+			target.Key.Quota = &quota
+		}
+	}
 	target.Provider.Enabled = providerOn != 0
 
 	if !target.Key.Enabled {
@@ -1104,17 +1146,31 @@ func (s *keyStore) saveDetection(detection Detection) (Detection, error) {
 	}
 	defer tx.Rollback()
 
+	var quotaJSON any
+	if detection.Quota != nil {
+		encoded, err := json.Marshal(detection.Quota)
+		if err != nil {
+			return Detection{}, err
+		}
+		quotaJSON = string(encoded)
+	}
 	result, err := tx.Exec(`
 		UPDATE api_keys
 		   SET status = ?, status_detail = ?, tested_model = ?, tested_at = ?,
 		       duration_ms = ?, http_status = ?, status_stale = 0,
-		       status_fingerprint = ?, status_started_at = ?, updated_at = ?
+		       status_fingerprint = ?, status_started_at = ?, updated_at = ?,
+		       quota_json = CASE WHEN ? IS NULL THEN quota_json ELSE ? END,
+		       quota_fetched_at = CASE WHEN ? = '' THEN quota_fetched_at ELSE ? END,
+		       quota_error = ?
 		 WHERE id = ? AND config_rev = ?
 		   AND (status_started_at = '' OR status_started_at <= ?)`,
 		detection.Status, detection.Detail, detection.ModelID, detection.FinishedAt,
 		detection.DurationMS, detection.HTTPStatus, detection.Fingerprint,
-		detection.StartedAt, detection.FinishedAt, detection.KeyID, detection.ConfigRev,
-		detection.StartedAt,
+		detection.StartedAt, detection.FinishedAt,
+		quotaJSON, quotaJSON,
+		detection.QuotaFetchedAt, detection.QuotaFetchedAt,
+		detection.QuotaError,
+		detection.KeyID, detection.ConfigRev, detection.StartedAt,
 	)
 	if err != nil {
 		return Detection{}, err

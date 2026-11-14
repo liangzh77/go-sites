@@ -307,3 +307,47 @@ func TestOpenCodeGoSendsSessionHeaderForDetectionAndDiscovery(t *testing.T) {
 		t.Fatalf("flexible model discovery = %+v", discovery.Models[1])
 	}
 }
+
+func TestOpenCodeGoQuotaParsing(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.Path != "/console/api/go/status" {
+			t.Fatalf("quota path = %q", request.URL.Path)
+		}
+		if request.Header.Get("Authorization") != "Bearer oc_secret" {
+			t.Fatalf("quota authorization = %q", request.Header.Get("Authorization"))
+		}
+		if request.Header.Get("x-opencode-session") == "" {
+			t.Fatal("quota request missing OpenCode session")
+		}
+		body := `{"access":{"meters":{
+			"fiveHour":{"startsAt":"2026-11-14T03:24:19Z","resetsAt":"2026-11-14T08:24:19Z","limitMicroCents":"1200000000","usedMicroCents":"52520194"},
+			"week":{"startsAt":"2026-11-09T00:00:00Z","resetsAt":"2026-11-16T00:00:00Z","limitMicroCents":"3000000000","usedMicroCents":"1150180085"},
+			"month":{"resetsAt":"2026-11-24T01:39:00Z","limitMicroCents":"6000000000","usedMicroCents":"5444321667"}
+		}}}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    request,
+		}, nil
+	})}
+	d := newDetector()
+	d.client = client
+	quota, err := d.fetchOpenCodeGoQuota(context.Background(), Provider{
+		PresetID: "opencode-go",
+		BaseURL:  "https://opencode.ai/inference/go/openai/v1",
+		AuthMode: authBearer,
+	}, "oc_secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quota.Rolling.LimitUSD != 12 || quota.Rolling.UsedUSD < 0.52 || quota.Rolling.UsedUSD > 0.53 {
+		t.Fatalf("rolling meter = %+v", quota.Rolling)
+	}
+	if quota.Weekly.LimitUSD != 30 || quota.Monthly.LimitUSD != 60 {
+		t.Fatalf("quota windows = %+v", quota)
+	}
+	if quota.Monthly.Percent < 90 || quota.Monthly.Percent > 91 {
+		t.Fatalf("monthly percent = %f", quota.Monthly.Percent)
+	}
+}

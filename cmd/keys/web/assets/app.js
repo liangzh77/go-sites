@@ -16,6 +16,7 @@
     modelSource: "manual",
     pending: new Set(),
     toastTimer: 0,
+    quotaTooltipKeyID: "",
   };
 
   const $ = (id) => document.getElementById(id);
@@ -311,11 +312,98 @@
     return `<span class="meta-stack"><strong>${escapeHTML(model)}</strong><span>${escapeHTML(formatted)} · ${Number(key.durationMs || 0).toLocaleString("zh-CN")} ms</span></span>`;
   }
 
+  function formatUSD(value) {
+    return `$${Number(value || 0).toFixed(2)}`;
+  }
+
+  function formatQuotaReset(value) {
+    if (!value) return "未知";
+    const date = new Date(value);
+    return Number.isNaN(date.valueOf())
+      ? escapeHTML(value)
+      : escapeHTML(date.toLocaleString("zh-CN", {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }));
+  }
+
+  function quotaMeterHTML(label, meter) {
+    const percent = Number(meter.percent || 0);
+    const level = percent >= 90 ? "danger" : percent >= 70 ? "warning" : "";
+    return `<div class="quota-meter">
+      <div class="quota-meter-head">
+        <span>${label}</span>
+        <strong>${percent.toFixed(2)}%</strong>
+      </div>
+      <progress class="quota-progress ${level}" max="100" value="${Math.min(percent, 100)}"></progress>
+      <div class="quota-meter-foot">
+        <span>${formatUSD(meter.usedUsd)} / ${formatUSD(meter.limitUsd)}</span>
+        <span>${meter.limited ? "已触顶" : `重置 ${formatQuotaReset(meter.resetsAt)}`}</span>
+      </div>
+    </div>`;
+  }
+
+  function renderQuotaTooltip(key) {
+    if (key.quota) {
+      const warning = key.quotaError
+        ? `<p class="quota-warning">${escapeHTML(key.quotaError)}（当前显示上次成功结果）</p>`
+        : "";
+      return `<div class="quota-tooltip-title">
+        <strong>OpenCode Go 额度</strong>
+        <span>${escapeHTML(key.quota.fetchedAt ? new Date(key.quota.fetchedAt).toLocaleString("zh-CN") : key.quotaFetchedAt || "刚刚")}</span>
+      </div>
+      ${quotaMeterHTML("5 小时", key.quota.rolling)}
+      ${quotaMeterHTML("本周", key.quota.weekly)}
+      ${quotaMeterHTML("本月", key.quota.monthly)}
+      ${warning}`;
+    }
+    if (key.quotaError) {
+      return `<div class="quota-tooltip-title"><strong>OpenCode Go 额度</strong></div>
+        <p class="quota-warning">${escapeHTML(key.quotaError)}</p>
+        <p class="quota-hint">点击“检测”可再次尝试获取。</p>`;
+    }
+    return `<div class="quota-tooltip-title"><strong>OpenCode Go 额度</strong></div>
+      <p class="quota-hint">尚未获取。点击对应 Key 的“检测”后会自动读取 5 小时、周、月额度。</p>`;
+  }
+
+  function positionQuotaTooltip(trigger) {
+    const tooltip = $("keyQuotaTooltip");
+    const rect = trigger.getBoundingClientRect();
+    const tooltipRect = tooltip.getBoundingClientRect();
+    let left = Math.max(10, Math.min(rect.left, window.innerWidth - tooltipRect.width - 10));
+    let top = rect.bottom + 9;
+    if (top + tooltipRect.height > window.innerHeight - 10) {
+      top = Math.max(10, rect.top - tooltipRect.height - 9);
+    }
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+  }
+
+  function showQuotaTooltip(trigger) {
+    const found = keyByID(trigger.dataset.quotaKeyId);
+    if (!found) return;
+    const tooltip = $("keyQuotaTooltip");
+    state.quotaTooltipKeyID = found.key.id;
+    tooltip.innerHTML = renderQuotaTooltip(found.key);
+    tooltip.hidden = false;
+    positionQuotaTooltip(trigger);
+  }
+
+  function hideQuotaTooltip() {
+    state.quotaTooltipKeyID = "";
+    $("keyQuotaTooltip").hidden = true;
+  }
+
   function renderKeyRow(provider, key) {
     const disabled = key.enabled ? "" : " is-disabled";
+    const quotaTrigger = provider.presetId === "opencode-go" || key.quota || key.quotaError
+      ? ` class="key-alias quota-trigger" tabindex="0" data-quota-key-id="${escapeAttr(key.id)}"`
+      : ' class="key-alias"';
     return `<tr class="${disabled}">
       <td data-label="KEY">
-        <span class="key-alias">${escapeHTML(key.alias)}</span>
+        <span${quotaTrigger}>${escapeHTML(key.alias)}</span>
         ${key.note ? `<span class="key-note">${escapeHTML(key.note)}</span>` : ""}
       </td>
       <td data-label="脱敏密钥"><code class="masked-key">${escapeHTML(key.maskedKey)}</code></td>
@@ -387,6 +475,7 @@
   }
 
   function renderProviders() {
+    hideQuotaTooltip();
     renderStats();
     renderProviderFilter();
     const providers = filteredProviders();
@@ -1193,6 +1282,24 @@
       const button = event.target.closest("button[data-action]");
       if (button) handleAction(button);
     });
+    providerList.addEventListener("mouseover", (event) => {
+      const trigger = event.target.closest(".quota-trigger");
+      if (trigger && !trigger.contains(event.relatedTarget)) showQuotaTooltip(trigger);
+    });
+    providerList.addEventListener("mouseout", (event) => {
+      const trigger = event.target.closest(".quota-trigger");
+      if (trigger && !trigger.contains(event.relatedTarget)) hideQuotaTooltip();
+    });
+    providerList.addEventListener("focusin", (event) => {
+      const trigger = event.target.closest(".quota-trigger");
+      if (trigger) showQuotaTooltip(trigger);
+    });
+    providerList.addEventListener("focusout", (event) => {
+      const trigger = event.target.closest(".quota-trigger");
+      if (trigger) hideQuotaTooltip();
+    });
+    window.addEventListener("scroll", hideQuotaTooltip, true);
+    window.addEventListener("resize", hideQuotaTooltip);
     document.addEventListener("click", (event) => {
       const button = event.target.closest("[data-action]");
       if (!button || providerList.contains(button)) return;

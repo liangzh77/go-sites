@@ -181,6 +181,18 @@ func (d *detector) testKey(keyID string, store *keyStore) Detection {
 		}
 	}
 	result := d.testTarget(context.Background(), target)
+	if isOpenCodeGoProvider(target.Provider) {
+		quotaCtx, cancel := context.WithTimeout(context.Background(), detectionTimeout)
+		quota, quotaErr := d.fetchOpenCodeGoQuota(quotaCtx, target.Provider, target.Secret)
+		cancel()
+		if quotaErr != nil {
+			result.QuotaError = safeDetail(quotaErr.Error(), target.Secret)
+		} else {
+			result.Quota = quota
+			result.QuotaFetchedAt = quota.FetchedAt
+			result.QuotaError = ""
+		}
+	}
 	if result.KeyID == "" {
 		result.KeyID = target.Key.ID
 	}
@@ -369,6 +381,94 @@ func newOpenCodeSessionID() string {
 	// Session ids group requests but are not credentials. The timestamp
 	// fallback keeps detection available even if the entropy source fails.
 	return fmt.Sprintf("ses_%d", time.Now().UnixNano())
+}
+
+func (d *detector) fetchOpenCodeGoQuota(ctx context.Context, provider Provider, secret string) (*OpenCodeGoQuota, error) {
+	if !isOpenCodeGoProvider(provider) {
+		return nil, errors.New("该 Provider 不是 OpenCode Go")
+	}
+	requestCtx, cancel := context.WithTimeout(ctx, detectionTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(
+		requestCtx,
+		http.MethodGet,
+		"https://opencode.ai/console/api/go/status",
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	applyAuthHeaders(req.Header, provider.AuthMode, secret)
+	applyProviderSessionHeaders(req.Header, provider)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "go-sites-keys/1.0")
+	response, err := d.client.Do(req)
+	if err != nil {
+		return nil, errors.New(classifyNetworkError(err))
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if err != nil {
+		return nil, errors.New("读取 OpenCode Go 额度失败")
+	}
+	switch response.StatusCode {
+	case http.StatusUnauthorized:
+		return nil, errors.New("OpenCode Go 额度认证失败")
+	case http.StatusForbidden:
+		return nil, errors.New("该 Key 没有 Usage: Read 权限")
+	case http.StatusNotFound:
+		return nil, errors.New("该 Key 未关联 OpenCode Go 套餐")
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("OpenCode Go 额度接口返回 HTTP %d", response.StatusCode)
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, errors.New("解析 OpenCode Go 额度失败")
+	}
+	access := jsonObject(payload["access"])
+	meters := jsonObject(access["meters"])
+	rolling, ok := parseQuotaMeter(meters["fiveHour"])
+	if !ok {
+		return nil, errors.New("OpenCode Go 额度缺少 5 小时窗口")
+	}
+	weekly, ok := parseQuotaMeter(meters["week"])
+	if !ok {
+		return nil, errors.New("OpenCode Go 额度缺少周窗口")
+	}
+	monthly, ok := parseQuotaMeter(meters["month"])
+	if !ok {
+		return nil, errors.New("OpenCode Go 额度缺少月窗口")
+	}
+	return &OpenCodeGoQuota{
+		Rolling: rolling, Weekly: weekly, Monthly: monthly,
+		FetchedAt: nowString(),
+	}, nil
+}
+
+func parseQuotaMeter(raw json.RawMessage) (QuotaMeter, bool) {
+	fields := jsonObject(raw)
+	if fields == nil {
+		return QuotaMeter{}, false
+	}
+	limitMicroCents := jsonInt64(fields["limitMicroCents"])
+	usedMicroCents := jsonInt64(fields["usedMicroCents"])
+	if limitMicroCents == nil || usedMicroCents == nil || *limitMicroCents <= 0 {
+		return QuotaMeter{}, false
+	}
+	limitUSD := float64(*limitMicroCents) / 100_000_000
+	usedUSD := float64(*usedMicroCents) / 100_000_000
+	remaining := limitUSD - usedUSD
+	if remaining < 0 {
+		remaining = 0
+	}
+	percent := usedUSD / limitUSD * 100
+	percent = float64(int64(percent*100+0.5)) / 100
+	return QuotaMeter{
+		UsedUSD: usedUSD, LimitUSD: limitUSD, RemainingUSD: remaining,
+		Percent: percent, ResetsAt: jsonString(fields["resetsAt"]),
+		Limited: usedUSD >= limitUSD,
+	}, true
 }
 
 func classifyDetectionResponse(statusCode int, body []byte, secret string) (string, string) {
