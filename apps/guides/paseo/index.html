@@ -1,0 +1,1062 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f7f2ea">
+<title>Paseo 中文使用指南 · 口袋里的工作台</title>
+<style>
+/* ============ 基础与主题 ============ */
+:root{
+  --bg:#f7f2ea;            /* 温润纸面 */
+  --paper:#fffdf8;         /* 内容面板 */
+  --ink:#221d16;           /* 墨色正文 */
+  --muted:#746a5a;
+  --faint:#786d5b;
+  --line:#e3dac9;          /* 微妙细线 */
+  --line-strong:#cfc2ab;
+  --accent:#e8551f;        /* 珊瑚橙主色 */
+  --accent-deep:#c2430f;   /* 文字级主色（对比度） */
+  --accent-soft:#fbe9de;
+  --on-accent:#fffdf8;
+  --mark:#2a251d;
+  --radius:10px;
+  --serif:"Songti SC","STSong","Noto Serif CJK SC","Noto Serif SC","SimSun",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",sans-serif;
+  --mono:"SF Mono","Cascadia Mono","JetBrains Mono",Menlo,Consolas,monospace;
+}
+[data-theme="dark"]{
+  --bg:#16130e;
+  --paper:#1f1a13;
+  --ink:#f0e8d9;
+  --muted:#b0a48e;
+  --faint:#a99c86;
+  --line:#37301f;
+  --line-strong:#4d4430;
+  --accent:#ff8a50;
+  --accent-deep:#ffa070;
+  --accent-soft:#3a2417;
+  --on-accent:#16130e;
+  --mark:#f0e8d9;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:16px;line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:color-mix(in srgb,var(--accent) 26%,transparent)}
+a{color:var(--accent-deep);text-decoration-thickness:1px;text-underline-offset:3px}
+a:hover{color:var(--accent)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+code,kbd{font-family:var(--mono);font-size:.9em}
+:focus{outline:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
+.vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+.skip{position:fixed;top:10px;left:10px;z-index:60;background:var(--ink);color:var(--bg);
+  padding:10px 16px;border-radius:8px;text-decoration:none;transform:translateY(-64px);transition:transform .2s}
+.skip:focus-visible{transform:none}
+
+/* ============ 应用骨架 ============ */
+.app{display:grid;grid-template-columns:284px minmax(0,1fr);height:100vh;height:100dvh}
+.main{display:grid;grid-template-rows:2px minmax(0,1fr) auto;min-width:0;min-height:0;background:
+  linear-gradient(var(--bg),var(--bg)) padding-box}
+
+/* ---- 左侧栏（桌面） ---- */
+.side{
+  border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;
+  padding:30px 22px 20px;background:var(--bg);
+}
+.brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink);margin:0 4px 26px}
+.brand .seal{
+  width:38px;height:38px;flex:0 0 auto;border:1.5px solid var(--mark);border-radius:9px;
+  display:grid;place-items:center;font-family:var(--serif);font-weight:700;font-size:19px;
+  position:relative;
+}
+.brand .seal::after{content:"";position:absolute;right:4px;bottom:4px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.brand b{display:block;font-size:15.5px;letter-spacing:.02em;line-height:1.3}
+.brand small{display:block;font-size:11.5px;color:var(--faint);letter-spacing:.14em;margin-top:2px}
+
+.toc{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;margin:0 -6px;padding:0 6px}
+.toc a{
+  display:grid;grid-template-columns:34px 1fr;align-items:baseline;gap:10px;
+  min-height:44px;padding:9px 8px;border-radius:8px;text-decoration:none;color:var(--muted);
+  border-left:2px solid transparent;
+}
+.toc a .no{font-family:var(--serif);font-size:13px;color:var(--faint);font-variant-numeric:tabular-nums}
+.toc a .tt{font-size:14.5px;font-weight:600;color:inherit}
+.toc a:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.toc a[aria-current="page"]{color:var(--accent-deep);border-left-color:var(--accent);
+  background:color-mix(in srgb,var(--accent) 7%,transparent);border-radius:0 8px 8px 0}
+.toc a[aria-current="page"] .no{color:var(--accent)}
+
+.side-foot{border-top:1px solid var(--line);padding-top:14px;margin-top:12px;display:grid;gap:10px}
+.side-foot .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mini-progress{flex:1;min-width:90px;height:3px;background:color-mix(in srgb,var(--ink) 10%,transparent);border-radius:99px;overflow:hidden}
+.mini-progress i{display:block;height:100%;width:12.5%;background:var(--accent);transition:width .35s ease}
+.side-foot .pg{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.btn-ghost,.btn-theme{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;
+  padding:9px 14px;border:1px solid var(--line-strong);border-radius:8px;
+  font-size:13px;font-weight:600;color:var(--ink);text-decoration:none;background:transparent;
+  transition:border-color .15s,color .15s;
+}
+.btn-ghost:hover,.btn-theme:hover{border-color:var(--accent);color:var(--accent-deep)}
+.btn-theme{width:44px;padding:0;font-size:16px}
+
+/* ---- 移动端顶栏与横滚目录 ---- */
+.topbar{display:none;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--bg)}
+.topbar .brand{margin:0;flex:1;min-width:0}
+.topbar .brand .seal{width:32px;height:32px;font-size:16px;border-radius:8px}
+.strip{display:none;gap:8px;overflow-x:auto;padding:10px 14px;border-bottom:1px solid var(--line);
+  background:var(--bg);scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.strip::-webkit-scrollbar{display:none}
+.strip a{
+  flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:8px 14px;
+  border:1px solid var(--line-strong);border-radius:999px;text-decoration:none;color:var(--muted);
+  font-size:13.5px;font-weight:600;white-space:nowrap;
+}
+.strip a .no{font-family:var(--serif);font-size:12px;color:var(--faint)}
+.strip a[aria-current="page"]{border-color:var(--accent);color:var(--accent-deep);background:var(--accent-soft)}
+.strip a[aria-current="page"] .no{color:var(--accent)}
+
+.hairline{height:2px;background:color-mix(in srgb,var(--ink) 7%,transparent)}
+.hairline i{display:block;height:100%;width:12.5%;background:var(--accent);transition:width .35s ease}
+
+/* ---- 正文滚动区 ---- */
+.stage{overflow-y:auto;min-height:0;scrollbar-width:thin;scroll-behavior:auto}
+.wrap{max-width:780px;margin:0 auto;padding:56px 48px 80px}
+.wrap.wide{max-width:920px}
+
+.chapter[hidden]{display:none}
+.chapter-head{margin-bottom:34px}
+.eyebrow{display:flex;align-items:center;gap:14px;font-size:12.5px;letter-spacing:.22em;color:var(--accent-deep);font-weight:700;text-transform:uppercase}
+.eyebrow::after{content:"";flex:1;height:1px;background:var(--line)}
+h1,h2{font-family:var(--serif);font-weight:700;line-height:1.22;letter-spacing:.01em;text-wrap:balance}
+h1{font-size:clamp(34px,5.6vw,58px);margin:20px 0 18px}
+h2{font-size:clamp(28px,4vw,42px);margin:18px 0 16px}
+h3{font-size:17px;margin:0 0 8px;line-height:1.5}
+p{margin:0 0 14px}
+.lead{font-size:clamp(16.5px,1.6vw,19px);line-height:1.85;color:var(--muted);max-width:44em}
+.lead strong,.strong{color:var(--ink);font-weight:650}
+.accent{color:var(--accent-deep)}
+.small{font-size:13.5px;color:var(--muted)}
+.foot-note{margin-top:44px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--faint)}
+
+/* ---- 封面 ---- */
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 0;padding:0;list-style:none}
+.tags li{font-size:12.5px;letter-spacing:.06em;color:var(--muted);border:1px solid var(--line-strong);border-radius:999px;padding:5px 13px}
+.cta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+.cta{
+  display:inline-flex;align-items:center;gap:9px;min-height:48px;padding:13px 22px;border-radius:9px;
+  font-weight:700;font-size:15px;text-decoration:none;transition:transform .15s,box-shadow .15s,border-color .15s;
+}
+.cta.primary{background:var(--accent-deep);color:var(--on-accent);box-shadow:0 10px 24px color-mix(in srgb,var(--accent) 26%,transparent)}
+.cta.primary:hover{transform:translateY(-2px);color:var(--on-accent)}
+.cta.ghost{border:1px solid var(--line-strong);color:var(--ink)}
+.cta.ghost:hover{border-color:var(--accent);color:var(--accent-deep)}
+
+.figure{margin:40px 0 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);padding:26px 22px 16px}
+.figure svg{display:block;width:100%;max-width:680px;height:auto;margin:0 auto}
+.fig-axis{display:flex;justify-content:space-between;gap:10px;max-width:680px;margin:14px auto 0;
+  font-size:12.5px;color:var(--muted);letter-spacing:.04em}
+.fig-axis span{text-align:center;flex:1}
+.fig-axis span:first-child{text-align:left}
+.fig-axis span:last-child{text-align:right}
+figcaption{max-width:680px;margin:12px auto 0;padding-top:10px;border-top:1px dashed var(--line);
+  font-size:12.5px;color:var(--faint)}
+.pipe{stroke:var(--line-strong);stroke-width:2}
+.pipe-dash{stroke:var(--accent);stroke-width:2;stroke-dasharray:7 9;animation:dashmove 1.6s linear infinite}
+@keyframes dashmove{to{stroke-dashoffset:-32}}
+.packet{fill:var(--accent);animation:travel 3.2s linear infinite}
+.packet.p2{animation-delay:-1.05s}.packet.p3{animation-delay:-2.15s}
+@keyframes travel{0%{transform:translateX(0);opacity:0}8%{opacity:1}92%{opacity:1}100%{transform:translateX(300px);opacity:0}}
+.device{fill:none;stroke:var(--ink);stroke-width:2.4}
+.device-thin{fill:none;stroke:var(--line-strong);stroke-width:1.6}
+
+/* ---- 链条示意（原理章） ---- */
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:18px 0}
+.chain .node{border:1px solid var(--line-strong);border-radius:8px;background:var(--paper);
+  padding:10px 16px;font-weight:650;font-size:15px;line-height:1.4}
+.chain .node small{display:block;font-weight:400;font-size:12px;color:var(--faint);margin-top:1px}
+.chain .arr{color:var(--accent);font-weight:700;font-size:18px}
+.lanes{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:6px}
+.lane{border:1px solid var(--line);background:var(--paper);padding:22px;border-radius:var(--radius)}
+.lane + .lane{margin-left:-1px}
+.lane h3{font-size:14px;letter-spacing:.1em;color:var(--accent-deep);text-transform:uppercase;margin-bottom:14px}
+.lane .models{display:grid;gap:6px;margin-top:2px}
+.lane .models span{border:1px dashed var(--line-strong);border-radius:7px;padding:6px 12px;font-size:13.5px;color:var(--muted)}
+
+/* ---- 释义表 ---- */
+.defs{margin:26px 0 0;border-top:1px solid var(--line)}
+.defs .row{display:grid;grid-template-columns:150px 1fr;gap:8px 22px;padding:15px 2px;border-bottom:1px solid var(--line)}
+.defs dt{font-weight:700;font-size:15px}
+.defs dt small{display:block;font-weight:400;color:var(--faint);font-size:12px;margin-top:2px}
+.defs dd{margin:0;color:var(--muted);font-size:15px}
+
+/* ---- 要点标注 ---- */
+.callout{
+  margin:28px 0;padding:18px 20px 18px 22px;border-left:3px solid var(--accent);
+  background:var(--accent-soft);border-radius:0 var(--radius) var(--radius) 0;
+}
+.callout p{margin:0;font-size:15.5px}
+.callout p + p{margin-top:8px}
+.callout.key p{font-family:var(--serif);font-size:clamp(17px,1.8vw,20px);line-height:1.7;color:var(--ink)}
+.callout .tag{display:block;font-size:11.5px;letter-spacing:.2em;font-weight:700;color:var(--accent-deep);margin-bottom:8px;font-family:var(--sans)}
+
+/* ---- 步骤 ---- */
+.steps{list-style:none;margin:26px 0 0;padding:0;border-top:1px solid var(--line);counter-reset:step}
+.steps > li{display:grid;grid-template-columns:64px 1fr;gap:6px 20px;padding:24px 2px;border-bottom:1px solid var(--line)}
+.steps > li > div{min-width:0}
+.steps .num{font-family:var(--serif);font-size:30px;line-height:1.1;color:var(--accent);font-variant-numeric:tabular-nums}
+.steps h3{font-size:17px}
+.steps p{font-size:15px;color:var(--muted);max-width:56em}
+.steps p:last-child{margin-bottom:0}
+.cmd{display:inline-block;background:color-mix(in srgb,var(--ink) 6%,transparent);border:1px solid var(--line);
+  border-radius:6px;padding:1px 8px;font-family:var(--mono);font-size:.88em;word-break:break-all;color:var(--ink)}
+.warnline{position:relative;margin-top:12px;padding:12px 14px 12px 44px;
+  border:1px dashed var(--line-strong);border-radius:8px;font-size:14px;color:var(--muted);overflow-wrap:anywhere}
+.warnline::before{content:"!";position:absolute;left:14px;top:15px;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--accent);
+  color:var(--accent-deep);display:grid;place-items:center;font-weight:800;font-size:12px}
+
+/* ---- details 折叠 ---- */
+details{margin:14px 0;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);overflow:hidden}
+details summary{
+  list-style:none;display:flex;align-items:center;gap:10px;min-height:44px;padding:12px 16px;cursor:pointer;
+  font-size:14px;font-weight:650;color:var(--ink);
+}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"";flex:0 0 auto;width:8px;height:8px;border-right:2px solid var(--accent);
+  border-bottom:2px solid var(--accent);transform:rotate(-45deg);transition:transform .2s;margin-top:-2px}
+details[open] summary::before{transform:rotate(45deg);margin-top:2px}
+details summary:hover{color:var(--accent-deep)}
+details .body{border-top:1px solid var(--line);padding:16px 18px}
+pre{
+  margin:0;padding:16px 18px;overflow-x:auto;background:color-mix(in srgb,var(--ink) 5%,transparent);
+  border-radius:8px;font-family:var(--mono);font-size:13.5px;line-height:1.7;color:var(--ink);
+  border:1px solid var(--line);
+}
+pre .c{color:var(--faint)}
+pre .k{color:var(--accent-deep)}
+.code-tools{display:flex;justify-content:flex-end;margin-top:10px}
+
+/* ---- 可复制指令 ---- */
+.prompts{display:grid;gap:14px;margin-top:20px}
+.prompt{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;
+  background:var(--paper);padding:16px 18px;
+}
+.prompt code{font-size:14.5px;line-height:1.7;word-break:break-word;min-width:0}
+.copy{
+  flex:0 0 auto;min-height:44px;min-width:64px;padding:9px 16px;border:1px solid var(--line-strong);
+  border-radius:8px;font-size:13px;font-weight:700;color:var(--ink);background:transparent;
+  transition:border-color .15s,color .15s;
+}
+.copy:hover{border-color:var(--accent);color:var(--accent-deep)}
+.copy.ok{border-color:var(--accent);color:var(--accent-deep)}
+.copy.fail{border-color:#b3452e;color:#b3452e}
+
+/* ---- 对比（选择章） ---- */
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:26px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--paper)}
+.vs article{padding:26px 24px}
+.vs article + article{border-left:1px solid var(--line)}
+.vs .path{font-size:12px;letter-spacing:.18em;color:var(--faint);font-weight:700}
+.vs h3{font-family:var(--serif);font-size:20px;margin:8px 0 10px}
+.vs p{font-size:15px;color:var(--muted);margin:0}
+.vs .route{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:16px;font-size:13px;font-weight:650}
+.vs .route span{border:1px solid var(--line-strong);border-radius:6px;padding:4px 10px}
+.vs .route i{color:var(--accent);font-style:normal;font-weight:800}
+
+/* ---- 分工表 ---- */
+.roles{list-style:none;margin:24px 0 0;padding:0;border-top:1px solid var(--line)}
+.roles > li{display:grid;grid-template-columns:130px 1fr;gap:6px 22px;padding:20px 2px;border-bottom:1px solid var(--line)}
+.roles .role{font-family:var(--serif);font-size:19px;font-weight:700}
+.roles .combo{font-size:13px;color:var(--accent-deep);font-weight:650;letter-spacing:.03em;margin-bottom:4px}
+.roles p{margin:0;font-size:15px;color:var(--muted)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:14px;margin:4px 0 0}
+.kv dt{color:var(--faint);font-family:var(--mono);font-size:12.5px;padding-top:2px}
+.kv dd{margin:0;font-family:var(--mono);font-size:13px;word-break:break-all}
+
+/* ---- 流程条（实战章） ---- */
+.flowline{display:flex;flex-wrap:wrap;gap:0;margin:24px 0 0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.flowline span{flex:1 1 140px;padding:14px 16px;font-size:13.5px;font-weight:600;text-align:center;background:var(--paper);
+  border-right:1px solid var(--line);display:flex;align-items:center;justify-content:center;gap:8px}
+.flowline span:last-child{border-right:0}
+.flowline b{font-family:var(--serif);color:var(--accent);font-size:15px}
+
+.demo-card{margin:26px 0 0;border:1px dashed var(--line-strong);border-radius:var(--radius);padding:20px 22px;background:var(--paper)}
+.demo-card .tag{display:inline-block;font-size:11.5px;letter-spacing:.16em;font-weight:700;color:var(--faint);
+  border:1px solid var(--line);border-radius:999px;padding:3px 11px;margin-bottom:12px}
+.demo-card blockquote{margin:0;font-family:var(--serif);font-size:clamp(17px,1.8vw,20px);line-height:1.7}
+
+/* ---- 排障 ---- */
+.rules{list-style:none;margin:22px 0 0;padding:0;border-top:1px solid var(--line)}
+.rules li{position:relative;padding:16px 2px 16px 26px;border-bottom:1px solid var(--line);font-size:15px;color:var(--muted)}
+.rules li::before{content:"";position:absolute;left:4px;top:26px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.rules strong{color:var(--ink)}
+.trouble{margin:22px 0 0;border-top:1px solid var(--line)}
+.trouble .row{display:grid;grid-template-columns:150px 1fr;gap:6px 20px;padding:14px 2px;border-bottom:1px solid var(--line);font-size:14.5px}
+.trouble .sym{font-weight:700}
+.trouble .fix{color:var(--muted)}
+
+/* ---- 资源链接 ---- */
+.res{list-style:none;margin:20px 0 0;padding:0;border-top:1px solid var(--line)}
+.res li{border-bottom:1px solid var(--line)}
+.res a{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:44px;
+  padding:13px 2px;text-decoration:none;color:var(--ink);font-weight:600;font-size:15px}
+.res a small{color:var(--faint);font-weight:400;font-size:12.5px;font-family:var(--mono);word-break:break-all;text-align:right}
+.res a:hover{color:var(--accent-deep)}
+.res a:hover small{color:var(--accent-deep)}
+
+.ending{margin-top:44px;padding-top:26px;border-top:1px solid var(--line);text-align:center}
+.ending p{font-family:var(--serif);font-size:clamp(19px,2.4vw,26px);line-height:1.8;margin:0}
+.credit{margin-top:30px;font-size:12.5px;color:var(--faint);text-align:center;line-height:2}
+
+/* ---- 底部翻页 ---- */
+.pager{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;
+  padding:12px 22px;border-top:1px solid var(--line);background:var(--bg)}
+.page-btn{
+  display:inline-flex;align-items:center;gap:9px;min-height:44px;padding:10px 18px;
+  border:1px solid var(--line-strong);border-radius:9px;font-size:14px;font-weight:650;color:var(--ink);
+  transition:border-color .15s,color .15s;max-width:100%;
+}
+.page-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent-deep)}
+.page-btn:disabled{opacity:.38;cursor:default}
+.page-btn .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.page-btn.prev{justify-self:start}
+.page-btn.next{justify-self:end}
+.page-ind{font-size:13px;color:var(--faint);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:center}
+.page-ind b{color:var(--ink);font-weight:650}
+
+/* ---- 响应式 ---- */
+@media(max-width:960px){
+  .app{grid-template-columns:1fr}
+  .main{grid-template-rows:auto auto 2px minmax(0,1fr) auto}
+  .side{display:none}
+  .topbar{display:flex}
+  .strip{display:flex}
+  .wrap{padding:40px 30px 64px}
+}
+@media(max-width:640px){
+  .wrap{padding:32px 18px 56px}
+  .lanes,.vs{grid-template-columns:1fr}
+  .lane + .lane{margin-left:0;margin-top:-1px}
+  .vs article + article{border-left:0;border-top:1px solid var(--line)}
+  .defs .row,.roles > li,.trouble .row{grid-template-columns:1fr;gap:4px}
+  .steps > li{grid-template-columns:44px 1fr;gap:4px 14px}
+  .steps .num{font-size:24px}
+  .prompt{flex-direction:column;align-items:stretch}
+  .copy{align-self:flex-end}
+  .pager{padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));gap:8px}
+  .page-btn{padding:10px 12px}
+  .page-btn .lbl{display:none}
+  .page-ind{font-size:12px}
+  .res a{flex-direction:column;align-items:flex-start;gap:2px}
+  .res a small{text-align:left}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#stage">跳到正文</a>
+<div class="app">
+
+  <!-- ============ 左侧栏（桌面） ============ -->
+  <aside class="side" aria-label="指南侧栏">
+    <a class="brand" href="#home">
+      <span class="seal" aria-hidden="true">P</span>
+      <span><b>Paseo 中文使用指南</b><small>口袋里的工作台</small></span>
+    </a>
+    <nav class="toc" id="toc" aria-label="章节目录">
+      <a href="#home" data-key="home"><span class="no">00</span><span class="tt">首页</span></a>
+      <a href="#01" data-key="01"><span class="no">01</span><span class="tt">原理 · 谁做什么</span></a>
+      <a href="#02" data-key="02"><span class="no">02</span><span class="tt">安装 · Mac 实例</span></a>
+      <a href="#03" data-key="03"><span class="no">03</span><span class="tt">连接 · 手机上手</span></a>
+      <a href="#04" data-key="04"><span class="no">04</span><span class="tt">选择 · 两条路径</span></a>
+      <a href="#05" data-key="05"><span class="no">05</span><span class="tt">分工 · 角色搭配</span></a>
+      <a href="#06" data-key="06"><span class="no">06</span><span class="tt">实战 · 一个页面</span></a>
+      <a href="#07" data-key="07"><span class="no">07</span><span class="tt">边界 · 排障资源</span></a>
+    </nav>
+    <div class="side-foot">
+      <div class="row">
+        <div class="mini-progress" aria-hidden="true"><i id="miniBar"></i></div>
+        <span class="pg" id="miniPg">1 / 8</span>
+      </div>
+      <div class="row">
+        <button type="button" class="btn-theme theme-toggle" aria-label="切换明暗主题" title="切换明暗主题">◐</button>
+        <a class="btn-ghost" href="/demo/">← 返回演示</a>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <!-- ============ 移动端顶栏 ============ -->
+    <header class="topbar">
+      <a class="brand" href="#home">
+        <span class="seal" aria-hidden="true">P</span>
+        <span><b>Paseo 指南</b></span>
+      </a>
+      <a class="btn-ghost" href="/demo/" style="min-height:44px">演示</a>
+      <button type="button" class="btn-theme theme-toggle" aria-label="切换明暗主题" title="切换明暗主题">◐</button>
+    </header>
+    <nav class="strip" id="strip" aria-label="章节目录（可横向滚动）">
+      <a href="#home" data-key="home"><span class="no">00</span>首页</a>
+      <a href="#01" data-key="01"><span class="no">01</span>原理</a>
+      <a href="#02" data-key="02"><span class="no">02</span>安装</a>
+      <a href="#03" data-key="03"><span class="no">03</span>连接</a>
+      <a href="#04" data-key="04"><span class="no">04</span>选择</a>
+      <a href="#05" data-key="05"><span class="no">05</span>分工</a>
+      <a href="#06" data-key="06"><span class="no">06</span>实战</a>
+      <a href="#07" data-key="07"><span class="no">07</span>边界</a>
+    </nav>
+
+    <div class="hairline" aria-hidden="true"><i id="topBar"></i></div>
+
+    <!-- ============ 正文 ============ -->
+    <main class="stage" id="stage" tabindex="-1">
+
+      <!-- ======== 00 首页 ======== -->
+      <section class="chapter" id="home" data-key="home" data-title="首页" aria-labelledby="h-home">
+        <div class="wrap wide">
+          <p class="eyebrow">Paseo 中文使用指南 · 非官方笔记</p>
+          <h1 id="h-home" tabindex="-1">把电脑上的 AI Agent，<br><span class="accent">装进口袋。</span></h1>
+          <p class="lead">电脑负责运行，手机负责指挥。通过 <strong class="strong">Paseo</strong> 和 <strong class="strong">Tailscale</strong>，随时调用电脑上的 Codex、pi 和不同模型，继续你的开发任务。</p>
+          <ul class="tags" aria-label="特点">
+            <li>手机遥控</li><li>电脑执行</li><li>多 Agent</li><li>多模型</li>
+          </ul>
+          <div class="cta-row">
+            <a class="cta primary" href="#02">开始连接 →</a>
+            <a class="cta ghost" href="#01">看懂原理</a>
+          </div>
+
+          <figure class="figure" style="margin-top:44px">
+            <svg viewBox="0 0 720 220" role="img" aria-label="手机经 Tailscale 私网连接电脑的示意图">
+              <!-- 手机 -->
+              <rect class="device" x="48" y="24" width="118" height="176" rx="22"/>
+              <rect class="device-thin" x="60" y="46" width="94" height="132" rx="8"/>
+              <line class="device-thin" x1="92" y1="35" x2="122" y2="35"/>
+              <circle cx="107" cy="189" r="5" class="device-thin"/>
+              <line x1="74" y1="72" x2="140" y2="72" style="stroke:var(--accent);stroke-width:3;stroke-linecap:round"/>
+              <line class="device-thin" x1="74" y1="92" x2="128" y2="92"/>
+              <line class="device-thin" x1="74" y1="108" x2="140" y2="108"/>
+              <line class="device-thin" x1="74" y1="124" x2="118" y2="124"/>
+              <rect x="74" y="146" width="44" height="16" rx="8" style="fill:none;stroke:var(--accent);stroke-width:1.8"/>
+              <!-- 私网通道 -->
+              <line class="pipe" x1="206" y1="86" x2="514" y2="86"/>
+              <line class="pipe" x1="206" y1="134" x2="514" y2="134"/>
+              <line class="pipe-dash" x1="206" y1="110" x2="514" y2="110"/>
+              <path class="pipe" d="M206 74 v48 M514 74 v48" fill="none"/>
+              <circle class="packet" cx="212" cy="110" r="4.5"/>
+              <circle class="packet p2" cx="212" cy="110" r="4.5"/>
+              <circle class="packet p3" cx="212" cy="110" r="4.5"/>
+              <!-- 电脑 -->
+              <rect class="device" x="560" y="40" width="132" height="96" rx="10"/>
+              <rect class="device-thin" x="572" y="52" width="108" height="72" rx="4"/>
+              <line class="device" x1="626" y1="136" x2="626" y2="162"/>
+              <line class="device" x1="596" y1="162" x2="656" y2="162"/>
+              <line x1="584" y1="68" x2="640" y2="68" style="stroke:var(--accent);stroke-width:3;stroke-linecap:round"/>
+              <line class="device-thin" x1="584" y1="86" x2="662" y2="86"/>
+              <line class="device-thin" x1="584" y1="100" x2="648" y2="100"/>
+            </svg>
+            <div class="fig-axis" aria-hidden="true">
+              <span>手机 · Paseo App</span><span>Tailscale 私网</span><span>电脑 · Paseo daemon</span>
+            </div>
+            <figcaption>连接示意 · 非实时状态 —— 本页面是使用指南，不是 Paseo 客户端，不连接任何真实设备。</figcaption>
+          </figure>
+
+          <p class="foot-note">本指南基于一台 Mac 的真实配置写成，其他平台请以官方文档为准。本机 Paseo 版本 0.11.4（2026-10-18 核对）。</p>
+        </div>
+      </section>
+
+      <!-- ======== 01 原理 ======== -->
+      <section class="chapter" id="01" data-key="01" data-title="原理" aria-labelledby="h-01">
+        <div class="wrap">
+          <div class="chapter-head">
+            <p class="eyebrow">第 01 章 · 原理</p>
+            <h2 id="h-01" tabindex="-1">手机指挥，电脑执行</h2>
+            <p class="lead">整条链路只有四个角色：手机上的 Paseo App、Tailscale 私网、电脑上的 Paseo，以及电脑里真正干活的 Agent 与模型。</p>
+          </div>
+
+          <div class="chain" aria-label="主链路：手机经 Tailscale 私网到电脑">
+            <span class="node">手机<small>Paseo App</small></span>
+            <span class="arr" aria-hidden="true">→</span>
+            <span class="node">Tailscale 私网<small>跨网络连接</small></span>
+            <span class="arr" aria-hidden="true">→</span>
+            <span class="node">电脑<small>Paseo</small></span>
+          </div>
+
+          <div class="lanes">
+            <div class="lane">
+              <h3>路径一 · Codex</h3>
+              <div class="chain" style="margin:0">
+                <span class="node">Codex Agent</span>
+                <span class="arr" aria-hidden="true">→</span>
+                <span class="node">Codex 模型</span>
+              </div>
+            </div>
+            <div class="lane">
+              <h3>路径二 · pi</h3>
+              <div class="chain" style="margin:0 0 10px">
+                <span class="node">pi Agent</span>
+                <span class="arr" aria-hidden="true">→</span>
+                <span class="node">多种模型</span>
+              </div>
+              <div class="models">
+                <span>DeepSeek</span><span>Codex 模型</span><span>Kimi K3</span>
+              </div>
+            </div>
+          </div>
+
+          <dl class="defs">
+            <div class="row"><dt>Paseo<small>统一入口</small></dt><dd>把手机和电脑上的 Agent 连起来的工作台：在手机上看到项目、发起任务、查看进展。</dd></div>
+            <div class="row"><dt>Tailscale<small>跨网络私网</small></dt><dd>让手机和电脑无论身在哪个网络，都像在同一个私有局域网里一样通信。</dd></div>
+            <div class="row"><dt>Codex / pi<small>Agent</small></dt><dd>真正干活的角色：读文件、改代码、运行命令。</dd></div>
+            <div class="row"><dt>模型<small>思考与生成</small></dt><dd>负责思考和生成的角色：DeepSeek、Codex 模型、Kimi K3 等，由 Agent 调用。</dd></div>
+          </dl>
+
+          <div class="callout key">
+            <span class="tag">关键理解</span>
+            <p>不是手机在运行开发环境，而是手机在使用电脑上的环境。</p>
+            <p style="font-family:var(--sans);font-size:15px;color:var(--muted)">文件与命令执行留在电脑上；模型推理由所选供应商提供，手机负责查看与指挥。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======== 02 安装 ======== -->
+      <section class="chapter" id="02" data-key="02" data-title="安装" aria-labelledby="h-02">
+        <div class="wrap">
+          <div class="chapter-head">
+            <p class="eyebrow">第 02 章 · 安装（Mac 实例）</p>
+            <h2 id="h-02" tabindex="-1">先把电脑这一端装好</h2>
+            <p class="lead">四步：装 Paseo 桌面版、装 Codex CLI、装 pi、回 Paseo 确认。全部在电脑上完成。</p>
+          </div>
+
+          <ol class="steps">
+            <li>
+              <span class="num" aria-hidden="true">1</span>
+              <div>
+                <h3>下载安装 Paseo 桌面版</h3>
+                <p>桌面版自带 daemon，安装后自动启动，<strong class="strong">不需要再单独安装一个 daemon</strong>。</p>
+                <p><a href="https://paseo.sh/download" target="_blank" rel="noopener noreferrer">官方下载 paseo.sh/download ↗</a></p>
+              </div>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">2</span>
+              <div>
+                <h3>安装 Codex CLI 并登录</h3>
+                <p>先在终端验证它能正常工作，再回到 Paseo。</p>
+                <details>
+                  <summary>展开安装命令</summary>
+                  <div class="body">
+                    <pre>npm install -g @openai/codex
+<span class="c"># 然后运行并登录，确认可用</span>
+codex</pre>
+                    <div class="code-tools"><button type="button" class="copy" data-copy="npm install -g @openai/codex&#10;codex">复制命令</button></div>
+                  </div>
+                </details>
+                <p><a href="https://developers.openai.com/codex/cli" target="_blank" rel="noopener noreferrer">Codex CLI 官方文档 ↗</a></p>
+              </div>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">3</span>
+              <div>
+                <h3>安装 pi</h3>
+                <p>需要 Node.js 22.19 或更高版本。安装后在 pi 内用 <span class="cmd">/login</span> 配置供应商，用 <span class="cmd">/model</span> 选择模型。</p>
+                <details>
+                  <summary>展开安装命令</summary>
+                  <div class="body">
+                    <pre>npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+pi</pre>
+                    <div class="code-tools"><button type="button" class="copy" data-copy="npm install -g --ignore-scripts @earendil-works/pi-coding-agent&#10;pi">复制命令</button></div>
+                  </div>
+                </details>
+                <p><a href="https://pi.dev" target="_blank" rel="noopener noreferrer">pi 官网 pi.dev ↗</a></p>
+                <div class="warnline">两套 Agent 的凭据分别配置：不要复制、不要共用会刷新的 OAuth token 文件；API key 只留在电脑上，不写进任何网页。</div>
+              </div>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">4</span>
+              <div>
+                <h3>在 Paseo 里确认一切就绪</h3>
+                <p>确认 Codex 和 pi 都显示可用；选择一个项目，先在电脑上完成一条简单的只读任务，熟悉流程。菜单名称以你的版本为准。</p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- ======== 03 连接 ======== -->
+      <section class="chapter" id="03" data-key="03" data-title="连接" aria-labelledby="h-03">
+        <div class="wrap">
+          <div class="chapter-head">
+            <p class="eyebrow">第 03 章 · 连接（重点）</p>
+            <h2 id="h-03" tabindex="-1">让手机连上电脑，照着做</h2>
+            <p class="lead">六步可跟做。页面里只出现示例地址，不含任何真实设备名、IP、账号或二维码。</p>
+          </div>
+
+          <ol class="steps">
+            <li>
+              <span class="num" aria-hidden="true">1</span>
+              <div>
+                <h3>两端都装上 Tailscale</h3>
+                <p>手机和电脑都安装 <a href="https://tailscale.com/download" target="_blank" rel="noopener noreferrer">Tailscale ↗</a>，登录同一个账号（同一个 tailnet），确认两端都显示已连接。手机也需从 <a href="https://paseo.sh/download" target="_blank" rel="noopener noreferrer">Paseo 官方下载页 ↗</a> 安装对应客户端。</p>
+              </div>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">2</span>
+              <div>
+                <h3>拿到电脑的私网 IP</h3>
+                <p>在电脑终端执行 <span class="cmd">tailscale ip -4</span>，记下输出——那是电脑在私网里的地址。</p>
+              </div>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">3</span>
+              <div>
+                <h3>修改 Paseo 的监听配置</h3>
+                <p>先备份，再编辑 <span class="cmd">~/.paseo/config.json</span>：只合并必要字段，保留原有 <span class="cmd">daemon</span>、<span class="cmd">agentProfiles</span>、<span class="cmd">auth</span> 等设置。</p>
+                <details>
+                  <summary>展开配置片段（合并用，勿整份覆盖）</summary>
+                  <div class="body">
+                    <pre>{
+  <span class="k">"daemon"</span>: {
+    <span class="k">"listen"</span>: <span class="c">"100.101.102.103:6767"</span>,
+    <span class="k">"relay"</span>: { <span class="k">"enabled"</span>: false }
+  }
+}</pre>
+                    <div class="code-tools"><button type="button" class="copy" data-copy="{&#10;  &quot;daemon&quot;: {&#10;    &quot;listen&quot;: &quot;100.101.102.103:6767&quot;,&#10;    &quot;relay&quot;: { &quot;enabled&quot;: false }&#10;  }&#10;}">复制合并片段</button></div>
+                    <p class="small" style="margin:12px 0 0"><span class="cmd">100.101.102.103</span> 仅是示例，必须换成第 2 步里自己电脑的 IP。这段 JSON 是合并片段，不能整份覆盖你的配置。这里复现的是本机的 Tailscale 直连方案；关闭 Paseo relay 不代表禁止 Tailscale 自己的中继机制。</p>
+                  </div>
+                </details>
+              </div>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">4</span>
+              <div>
+                <h3>重启 daemon 使监听生效</h3>
+                <p><span class="cmd">listen</span> 是启动参数，改完要重启才生效。等正在运行的任务结束，到桌面版 <strong class="strong">Settings → your host → Overview → Restart daemon</strong>。</p>
+                <div class="warnline">重启会中断正在运行的 Agent，不要在任务进行中执行。命令行用户也可以用 <span class="cmd">paseo daemon restart</span>（桌面版不一定在 PATH 上提供 CLI）。</div>
+              </div>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">5</span>
+              <div>
+                <h3>手机添加主机（Direct connection）</h3>
+                <p>手机保持 Tailscale 已连接，打开 Paseo → <strong class="strong">Settings → Add host → Direct connection</strong>：</p>
+                <dl class="kv" style="margin-top:6px">
+                  <dt>Host</dt><dd>自己电脑的 Tailscale IP</dd>
+                  <dt>Port</dt><dd>6767</dd>
+                  <dt>Use SSL</dt><dd>本示例关闭（私网直连，加密已由 Tailscale 提供）</dd>
+                  <dt>密码</dt><dd>如果你给 daemon 配置了密码，在这里填写</dd>
+                </dl>
+                <p style="margin-top:10px">不需要点 Enable relay——relay 扫码是另一条路径。也不用开放任何公网端口。</p>
+              </div>
+            </li>
+            <li>
+              <span class="num" aria-hidden="true">6</span>
+              <div>
+                <h3>发一条只读任务验证链路</h3>
+                <p>选择这台电脑和一个项目，发送：</p>
+                <div class="prompt" style="margin-top:8px">
+                  <code>请列出当前项目的顶层目录，不要修改任何文件。</code>
+                  <button type="button" class="copy" data-copy="请列出当前项目的顶层目录，不要修改任何文件。">复制</button>
+                </div>
+                <p style="margin-top:10px">能收到符合预期的只读回复，链路就通了。</p>
+              </div>
+            </li>
+          </ol>
+
+          <div class="callout">
+            <span class="tag">前提与提醒</span>
+            <p>电脑开机、联网、Paseo 正常运行，是一切的前提。Tailscale 的 ACL 与设备安全依然重要；建议启用 <a href="https://paseo.sh/docs/configuration#password-authentication" target="_blank" rel="noopener noreferrer">Paseo daemon 密码 ↗</a>。官方连接步骤见 <a href="https://paseo.sh/docs/connectivity" target="_blank" rel="noopener noreferrer">Connectivity 文档 ↗</a>。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======== 04 选择 ======== -->
+      <section class="chapter" id="04" data-key="04" data-title="选择" aria-labelledby="h-04">
+        <div class="wrap">
+          <div class="chapter-head">
+            <p class="eyebrow">第 04 章 · 选择</p>
+            <h2 id="h-04" tabindex="-1">两条路径，各取所需</h2>
+            <p class="lead">同样从 Paseo 出发，可以走进 Codex 的原生世界，也可以走进 pi 的多模型世界。</p>
+          </div>
+
+          <div class="vs">
+            <article>
+              <span class="path">路径一</span>
+              <h3>Paseo → Codex</h3>
+              <p>保留 Codex 原生 Agent 的工作方式，把 Codex 的使用入口延伸到手机。</p>
+              <div class="route" aria-hidden="true"><span>Paseo</span><i>→</i><span>Codex Agent</span><i>→</i><span>Codex 模型</span></div>
+            </article>
+            <article>
+              <span class="path">路径二</span>
+              <h3>Paseo → pi → Codex 模型</h3>
+              <p>用相同的模型系列，体验 pi 简洁、可扩展的 Agent；也可以切换到不同供应商的模型。</p>
+              <div class="route" aria-hidden="true"><span>Paseo</span><i>→</i><span>pi Agent</span><i>→</i><span>多种模型</span></div>
+            </article>
+          </div>
+
+          <div class="callout key">
+            <span class="tag">一句话记住</span>
+            <p>使用 Codex 模型，不等于使用 Codex Agent。</p>
+            <p style="font-family:var(--sans);font-size:15px;color:var(--muted)">模型可以相同，驱动它的 Agent 不同——权限、工具、会话行为都随 Agent 而异。两条路径不共享会话。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======== 05 分工 ======== -->
+      <section class="chapter" id="05" data-key="05" data-title="分工" aria-labelledby="h-05">
+        <div class="wrap">
+          <div class="chapter-head">
+            <p class="eyebrow">第 05 章 · 分工</p>
+            <h2 id="h-05" tabindex="-1">给每个角色派合适的活</h2>
+            <p class="lead">以下是作者的个人使用经验，按任务顺手程度排列，不是客观排行榜。</p>
+          </div>
+
+          <ul class="roles">
+            <li>
+              <span class="role">办事员</span>
+              <div>
+                <p class="combo">DeepSeek + pi</p>
+                <p>日常问答、文字整理、简单任务。</p>
+              </div>
+            </li>
+            <li>
+              <span class="role">程序员</span>
+              <div>
+                <p class="combo">Codex 模型 + pi</p>
+                <p>编程、复杂分析，搭配 pi 简洁的工作方式。</p>
+              </div>
+            </li>
+            <li>
+              <span class="role">前端</span>
+              <div>
+                <p class="combo">Kimi K3 + pi</p>
+                <p>UI 设计、页面布局、视觉表现——<strong class="strong">我做 UI 任务的首选</strong>。</p>
+              </div>
+            </li>
+            <li>
+              <span class="role">原生体验</span>
+              <div>
+                <p class="combo">Codex 原生 Agent</p>
+                <p>希望保留 Codex 原生 Agent 体验时的选择。</p>
+              </div>
+            </li>
+          </ul>
+
+          <div class="callout">
+            <span class="tag">关于「角色」</span>
+            <p>角色是预设的 Agent / 模型 / 思考档位组合，不是额外的模型；预设不会自动把任务转交给另一个角色，请按任务手动选择。模型名与供应商权限随你的账号变化。</p>
+          </div>
+
+          <details>
+            <summary>本机分工示例（provider / model ID）</summary>
+            <div class="body">
+              <dl class="kv">
+                <dt>办事员</dt><dd>volcengine-ark/deepseek-v4-1-flash-260910</dd>
+                <dt>程序员</dt><dd>openai-codex/gpt-6-sol</dd>
+                <dt>前端</dt><dd>moonshotai-cn/kimi-k3</dd>
+              </dl>
+              <p class="small" style="margin:12px 0 0">此机 DeepSeek 经火山引擎接入（volcengine-ark），Kimi K3 经 moonshotai-cn，Codex 模型经 openai-codex。以上仅是这台机器的配置记录，不是通用可用性承诺。</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      <!-- ======== 06 实战 ======== -->
+      <section class="chapter" id="06" data-key="06" data-title="实战" aria-labelledby="h-06">
+        <div class="wrap">
+          <div class="chapter-head">
+            <p class="eyebrow">第 06 章 · 实战</p>
+            <h2 id="h-06" tabindex="-1">在手机上做一个页面</h2>
+            <p class="lead">用一个贯穿任务走完全程：先拿提纲，确认后再实现。</p>
+          </div>
+
+          <div class="flowline" aria-label="实战流程">
+            <span><b>1</b>选择电脑 / 项目</span>
+            <span><b>2</b>选「前端」角色</span>
+            <span><b>3</b>描述需求</span>
+            <span><b>4</b>确认方案</span>
+            <span><b>5</b>查看进展</span>
+            <span><b>6</b>检查结果</span>
+          </div>
+          <p class="small" style="margin-top:10px">「前端」角色 = pi + Kimi K3。请先在角色 / 模型选择器里选好——发一句“用某模型”并不必然切换模型。</p>
+
+          <div class="demo-card">
+            <span class="tag">示例任务 · 不会实际发送</span>
+            <blockquote>「帮我做一个产品介绍页，先给我提纲，确认后再实现。」</blockquote>
+          </div>
+
+          <h3 style="margin-top:34px;font-family:var(--serif);font-size:22px">三条趁手的指令</h3>
+          <p class="small">点击即可复制，到 Paseo 里粘贴发送。</p>
+          <div class="prompts">
+            <div class="prompt">
+              <code>请先分析这个报错，说明原因和验证方法，不要修改文件。</code>
+              <button type="button" class="copy" data-copy="请先分析这个报错，说明原因和验证方法，不要修改文件。">复制</button>
+            </div>
+            <div class="prompt">
+              <code>请设计一个简洁的产品首页，适配手机和电脑。先给我提纲，确认后再实现。</code>
+              <button type="button" class="copy" data-copy="请设计一个简洁的产品首页，适配手机和电脑。先给我提纲，确认后再实现。">复制</button>
+            </div>
+            <div class="prompt">
+              <code>请检查当前代码改动，告诉我还有哪些问题。不要自动提交或部署。</code>
+              <button type="button" class="copy" data-copy="请检查当前代码改动，告诉我还有哪些问题。不要自动提交或部署。">复制</button>
+            </div>
+          </div>
+
+          <div class="callout">
+            <span class="tag">更进一步</span>
+            <p>需要「实施 / 独立验收」的闭环工作流？参考 <a href="/demo/check-run/">check-run 演示 →</a>。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ======== 07 边界 ======== -->
+      <section class="chapter" id="07" data-key="07" data-title="边界" aria-labelledby="h-07">
+        <div class="wrap">
+          <div class="chapter-head">
+            <p class="eyebrow">第 07 章 · 边界与排障</p>
+            <h2 id="h-07" tabindex="-1">知道边界，才用得安心</h2>
+          </div>
+
+          <ul class="rules">
+            <li><strong>电脑休眠、断网会影响连接</strong>——保持电脑开机、联网。</li>
+            <li><strong>Agent 使用真实文件和电脑权限。</strong>pi 不会每条工具调用都问你：不要把自然语言里的“确认”当成系统级权限隔离。删除、提交、部署等操作要明确授权；重要工作先备份、纳入版本管理。</li>
+            <li><strong>并行多个 Agent 时使用不同 worktree</strong>，避免它们改同一个工作区。</li>
+            <li><strong>模型授权与 API 费用</strong>分别由各供应商决定。</li>
+          </ul>
+
+          <h3 style="margin-top:36px;font-family:var(--serif);font-size:22px">出问题先看这里</h3>
+          <div class="trouble">
+            <div class="row"><span class="sym">连接超时</span><span class="fix">检查两端 Tailscale 是否在线、ACL 规则、Host 里的 IP 是否写对。</span></div>
+            <div class="row"><span class="sym">拒绝连接</span><span class="fix">确认 Paseo 正在运行、监听地址与端口（6767）配置正确。</span></div>
+            <div class="row"><span class="sym">模型不可用</span><span class="fix">先在终端验证对应 CLI 与登录状态，再检查 Paseo 的 provider 配置。</span></div>
+            <div class="row"><span class="sym">改动没生效</span><span class="fix">daemon 重启才会加载新 listen；注意重启会中断正在运行的任务。</span></div>
+          </div>
+
+          <h3 style="margin-top:36px;font-family:var(--serif);font-size:22px">官方资源</h3>
+          <ul class="res">
+            <li><a href="https://paseo.sh" target="_blank" rel="noopener noreferrer">Paseo 官网<small>paseo.sh</small></a></li>
+            <li><a href="https://paseo.sh/docs/connectivity" target="_blank" rel="noopener noreferrer">Paseo 连接文档<small>paseo.sh/docs/connectivity</small></a></li>
+            <li><a href="https://tailscale.com/download" target="_blank" rel="noopener noreferrer">Tailscale 下载<small>tailscale.com/download</small></a></li>
+            <li><a href="https://pi.dev" target="_blank" rel="noopener noreferrer">pi 官网<small>pi.dev</small></a></li>
+            <li><a href="https://developers.openai.com/codex/cli" target="_blank" rel="noopener noreferrer">Codex CLI 文档<small>developers.openai.com/codex/cli</small></a></li>
+            <li><a href="/demo/check-run/">check-run：实施 / 验收闭环演示<small>/demo/check-run/</small></a></li>
+          </ul>
+
+          <div class="ending">
+            <p>手机是入口，电脑是工作台，<br>Paseo 连接 Agent，模型各司其职。</p>
+          </div>
+          <p class="credit">非官方使用笔记，2026-10-18 核对 · 本机 Paseo 0.11.4<br>UI 与布局由 Kimi K3 设计 · <a href="/demo/">返回演示</a></p>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- ============ 底部翻页 ============ -->
+    <footer class="pager" aria-label="章节翻页">
+      <button type="button" class="page-btn prev" id="prevBtn" aria-label="上一章"><span aria-hidden="true">←</span><span class="lbl" id="prevLbl">上一章</span></button>
+      <span class="page-ind" id="pageInd" aria-live="polite"><b>1 / 8</b>　首页</span>
+      <button type="button" class="page-btn next" id="nextBtn" aria-label="下一章"><span class="lbl" id="nextLbl">下一章</span><span aria-hidden="true">→</span></button>
+    </footer>
+  </div>
+</div>
+
+<p class="vh" id="live" aria-live="polite"></p>
+
+<noscript>
+<style>
+  .chapter{display:block!important}
+  .pager,.hairline,.mini-progress,.theme-toggle,.copy,.skip{display:none}
+  .stage{overflow:visible}
+  .app{height:auto}
+  .main{display:block}
+  .wrap{padding-bottom:40px}
+</style>
+<p style="padding:12px 18px;font-size:13px;border-bottom:1px solid #e3dac9;margin:0">当前未启用 JavaScript：以下为全部章节的连续展示，目录锚点仍可跳转。</p>
+</noscript>
+
+<script>
+(function(){
+  "use strict";
+  var docEl = document.documentElement;
+  var stage = document.getElementById('stage');
+  var chapters = Array.prototype.slice.call(document.querySelectorAll('.chapter'));
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('#toc a[data-key], #strip a[data-key]'));
+  var prevBtn = document.getElementById('prevBtn');
+  var nextBtn = document.getElementById('nextBtn');
+  var prevLbl = document.getElementById('prevLbl');
+  var nextLbl = document.getElementById('nextLbl');
+  var pageInd = document.getElementById('pageInd');
+  var topBar = document.getElementById('topBar');
+  var miniBar = document.getElementById('miniBar');
+  var miniPg = document.getElementById('miniPg');
+  var live = document.getElementById('live');
+  var strip = document.getElementById('strip');
+  var keys = chapters.map(function(s){ return s.getAttribute('data-key'); });
+  var titles = chapters.map(function(s){ return s.getAttribute('data-title'); });
+  var current = -1;
+
+  /* ---------- 主题 ---------- */
+  function applyTheme(t){
+    if(t === 'dark'){ docEl.setAttribute('data-theme','dark'); }
+    else { docEl.removeAttribute('data-theme'); }
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if(meta){ meta.setAttribute('content', t === 'dark' ? '#16130e' : '#f7f2ea'); }
+    document.querySelectorAll('.theme-toggle').forEach(function(btn){
+      btn.setAttribute('aria-pressed', String(t === 'dark'));
+    });
+  }
+  var stored = null;
+  try { stored = window.localStorage.getItem('paseo-guide-theme'); } catch(e){ stored = null; }
+  if(stored !== 'dark' && stored !== 'light'){
+    stored = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  applyTheme(stored);
+  Array.prototype.forEach.call(document.querySelectorAll('.theme-toggle'), function(btn){
+    btn.addEventListener('click', function(){
+      var next = docEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      try { window.localStorage.setItem('paseo-guide-theme', next); } catch(e){}
+      live.textContent = next === 'dark' ? '已切换到深色模式' : '已切换到浅色模式';
+    });
+  });
+
+  /* ---------- 章节切换 ---------- */
+  function indexFromHash(){
+    var h = (window.location.hash || '').replace(/^#/, '');
+    var i = keys.indexOf(h);
+    return i >= 0 ? i : 0;
+  }
+  function headingOf(sec){
+    return sec.querySelector('h1, h2');
+  }
+  function show(i, opts){
+    opts = opts || {};
+    if(i < 0){ i = 0; }
+    if(i >= chapters.length){ i = chapters.length - 1; }
+    var first = (current === -1);
+    if(i === current && !first){ return; }
+    current = i;
+    chapters.forEach(function(sec, idx){
+      if(idx === i){ sec.removeAttribute('hidden'); }
+      else { sec.setAttribute('hidden', ''); }
+    });
+    navLinks.forEach(function(a){
+      if(a.getAttribute('data-key') === keys[i]){ a.setAttribute('aria-current','page'); }
+      else { a.removeAttribute('aria-current'); }
+    });
+    var pct = ((i + 1) / chapters.length) * 100 + '%';
+    topBar.style.width = pct;
+    miniBar.style.width = pct;
+    miniPg.textContent = (i + 1) + ' / ' + chapters.length;
+    pageInd.innerHTML = '<b>' + (i + 1) + ' / ' + chapters.length + '</b>　' + titles[i];
+
+    prevBtn.disabled = (i === 0);
+    nextBtn.disabled = (i === chapters.length - 1);
+    prevLbl.textContent = i > 0 ? titles[i - 1] : '上一章';
+    nextLbl.textContent = i < chapters.length - 1 ? titles[i + 1] : '下一章';
+    prevBtn.setAttribute('aria-label', i > 0 ? '上一章：' + titles[i - 1] : '上一章');
+    nextBtn.setAttribute('aria-label', i < chapters.length - 1 ? '下一章：' + titles[i + 1] : '下一章');
+
+    /* 同步 hash（触发 hashchange 时会因 current 相同而直接返回） */
+    var want = '#' + keys[i];
+    if(window.location.hash !== want){
+      try { window.location.hash = keys[i]; } catch(e){}
+    }
+    /* 滚动正文到顶 + 焦点管理（首次载入不抢焦点） */
+    stage.scrollTop = 0;
+    if(!first){
+      var h = headingOf(chapters[i]);
+      if(h){ try { h.focus({preventScroll:true}); } catch(e){ h.focus(); } }
+    }
+    /* 深链接首次载入时，也让当前章节进入移动端目录视野。 */
+    var act = strip.querySelector('a[aria-current="page"]');
+    if(act){
+      strip.scrollLeft = act.offsetLeft - strip.clientWidth / 2 + act.clientWidth / 2;
+    }
+    if(document.title.indexOf(titles[i]) !== 0){
+      document.title = titles[i] + ' · Paseo 中文使用指南';
+    }
+  }
+  document.querySelector('.skip').addEventListener('click', function(ev){
+    ev.preventDefault();
+    stage.focus({preventScroll:true});
+  });
+  window.addEventListener('hashchange', function(){ show(indexFromHash()); });
+  prevBtn.addEventListener('click', function(){ show(current - 1); });
+  nextBtn.addEventListener('click', function(){ show(current + 1); });
+
+  /* 键盘左右键翻页（输入控件内不触发） */
+  document.addEventListener('keydown', function(ev){
+    if(ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight'){ return; }
+    if(ev.altKey || ev.ctrlKey || ev.metaKey || ev.shiftKey){ return; }
+    var t = ev.target;
+    if(t){
+      var tag = (t.tagName || '').toLowerCase();
+      if(tag === 'input' || tag === 'textarea' || tag === 'select'){ return; }
+      if(t.isContentEditable){ return; }
+    }
+    if(ev.key === 'ArrowLeft' && current > 0){ ev.preventDefault(); show(current - 1); }
+    if(ev.key === 'ArrowRight' && current < chapters.length - 1){ ev.preventDefault(); show(current + 1); }
+  });
+
+  /* ---------- 复制 ---------- */
+  function fallbackCopy(text){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly','');
+    ta.style.position = 'fixed';
+    ta.style.top = '0';
+    ta.style.left = '0';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch(e){ ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
+  function report(btn, ok){
+    var orig = btn.getAttribute('data-label') || '复制';
+    btn.classList.remove('ok','fail');
+    if(ok){
+      btn.classList.add('ok');
+      btn.textContent = '已复制 ✓';
+      live.textContent = '内容已复制到剪贴板';
+    }else{
+      btn.classList.add('fail');
+      btn.textContent = '复制失败，请手动复制';
+      live.textContent = '复制失败，请手动选择文本复制';
+    }
+    window.setTimeout(function(){
+      btn.classList.remove('ok','fail');
+      btn.textContent = orig;
+    }, 2200);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('.copy'), function(btn){
+    btn.setAttribute('data-label', btn.textContent);
+    btn.addEventListener('click', function(){
+      var text = btn.getAttribute('data-copy') || '';
+      function done(ok){ report(btn, ok); }
+      if(navigator.clipboard && typeof navigator.clipboard.writeText === 'function'){
+        navigator.clipboard.writeText(text).then(function(){ done(true); }, function(){ done(fallbackCopy(text)); });
+      }else{
+        done(fallbackCopy(text));
+      }
+    });
+  });
+
+  /* ---------- 初始化 ---------- */
+  show(indexFromHash());
+})();
+</script>
+</body>
+</html>
