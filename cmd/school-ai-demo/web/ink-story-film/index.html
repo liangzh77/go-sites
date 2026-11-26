@@ -9,13 +9,15 @@
 <div class="promptrow"><blockquote id="install-prompt">请帮我安装这个页面里的「水墨视频」技能：https://liangz77.cn/ai-demo/ink-story-film/</blockquote><button id="copy" type="button" aria-label="复制安装指令" hidden>复制</button></div>
 <p id="notice" role="status"></p><p><a href="ink-story-film-1.0.0.zip" download>下载完整技能包（ZIP）</a></p></section>
 <section class="card" id="usage"><small>02　/　使用</small><h2>安装后，这样调用</h2>
-<h3>做一部短片</h3><blockquote>用 $ink-story-film 做一部 30 秒的《雪夜访戴》水墨短片，讲王子猷雪夜乘舟访友、到了门前却转身而返的故事。</blockquote>
-<h3>调整一个镜头</h3><blockquote>用 $ink-story-film 把第三镜改成缓慢拉远，保留旁白、字幕和其他镜头，导出新版视频。</blockquote></section></main>
+<h3>做一部短片</h3><div class="promptrow"><blockquote>用 $ink-story-film 做一部短片，讲王子猷雪夜乘舟访友、到了门前却转身而返的故事。</blockquote><button type="button" aria-label="复制做一部短片提示词" hidden>复制</button></div><p role="status"></p>
+<h3>调整一个镜头</h3><div class="promptrow"><blockquote>用 $ink-story-film 把第三镜改成缓慢拉远，导出新版视频。</blockquote><button type="button" aria-label="复制调整一个镜头提示词" hidden>复制</button></div><p role="status"></p></section></main>
 <script>
-const button=document.getElementById('copy'), promptText=document.getElementById('install-prompt'), notice=document.getElementById('notice');
-button.hidden=false;
-button.onclick=async()=>{
-  try{await navigator.clipboard.writeText(promptText.textContent);notice.textContent='已复制，可以发给你的 Agent 了。'}
-  catch{const selection=window.getSelection();const range=document.createRange();range.selectNodeContents(promptText);selection.removeAllRanges();selection.addRange(range);notice.textContent='已选中安装指令，请手动复制。'}
-};
+for(const row of document.querySelectorAll('.promptrow')){
+  const button=row.querySelector('button'), promptText=row.querySelector('blockquote'), notice=row.nextElementSibling;
+  button.hidden=false;
+  button.onclick=async()=>{
+    try{await navigator.clipboard.writeText(promptText.textContent);notice.textContent='已复制，可以发给你的 Agent 了。'}
+    catch{const range=document.createRange();range.selectNodeContents(promptText);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);notice.textContent='已选中这段文字，请手动复制。'}
+  };
+}
 </script></body></html>
