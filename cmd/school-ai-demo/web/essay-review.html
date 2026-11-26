@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fcfbf8"><title>批改作文 · School AI Demo</title><meta name="description" content="两个手写作文点评示例，也可粘贴图片或文字，让 DeepSeek 给出一个优点和一个建议。"><link rel="icon" href="favicon.svg"><link rel="stylesheet" href="essay/essay.css?v=1"></head>
+<body>
+<header class="nav"><a class="brand" href="./"><span class="logo" aria-hidden="true">学</span>School AI Demo</a><nav aria-label="主导航"><a href="./">全部 demo</a><a href="lesson-plan.html">生成教案</a><a href="essay-review.html" aria-current="page">批改作文</a></nav></header>
+<main>
+<a class="back" href="./">← 全部 demo</a>
+<section class="hero"><span class="eyebrow">小学语文 · 作文点评</span><h1>看见一个优点，<br>给出一个建议。</h1><p>不打分，不堆套话。用老师对孩子说话的方式，给一段真实、口语化的百字内评语。</p><a class="primary link-button" href="#try">试试你的作文 ↓</a></section>
+<section aria-labelledby="examplesTitle"><div class="section-head"><h2 id="examplesTitle">先看两个例子</h2><p>以下两组作文图片与 AI 点评均为预置内容，查看示例不会触发模型请求。</p></div>
+<div class="examples">
+<article class="example"><div class="example-head"><span class="badge">预置示例 · 非本次实时生成</span><h3>01 · 我的小姨</h3></div><p class="label">作文输入 · 点击图片放大</p><button class="image-button" type="button" data-image="essay/example-aunt.png" aria-label="放大示例作文：我的小姨"><img src="essay/example-aunt.png" alt="我的小姨，含汉字和拼音的手写作文照片" width="636" height="650"></button><div class="sample-review"><p class="label">AI 点评示例 · 原文</p><p>你这篇作文写得实在，敢写小姨的假鼻子，结尾“我们家可没钱”一句就把人逗笑了，这比夸十句“勤劳善良”都强。建议你把拼音换成汉字，尤其是“嘴、假、脾、摸”这几个，字写对了，这篇才站得住。</p></div></article>
+<article class="example"><div class="example-head"><span class="badge">预置示例 · 非本次实时生成</span><h3>02 · 爸爸，我想对您说</h3></div><p class="label">作文输入 · 点击图片放大</p><button class="image-button" type="button" data-image="essay/example-dad.png" aria-label="放大示例作文：爸爸，我想对您说"><img src="essay/example-dad.png" alt="爸爸，我想对您说，方格纸上的手写作文照片" width="429" height="466"></button><div class="sample-review"><p class="label">AI 点评示例 · 原文</p><p>你这篇最打动人的地方是“你快是手机的爸爸了”这句话，一句话就把心里的委屈说透了。建议你把羡慕别人家爸爸的那一刻写具体些：他们去哪里玩，你站在哪里看着，这样比反复写“玩手机”更扎心。</p></div></article>
+</div></section>
+<section class="prompt-card" aria-labelledby="promptTitle"><div class="row"><h2 id="promptTitle">统一使用这段提示词</h2><button type="button" class="secondary" id="copyPrompt">复制提示词</button></div><p id="promptText">作为小学语文老师，给出真实，口语化评价，点评一个优点，给出一个建议，100字以内，第二人称</p></section>
+<section id="try" aria-labelledby="tryTitle"><div class="section-head"><h2 id="tryTitle">试试你的作文</h2><p id="modelStatus" role="status">正在检查模型服务…</p></div>
+<form id="reviewForm" class="workbench"><div class="tabs" role="tablist" aria-label="作文输入方式"><button id="textTab" type="button" role="tab" aria-controls="textPanel" aria-selected="true" data-mode="text">粘贴文字</button><button id="imageTab" type="button" role="tab" aria-controls="imagePanel" aria-selected="false" tabindex="-1" data-mode="image">上传 / 粘贴图片</button></div>
+<div id="textPanel" role="tabpanel" aria-labelledby="textTab"><label for="essayText">作文原文</label><textarea id="essayText" rows="9" placeholder="把作文粘贴到这里。请先去掉姓名、学校、联系方式等个人信息。"></textarea><p class="count" id="textCount">0 / 8000 字</p></div>
+<div id="imagePanel" role="tabpanel" aria-labelledby="imageTab" hidden><div class="dropzone" id="dropzone" tabindex="0" aria-label="拖入或粘贴作文图片"><strong>粘贴一张作文照片</strong><p>也可以拖入图片，或使用下面的上传按钮。</p><label class="secondary file-label" for="imageFile">选择图片</label><input id="imageFile" type="file" accept="image/jpeg,image/png,image/webp"><p class="hint">JPEG / PNG / WebP，原图不超过 5MB。网页会压缩并去除图片元数据后提交。</p></div><div id="previewBox" class="preview" hidden><button type="button" id="previewZoom" class="image-button" aria-label="放大待提交图片"><img id="imagePreview" alt="待提交的作文图片"></button><div class="row"><span id="imageInfo"></span><button type="button" class="secondary" id="removeImage">移除图片</button></div></div></div>
+<p class="privacy">请先遮盖姓名、学校、联系方式。本站不保存作文原文、上传图片或生成结果；模型服务的数据处理遵循其自身政策。</p><label class="consent"><input id="consent" type="checkbox">同意将本次作文发送给模型服务进行分析</label><div class="submit-row"><button type="submit" class="primary" id="submitBtn" disabled>生成点评</button><span id="requestStatus" role="status">输入作文后开始</span></div><p id="error" class="error" role="alert" hidden></p></form>
+<section class="result" id="resultBox" aria-labelledby="resultTitle" aria-live="polite"><div class="row"><h3 id="resultTitle">点评会出现在这里</h3><button class="secondary" type="button" id="copyResult" hidden>复制评语</button></div><p class="result-meta" id="resultMeta">本次实时生成 · DeepSeek-V4.1 Flash</p><p id="reviewText" class="review-text">先选文字或图片，提交后再查看结果。预置示例不会代替你的实时点评。</p><p class="hint" id="reviewCount"></p></section>
+<p class="hint disclaimer">AI 点评仅供教学参考，老师请结合原文核对。一次关注一个优点和一个建议，不以评语给孩子贴标签。</p>
+</section></main>
+<footer>School AI Demo · <a href="https://liangz77.cn/">liangz77.cn</a></footer>
+<dialog id="imageDialog" aria-label="作文图片预览"><button type="button" class="dialog-close" id="closeDialog" aria-label="关闭图片预览">关闭 ×</button><img id="dialogImage" alt="放大的作文图片"></dialog><div id="toast" class="toast" role="status" hidden></div>
+<script src="essay/essay.js?v=1"></script>
+</body></html>

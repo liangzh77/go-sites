@@ -10,6 +10,12 @@
   const BASE = new URL('.', location.href).pathname.replace(/\/$/, '');
   const $ = (id) => document.getElementById(id);
 
+  // Before the first paint: a hash means a form is (or is about to be) open, so
+  // the header keeps its nav links; anything else is the demo list. This runs
+  // from the script at the end of <body>, i.e. before the first paint, so a
+  // direct load of #enrollment never flashes the slim header.
+  if (!location.hash) setNav('home');
+
   // The paper keeps its 794px (A4 at 96dpi) logical width: print and PDF need
   // it. Anything narrower is handled by scaling the wrapper, not the sheet.
   const PAPER_W = 794;
@@ -26,6 +32,7 @@
     quota: null,          // today's AI budget, as the server reports it
     aiOff: false,         // no API key configured on the server
     demo: false,          // the sheet currently holds the generated sample data
+    filter: 'all',        // which demo category pill is on
   };
 
   // --- tiny helpers ---------------------------------------------------------
@@ -75,7 +82,13 @@
     try {
       data = await api('/api/state');
     } catch (e) {
-      $('demoCards').innerHTML = `<div class="notice"><strong>读取失败。</strong><span>${escapeHTML(e.message)}</span></div>`;
+      const box = $('demoCards');
+      box.querySelectorAll('[data-demo], .notice').forEach((n) => n.remove());
+      $('demoSoon').insertAdjacentHTML(
+        'beforebegin',
+        `<div class="notice"><strong>读取失败。</strong><span>${escapeHTML(e.message)}</span></div>`
+      );
+      $('demoFilters').innerHTML = '';
       return;
     }
     state.templates = data.templates || [];
@@ -88,15 +101,13 @@
   function renderAIDisabled() {
     // 没配 key 时按钮保持可点：点下去要给一句明确的说明，
     // 而不是留一个灰按钮让人猜原因。额度用完才是真的不能再点。
+    // The button's own label is owned by renderQuota(), which knows both states.
     const off = !state.ai.configured;
     $('aiNotice').hidden = !off;
     if (off) {
       $('aiNoticeText').textContent =
-        `服务器上没有配置 DeepSeek API Key（${state.ai.keyEnv}），提交会返回提示。` +
+        `服务器上没有配置模型 API Key（${state.ai.keyEnv}），提交会返回提示。` +
         '表格本身仍可以手动填写、打印和导出。';
-      $('fillBtn').textContent = 'AI 填写（未开通）';
-    } else {
-      $('fillBtn').textContent = '开始 AI 填写';
     }
     state.aiOff = off;
     renderQuota();
@@ -104,36 +115,29 @@
 
   // renderQuota draws today's budget. The limit is a server-side counter, not
   // a browser one, so every page load re-reads it from /api/state.
-  // The home page stays silent until the budget is actually gone: a permanent
-  // counter there is noise for someone who only came to open a form.
+  // Nothing here prints a count: the only visible state is "gone", and the
+  // button says what happened the one time it matters.
   function renderQuota() {
     const q = state.quota;
-    const inline = $('quotaInline');
     const spent = !!q && !q.unlimited && q.remaining <= 0;
 
+    // The card lives in the studio, where the fill happens: it is the one place
+    // where a spent budget is worth saying out loud.
     $('quotaSpent').hidden = !spent;
     if (spent) {
       $('quotaSpentText').textContent =
-        `每天 ${q.limit} 次，明天 00:00 重置；表格照常可以手动填写、打印和导出。`;
+        '今天的次数用完了，明天 00:00 自动恢复。表格照常可以手动填写、打印和导出，已填的内容不会丢。';
     }
 
-    if (!q || q.unlimited) {
-      inline.hidden = true;
-      $('fillBtn').disabled = !!state.aiOff;
-      return;
-    }
-
-    // The remaining count is not printed: a number that only goes down reads as
-    // a warning, and the button says what happened the one time it matters.
-    inline.hidden = !spent;
-    if (spent) inline.textContent = `今日 AI 填表次数已用完（${q.limit}/${q.limit}），明天 00:00 重置。`;
-    inline.classList.toggle('spent', spent);
-
+    const fill = $('fillBtn');
     if (spent) {
-      $('fillBtn').disabled = true;
-      $('fillBtn').textContent = state.aiOff ? 'AI 填写（未开通）' : '今日次数已用完';
+      fill.disabled = true;
+      fill.textContent = '今日次数已用完 · 明天再来';
     } else {
-      $('fillBtn').disabled = false;
+      // No key is not the same as no budget: the button stays clickable so the
+      // click can explain itself.
+      fill.disabled = false;
+      fill.textContent = state.aiOff ? 'AI 填写（未开通）' : '开始 AI 填写';
     }
   }
 
@@ -147,49 +151,134 @@
     } catch (e) { /* a stale count is not worth an error banner */ }
   }
 
-  // Every card on the home page comes from this array. Adding a second demo
-  // is one more entry here: nothing in renderDemos() names a specific tool.
+  // Every card on the home page comes from this array. Adding a second demo is
+  // one more entry here: nothing in renderDemos() names a specific tool.
+  // `cat` drives the filter pills, `cover` picks the decorative cover art.
+  const DEMO_CATS = [
+    { key: 'all', label: '全部' },
+    { key: 'form', label: '表格与登记' },
+    { key: 'lesson', label: '备课' },
+    { key: 'writing', label: '作文点评' },
+    { key: 'math', label: '数学判卷' },
+  ];
+
   const DEMOS = [
     {
       key: 'ai-fill',
+      cat: 'form',
       title: 'AI 填表',
+      glyph: '填表',
+      typeLabel: 'AI 语义匹配',
+      cover: 'form',
       desc: '上传 Excel 或粘贴文字，自动填进学生表格。对不上的格子留空，绝不编造。',
+      // Both tags come from /api/state: how many forms exist, and what they are
+      // called. A number that is not in the data does not go on the card.
       tags: (tpls) => [
         `共 ${tpls.length} 种表格`,
-        { text: 'AI 语义匹配', brand: true },
+        { text: 'Excel / CSV / 文字', outline: true },
       ],
       note: (tpls) => tpls.map((t) => t.name).join(' · '),
       cta: '开始填写',
       available: (tpls) => tpls.length > 0,
-      open: (tpls) => openStudio(pickTemplate(tpls).slug, { autoDemo: true }),
+      open: () => openFill(),
+    },
+    {
+      // A static page next to this one: no templates, no model call.
+      key: 'lesson-plan',
+      cat: 'lesson',
+      title: '生成教案',
+      glyph: '教案',
+      typeLabel: '提示词示例',
+      cover: 'slide',
+      desc: '一段提示词，生成可以直接上课的 45 分钟教案和 18 页课件。提示词原文可一键复制。',
+      tags: () => [
+        '45 分钟 · 18 页课件',
+        { text: '静态展示', outline: true },
+      ],
+      note: () => '人教版七上《从百草园到三味书屋》',
+      cta: '查看教案',
+      open: () => { window.location.href = BASE + '/lesson-plan.html'; },
+    },
+    {
+      key: 'essay-review',
+      cat: 'writing',
+      title: '批改作文',
+      glyph: '作文',
+      typeLabel: '示例 + 实时点评',
+      cover: 'essay',
+      desc: '看两组作文点评示例，也可粘贴图片或文字。用百字以内，点评一个优点，给出一个建议。',
+      tags: () => ['图片 / 文字', { text: '第二人称 · 100 字以内', outline: true }],
+      note: () => 'DeepSeek-V4.1 Flash',
+      cta: '试试批改作文',
+      open: () => { window.location.href = BASE + '/essay-review.html'; },
+    },
+    {
+      key: 'math-review',
+      cat: 'math',
+      title: '数学判卷',
+      glyph: '判卷',
+      typeLabel: '示例 + 实时判卷',
+      cover: 'math',
+      desc: '上传或粘贴数学试卷照片，让 AI 逐题核算、判定和批注。也可先看两组预置示例。',
+      tags: () => ['上传 / 粘贴图片', { text: '逐题分析', outline: true }],
+      note: () => '初一数学 · 需教师复核',
+      cta: '查看数学判卷',
+      open: () => { window.location.href = BASE + '/math-review.html'; },
     },
   ];
+
+  // The cover art is decoration, not data: the form sketch mirrors the sample
+  // the studio itself can load, and the slide is a real exported thumbnail.
+  const COVER_FORM = `
+    <div class="shot mform"><table>
+      <tr><td class="l">姓名</td><td class="f">陈知远</td><td class="l">性别</td><td class="f">男</td></tr>
+      <tr><td class="l">民族</td><td class="f">汉族</td><td class="l">学号</td><td class="f">20260312</td></tr>
+      <tr><td class="l">住址</td><td class="f" colspan="3">苏州市吴中区宝带西路…</td></tr>
+    </table></div>`;
+
+  function demoCard(d, tpls) {
+    const tags = (d.tags ? d.tags(tpls) : []).map((raw) => {
+      const t = typeof raw === 'string' ? { text: raw } : raw;
+      return `<span class="tg${t.outline ? ' o' : ''}">${escapeHTML(t.text)}</span>`;
+    }).join('');
+    const cover = d.cover === 'slide'
+      ? '<img class="shot" src="lesson/thumbs/slide-01.webp?v=553fc7142a8c" alt="" width="190" height="107">'
+      : d.cover === 'essay'
+        ? '<img class="shot" src="essay/example-aunt.png" alt="" width="190" height="107">'
+        : d.cover === 'math'
+          ? '<img class="shot" src="math/example-01.png" alt="" width="190" height="107">'
+          : COVER_FORM;
+    const note = d.note ? d.note(tpls) : '';
+    return `
+      <article class="demo" data-demo="${escapeHTML(d.key)}" data-cat="${escapeHTML(d.cat || '')}">
+        <div class="cover">
+          <span class="glyph" aria-hidden="true">${escapeHTML(d.glyph || '')}</span>
+          ${cover}
+          <span class="type"><i></i>${escapeHTML(d.typeLabel || '')}</span>
+        </div>
+        <div class="body">
+          <div class="tags">${tags}</div>
+          <h3>${escapeHTML(d.title)}</h3>
+          <p>${escapeHTML(d.desc)}</p>
+          <div class="foot">
+            <span>${escapeHTML(note)}</span>
+            <button class="btn btn-b btn-sm" type="button">${escapeHTML(d.cta || '打开')}</button>
+          </div>
+        </div>
+      </article>`;
+  }
 
   function renderDemos() {
     const box = $('demoCards');
     const tpls = state.templates || [];
     const items = DEMOS.filter((d) => !d.available || d.available(tpls));
+    box.querySelectorAll('[data-demo], .notice').forEach((n) => n.remove());
+    $('demoFilters').innerHTML = '';
     if (!items.length) {
-      box.innerHTML = '<p class="dz-sub">暂时没有可用的 demo。</p>';
+      applyFilter();
       return;
     }
-    box.innerHTML = items.map((d) => {
-      const tags = (d.tags ? d.tags(tpls) : []).map((raw) => {
-        const t = typeof raw === 'string' ? { text: raw } : raw;
-        return `<span class="tag${t.brand ? ' brand' : ''}">${escapeHTML(t.text)}</span>`;
-      }).join('');
-      const note = d.note ? d.note(tpls) : '';
-      return `
-      <article class="demo-card" data-demo="${escapeHTML(d.key)}">
-        <div class="meta">${tags}</div>
-        <h3>${escapeHTML(d.title)}</h3>
-        <p>${escapeHTML(d.desc)}</p>
-        <div class="foot">
-          <span class="dz-sub">${escapeHTML(note)}</span>
-          <button class="primary" type="button">${escapeHTML(d.cta || '打开')}</button>
-        </div>
-      </article>`;
-    }).join('');
+    $('demoSoon').insertAdjacentHTML('beforebegin', items.map((d) => demoCard(d, tpls)).join(''));
     // The button has no handler of its own: its click bubbles to the card, so
     // mouse and keyboard land on the same code path exactly once.
     box.querySelectorAll('[data-demo]').forEach((card) => {
@@ -197,6 +286,56 @@
       if (!d || !d.open) return;
       card.addEventListener('click', () => d.open(tpls));
     });
+    renderFilters(items);
+  }
+
+  // Pills exist only for categories that have a card, and the count is the
+  // number of cards that actually rendered — never a number typed by hand.
+  function renderFilters(items) {
+    const box = $('demoFilters');
+    const counts = {};
+    items.forEach((d) => { counts[d.cat] = (counts[d.cat] || 0) + 1; });
+    const cats = DEMO_CATS.filter((c) => c.key === 'all' || counts[c.key]);
+    if (!cats.some((c) => c.key === state.filter)) state.filter = 'all';
+    box.innerHTML = cats.map((c) => {
+      const on = c.key === state.filter;
+      const label = c.key === 'all' ? `${c.label} · ${items.length}` : c.label;
+      return `<button type="button" class="${on ? 'on' : ''}" data-cat="${c.key}" aria-pressed="${on}">${escapeHTML(label)}</button>`;
+    }).join('');
+    box.querySelectorAll('button[data-cat]').forEach((b) => {
+      b.addEventListener('click', () => { state.filter = b.dataset.cat; applyFilter(); });
+    });
+    applyFilter();
+  }
+
+  function applyFilter() {
+    $('demoCards').querySelectorAll('[data-demo]').forEach((card) => {
+      card.hidden = state.filter !== 'all' && card.dataset.cat !== state.filter;
+    });
+    // The "next up" slot is a placeholder, not a demo: it is never counted and
+    // only shows while everything is on screen.
+    $('demoSoon').hidden = state.filter !== 'all';
+    $('demoFilters').querySelectorAll('button[data-cat]').forEach((b) => {
+      const on = b.dataset.cat === state.filter;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
+  // One entry point for every "fill a form" affordance on the page: the nav
+  // link, 开始填表 and the AI 填表 card all land here.
+  function openFill() {
+    // Already filling? Then the click is a "take me back to the top", not a
+    // request to throw away the half-filled sheet and start over.
+    if (!$('studio').hidden) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    if (!state.templates.length) {
+      toast('表格还没加载好，稍等一下再试。');
+      return;
+    }
+    openStudio(pickTemplate(state.templates).slug, { autoDemo: true });
   }
 
   // A bookmarked hash wins; otherwise the first template in the folder opens.
@@ -366,6 +505,16 @@
   }
 
   // --- studio ---------------------------------------------------------------
+  // The header is shared between the list and the studio, so it has to say
+  // where the reader is: the home list shows only the logo and the site link,
+  // while the studio keeps the nav links with AI 填表 marked as current.
+  function setNav(which) {
+    document.querySelectorAll('.links a[data-nav]').forEach((a) => {
+      a.classList.toggle('on', a.dataset.nav === which);
+    });
+    document.body.classList.toggle('is-home', which === 'home');
+  }
+
   // A template is openable from the URL, so a teacher can bookmark one form
   // instead of walking through the list every time.
   function slugFromHash() {
@@ -387,6 +536,7 @@
     if (slugFromHash() !== slug) history.replaceState(null, '', '#' + encodeURIComponent(slug));
     $('studio').hidden = false;
     $('app').hidden = true;
+    setNav('fill');
     window.scrollTo({ top: 0 });
 
     resetPanel();
@@ -416,6 +566,7 @@
   function closeStudio() {
     $('studio').hidden = true;
     $('app').hidden = false;
+    setNav('home');
     if (location.hash) history.replaceState(null, '', location.pathname);
     state.current = null;
     state.doc = null;
@@ -441,7 +592,7 @@
     $('studioTitle').textContent = 'AI 填表';
     box.innerHTML = state.templates.map((t) => {
       const on = !!state.current && state.current.slug === t.slug;
-      return `<button type="button" role="tab" class="tpl-tab${on ? ' on' : ''}" data-slug="${escapeHTML(t.slug)}" aria-selected="${on ? 'true' : 'false'}">${escapeHTML(t.name)} · ${escapeHTML(String(t.fieldCount))} 字段</button>`;
+      return `<button type="button" role="tab" class="tpl-tab${on ? ' on' : ''}" data-slug="${escapeHTML(t.slug)}" aria-selected="${on ? 'true' : 'false'}">${escapeHTML(t.name)}<small>· ${escapeHTML(String(t.fieldCount))} 字段</small></button>`;
     }).join('');
     box.querySelectorAll('button[data-slug]').forEach((b) => {
       b.addEventListener('click', () => {
@@ -612,7 +763,7 @@
     if (sess.status === 'filled') {
       const n = Object.keys(sess.values || {}).length;
       const total = state.current ? state.current.fields.length : 0;
-      pill.className = 'pill';
+      pill.className = 'fpill';
       pill.textContent = `AI 填了 ${n}/${total} 项`;
       setStatus('ok', `AI 已填写 <b>${n}</b> 项（共 ${total} 项），其余留空。请核对后导出。`);
     } else if (sess.status === 'manual') {
@@ -620,10 +771,10 @@
       // and leave the status line alone so it does not wipe a real message.
       const n = Object.keys(sess.values || {}).length;
       const total = state.current ? state.current.fields.length : 0;
-      pill.className = 'pill manual';
+      pill.className = 'fpill manual';
       pill.textContent = `手动填写 ${n}/${total} 项`;
     } else {
-      pill.className = 'pill fail';
+      pill.className = 'fpill fail';
       pill.textContent = statusLabel[sess.status] || sess.status;
       if (sess.error) setStatus('err', escapeHTML(sess.error));
     }
@@ -710,7 +861,7 @@
       }
       setStatus(
         'err',
-        'AI 填写还没开通：服务器上缺少 DeepSeek API Key（' +
+        'AI 填写还没开通：服务器上缺少模型 API Key（' +
           state.ai.keyEnv +
           '）。请把 key 交给管理员配置后重试；你现在也可以直接在右侧表格里手动填写。'
       );
@@ -877,6 +1028,33 @@
   // has to stay: without it the exported file loses its "do not use" label.
   $('clearBtn').addEventListener('click', () => { resetPanel(); });
 
+  document.querySelectorAll('[data-open-fill]').forEach((el) => {
+    el.addEventListener('click', (e) => { e.preventDefault(); openFill(); });
+  });
+
+  // 全部 demo and the logo mean the same thing as the studio's back link: leave
+  // the form and go back to the list. On the list itself they keep behaving
+  // like ordinary links (scroll to the grid / reload the page).
+  document.querySelectorAll('[data-home-link]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      if ($('studio').hidden) return;
+      e.preventDefault();
+      closeStudio();
+      window.scrollTo({ top: 0 });
+    });
+  });
+
+  // "手动填写这张表" on the spent-budget card: the form is still there and still
+  // editable, so take the reader to it instead of leaving them at the notice.
+  $('manualBtn').addEventListener('click', () => {
+    const area = $('paperScroll');
+    if (!area) return;
+    area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const doc = state.doc;
+    const first = doc && doc.querySelector('[data-field-id]');
+    if (first && first.focus) first.focus({ preventScroll: true });
+  });
+
   $('fileInput').addEventListener('change', () => {
     const f = $('fileInput').files[0];
     const dz = $('dropzone');
@@ -926,7 +1104,13 @@
   // or a hand-edited URL. Unknown slugs are left alone on purpose.
   window.addEventListener('hashchange', () => {
     const slug = slugFromHash();
-    if (!slug || !state.templates.some((t) => t.slug === slug)) return;
+    // A cleared hash means "no form is open": the nav is visible in the studio,
+    // so ending up on the list URL with the form still on screen is a dead end.
+    if (!slug) {
+      if (!$('studio').hidden) closeStudio();
+      return;
+    }
+    if (!state.templates.some((t) => t.slug === slug)) return;
     if (state.current && state.current.slug === slug) return;
     if ($('studio').hidden) openStudio(slug, { autoDemo: true });
     else switchTemplate(slug);
@@ -941,6 +1125,9 @@
     const slug = slugFromHash();
     if (slug && state.templates.some((t) => t.slug === slug)) {
       openStudio(slug);
+    } else {
+      // No form is open, so whatever the URL says, the list is on screen.
+      setNav('home');
     }
   });
 })();

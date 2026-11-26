@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#fcfbf8">
+  <title>数学判卷 · School AI Demo</title>
+  <meta name="description" content="上传或粘贴初一数学试卷照片，让 AI 实时逐题分析；也可查看两组预置判卷示例。">
+  <link rel="icon" href="favicon.svg">
+  <link rel="stylesheet" href="essay/essay.css?v=1">
+  <link rel="stylesheet" href="math/math.css?v=5">
+</head>
+<body class="math-page">
+<header class="nav">
+  <a class="brand" href="./"><span class="logo" aria-hidden="true">学</span>School AI Demo</a>
+  <nav aria-label="主导航"><a href="./">全部 demo</a><a href="lesson-plan.html">生成教案</a><a href="essay-review.html">批改作文</a><a href="math-review.html" aria-current="page">数学判卷</a></nav>
+</header>
+<main>
+  <a class="back" href="./">← 全部 demo</a>
+  <section class="hero">
+    <span class="eyebrow">初一数学 · 图片判卷示例</span>
+    <h1>数学判卷，<br>不只看最后的答案。</h1>
+    <p>上传一张试卷照片，让 AI 逐题核算、判断和批注。</p>
+    <div class="case-links"><a class="primary link-button" href="#live-grading">上传试卷，实时判卷 ↓</a><a class="secondary" href="#case1">图 1 · 判卷结果</a><a class="secondary" href="#case2">图 2 · 有理数的乘法</a></div>
+  </section>
+
+  <section id="live-grading" class="live-grading" aria-labelledby="liveTitle">
+    <div class="section-head"><h2 id="liveTitle">上传你的试卷，实时 AI 判卷</h2><p id="liveModel" class="hint" role="status" hidden></p><button id="retryService" class="secondary" type="button" hidden>重新检查服务</button></div>
+    <noscript><p class="math-notice">实时上传判卷需要启用 JavaScript；下面的两组预置示例仍可直接查看。</p></noscript>
+    <form id="mathForm" class="workbench">
+      <div class="dropzone" id="mathDropzone" tabindex="0" aria-label="选择、拖入或粘贴一张数学试卷图片">
+        <strong>上传或粘贴一张试卷照片</strong>
+        <label class="secondary file-label" id="mathChoose" for="mathImageFile" role="button" tabindex="0">选择试卷图片</label><input class="visually-hidden-input" id="mathImageFile" type="file" accept="image/jpeg,image/png,image/webp" aria-label="选择试卷图片">
+      </div>
+      <div class="preview" id="mathPreviewBox" hidden><button type="button" class="image-button" id="mathPreviewZoom" aria-label="放大待提交的试卷图片" aria-haspopup="dialog" aria-expanded="false"><img id="mathPreview" alt="待提交的数学试卷"></button><div class="row"><span id="mathImageInfo"></span><button type="button" class="secondary" id="mathRemove">移除图片</button></div></div>
+      <div class="prompt-field">
+        <div class="prompt-field-head"><label for="mathPromptInput">提示词</label><button class="secondary" type="button" id="mathPromptReset">恢复默认</button></div>
+        <textarea id="mathPromptInput" rows="2" spellcheck="false">作为初一数学老师，判卷</textarea>
+      </div>
+      <div class="submit-row"><button class="primary" type="submit" id="mathSubmit" disabled>开始 AI 判卷</button><span id="mathStatus" role="status">选择试卷图片后开始</span></div>
+      <p class="error" id="mathError" role="alert" hidden></p>
+    </form>
+    <section class="result" id="mathResult" aria-labelledby="mathResultTitle" aria-live="polite">
+      <div class="row"><h3 id="mathResultTitle" tabindex="-1">判卷结果会出现在这里</h3><button type="button" class="secondary" id="copyMathResult" hidden>复制本次结果</button></div>
+      <p class="result-meta" id="mathResultMeta">尚未提交试卷</p><p id="mathSummary">上传或粘贴图片后，点击“开始 AI 判卷”。预置示例不会代替本次分析结果。</p>
+      <p class="hint scroll-hint" id="liveScrollHint" hidden>表格较宽，可左右滑动查看 →</p>
+      <div class="table-scroll" id="liveTableBox" role="region" aria-labelledby="mathResultTitle" aria-describedby="liveScrollHint" tabindex="0" hidden>
+        <table class="grade-table live-table"><thead><tr><th scope="col">题号</th><th scope="col">识别到的作答</th><th scope="col">判定</th><th scope="col">批注</th></tr></thead><tbody id="mathRows"></tbody></table>
+      </div>
+      <p class="hint" id="mathResultNotice" hidden></p>
+    </section>
+    <p class="hint disclaimer">AI 可能看错或算错，请老师结合原卷复核。模糊、不完整处标为“待确认”；没有明确评分依据，不自行设定满分或总分。</p>
+  </section>
+  <div class="examples-divider"><h2>两组示例</h2></div>
+
+  <section class="math-case" id="case1" aria-labelledby="case1Title">
+    <div class="case-heading"><h2 id="case1Title">图 1 · 逐题判定与批注</h2></div>
+    <div class="case-grid">
+      <figure class="paper">
+        <figcaption>试卷输入 · 原图</figcaption>
+        <button class="paper-button" type="button" data-image="math/example-01.png" data-image-title="图 1 · 数学练习原图" aria-label="放大图 1 数学练习原图" aria-haspopup="dialog" aria-expanded="false"><img src="math/example-01.png" alt="图 1：包含第(6)题、三、列式计算和数学园地的手写数学练习照片" width="500" height="794"><span class="zoom-label" aria-hidden="true">点击放大 ↗</span></button>
+        <button class="secondary use-example" type="button" data-use-example="math/example-01.png">用这张图实时判卷 ↑</button>
+      </figure>
+      <div class="grade-panel">
+        <p class="example-prompt"><span>提示词</span><code>作为初一数学老师，判卷</code></p>
+        <div class="grade-top"><p class="label">AI 判卷 · 原文</p><button class="secondary" type="button" data-copy-case="case1" aria-label="复制图 1 判卷表格为 Markdown">复制表格</button></div>
+        <h3 id="grade1Title" class="grade-title">判卷结果（满分 30 分，每题 5 分）</h3>
+        <p class="scroll-hint hint" id="scrollHint1" hidden>表格较宽，可左右滑动查看 →</p>
+        <div class="table-scroll" role="region" aria-labelledby="grade1Title" aria-describedby="scrollHint1" tabindex="0">
+          <table class="grade-table"><caption class="sr-only">图 1 预置 AI 判卷表格</caption>
+            <thead><tr><th scope="col">题</th><th scope="col">判定</th><th scope="col">得分</th><th scope="col">批注</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">第(6)题</th><td><span class="verdict pass">✓ 全对</span></td><td class="points">5</td><td>113/24，四步全对</td></tr>
+              <tr><th scope="row">(1)</th><td><span class="verdict pass">✓ 全对</span></td><td class="points">5</td><td>−27.8，算式正确</td></tr>
+              <tr><th scope="row">(2)</th><td><span class="verdict partial">△ 半对</span></td><td class="points">4</td><td>−9/24 未约分，应写 −3/8</td></tr>
+              <tr><th scope="row">(3)</th><td><span class="verdict wrong">✗ 错</span></td><td class="points">1</td><td>355/20 − 85/20 抄成 65/20，应得 27/2（过程对，最后一步错）</td></tr>
+              <tr><th scope="row">(4)</th><td><span class="verdict wrong">✗ 过程错</span></td><td class="points">2</td><td>y 应 = 5+3 = 8，写成 −5+3 = 8 不成立；13 这个结论对，但算式不成立</td></tr>
+              <tr><th scope="row">数学园地</th><td><span class="verdict wrong">✗ 空白</span></td><td class="points">0</td><td>未作答</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint grade-note">以上判定、分值和批注保留 AI 输出原文，仅供展示。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="math-case" id="case2" aria-labelledby="case2Title">
+    <div class="case-heading"><h2 id="case2Title">图 2 · 有理数的乘法</h2></div>
+    <div class="case-grid">
+      <figure class="paper">
+        <figcaption>试卷输入 · 原图</figcaption>
+        <button class="paper-button" type="button" data-image="math/example-02.png" data-image-title="图 2 · 有理数的乘法原图" aria-label="放大图 2 有理数的乘法原图" aria-haspopup="dialog" aria-expanded="false"><img src="math/example-02.png" alt="图 2：2.3 有理数的乘法(1)，含填表、倒数和计算题的手写练习照片" width="1080" height="1580"><span class="zoom-label" aria-hidden="true">点击放大 ↗</span></button>
+        <button class="secondary use-example" type="button" data-use-example="math/example-02.png">用这张图实时判卷 ↑</button>
+      </figure>
+      <div class="grade-panel">
+        <p class="example-prompt"><span>提示词</span><code>作为初一数学老师，判卷</code></p>
+        <div class="grade-top"><p class="label">AI 判卷 · 原文</p><button class="secondary" type="button" data-copy-case="case2" aria-label="复制图 2 判卷表格为 Markdown">复制表格</button></div>
+        <h3 id="grade2Title" class="grade-title">判卷：全对，100 分</h3>
+        <p class="scroll-hint hint" id="scrollHint2" hidden>表格较宽，可左右滑动查看 →</p>
+        <div class="table-scroll" role="region" aria-labelledby="grade2Title" aria-describedby="scrollHint2" tabindex="0">
+          <table class="grade-table"><caption class="sr-only">图 2 预置 AI 判卷表格</caption>
+            <thead><tr><th scope="col">题</th><th scope="col">判定</th><th scope="col">说明</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">1 填表</th><td><span class="verdict pass">✓ 4/4</span></td><td>5×8=+40；(−3)×(−4)=+12；4×(−7)=−28；(−0.4)×9=−3.6，符号和积全部正确</td></tr>
+              <tr><th scope="row">2 倒数</th><td><span class="verdict pass">✓ 2/2</span></td><td>−1/3 的倒数是 −3；3/2 的倒数是 2/3</td></tr>
+              <tr><th scope="row">3 计算</th><td><span class="verdict pass">✓ 4/4</span></td><td>−7；0；−4/5；−32，四道全对</td></tr>
+              <tr><th scope="row">4 计算</th><td><span class="verdict pass">✓ 2/2</span></td><td>7/2；−1，两道全对，过程也规范（3.5 化成分数 7/2 再约，这一步做得好）</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint grade-note">两组示例各自的分值表述均按原文保留，不代表统一评分标准。</p>
+      </div>
+    </div>
+  </section>
+  <div class="math-bottom"><a class="secondary" href="./">← 浏览全部 demo</a><a class="back" href="#live-grading">回到判卷 ↑</a></div>
+</main>
+<footer>School AI Demo · <a href="https://liangz77.cn/">liangz77.cn</a></footer>
+<dialog id="imageDialog" aria-modal="true" aria-labelledby="dialogTitle">
+  <h2 id="dialogTitle" class="sr-only">数学练习原图</h2>
+  <button class="dialog-close" type="button" id="closeDialog" aria-label="关闭图片预览" autofocus>关闭 ×</button>
+  <img id="dialogImage" alt="">
+  <a id="dialogOriginal" class="dialog-original" target="_blank" rel="noopener noreferrer">在新标签页打开原图 ↗</a>
+</dialog>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="math/math.js?v=5"></script>
+</body>
+</html>

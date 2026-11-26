@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#fcfbf8">
+<title>用 WorkBuddy 生成教案 · School AI Demo</title>
+<meta name="description" content="WorkBuddy 使用演示：我在 WorkBuddy 中用一段提示词生成教案。老师可以复制示例提示词，换成自己的课，在 WorkBuddy 中练习。">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="lesson/lesson.css">
+</head>
+<body>
+
+<svg class="svg-defs" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="rg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff6b35"/><stop offset=".5" stop-color="#ff3d8b"/><stop offset="1" stop-color="#7b61ff"/>
+    </linearGradient>
+    <symbol id="logo" viewBox="0 0 32 32">
+      <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#rg)"/>
+      <rect x="1.5" y="1.5" width="29" height="29" rx="8.5" fill="none" stroke="#fff" stroke-opacity=".25"/>
+      <text x="16" y="22.4" text-anchor="middle" font-size="17.5" font-weight="700" fill="#fff" font-family="PingFang SC,Noto Sans CJK SC,Noto Sans SC,Microsoft YaHei,sans-serif">学</text>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="nav">
+  <a class="brand" href="./"><svg aria-hidden="true"><use href="#logo"/></svg>School AI Demo</a>
+  <nav class="links" aria-label="主要">
+    <a href="./">全部 demo</a>
+    <a href="./#enrollment">AI 填表</a>
+    <a href="lesson-plan.html" class="on">生成教案</a>
+  </nav>
+  <div class="actions">
+    <a class="btn btn-o" href="https://liangz77.cn/" target="_blank" rel="noopener">liangz77.cn <span class="ar">↗</span></a>
+    <a class="btn btn-b" href="./#enrollment">开始填表</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="backrow"><a class="back" href="./"><span aria-hidden="true">←</span> 全部 demo</a></div>
+
+  <div class="phead">
+    <span class="pill"><span class="dot"></span>WorkBuddy 使用演示 · 生成教案</span>
+    <h1>在 WorkBuddy 中<br>用一段提示词生成教案</h1>
+    <p>这份教案是我在 <strong>WorkBuddy</strong> 中生成的。本 demo 展示使用的提示词、教案示例与配套课件，方便向老师演示这个工具怎么用。你也可以复制下面的提示词，换成自己的课文、课时和学情，粘贴到 WorkBuddy 中生成教案，再由自己核对、调整。</p>
+    <div class="tags">
+      <span class="tg o">人教版 · 七年级上册 · 语文</span>
+      <span class="tg o">45 分钟</span>
+      <span class="tg o">18 页课件</span>
+    </div>
+  </div>
+
+  <div class="steps" aria-label="怎么用">
+    <div class="stp"><b>1</b><div><h3>复制提示词</h3><p>原文照抄，一个字没改。</p></div></div>
+    <div class="stp"><b>2</b><div><h3>换成你的课</h3><p>改课文、课时、学情和重难点，格式要求可以保留。</p></div></div>
+    <div class="stp"><b>3</b><div><h3>在 WorkBuddy 中生成</h3><p>打开 WorkBuddy，粘贴修改后的提示词并发送。生成教案后，核对内容，再按班级调整。</p></div></div>
+  </div>
+
+  <section class="sec" id="prompt">
+    <div class="sec-h">
+      <div><h2>发给 WorkBuddy 的提示词</h2><p>复制这段示例，换成你的教学需求，再到 WorkBuddy 中试一试。</p></div>
+    </div>
+    <div class="box">
+      <div class="prompt-grid">
+        <div class="prompt">
+          <div class="pl">
+            <span><i class="gdot"></i>提示词原文</span>
+            <button class="copy" id="copyBtn" type="button" aria-live="polite">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="2"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>
+              <span id="copyLabel">复制提示词</span>
+            </button>
+          </div>
+          <pre id="promptText">请你按照人教版七年级上册语文，《从百草园到三味书屋》第 1 课时，45 分钟教案 ppt。
+参照义务教育语文课标，本班是普通初一，学生刚学完《春》，景物描写基础一般。
+教学重点：品味百草园景物描写，学习多感官写景；难点：初步体会作者童年乐趣。
+教案格式：教学目标（三维）、教学重难点、课前准备、教学过程（分环节，标注大致时长）、板书设计、分层作业、预留教学反思。
+课堂要有 3 处小组小讨论，提问要适合初一学生，不要太偏难。作业分基础必做、选做提升。不要写得太理论化，要能直接上课用。</pre>
+        </div>
+        <ul class="points">
+          <li><span class="tg">学情</span><br>普通初一，刚学完《春》，景物描写基础一般</li>
+          <li><span class="tg">重难点</span><br>多感官写景；初步体会童年乐趣</li>
+          <li><span class="tg">格式</span><br>三维目标、重难点、课前准备、分环节教学过程、板书、分层作业、教学反思</li>
+          <li><span class="tg">课堂</span><br>3 处小组讨论，提问适合初一，不要太理论化</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="slides">
+    <div class="sec-h">
+      <div><h2>生成的课件 · 18 页</h2><p>点任意一页放大，左右方向键或滑动翻页。</p></div>
+      <a class="btn btn-b btn-lg" href="lesson/baicaoyuan-lesson-plan.pptx?v=553fc7142a8c" download="从百草园到三味书屋·第一课时教案.pptx"><span aria-hidden="true">↓</span> 下载 PPTX 课件</a>
+    </div>
+    <ol class="slides" id="slideGrid"></ol>
+    <noscript><p class="fine">需要开启 JavaScript 才能预览课件，也可以直接下载 PPTX。</p></noscript>
+    <p class="fine">本示例的教案在 WorkBuddy 中生成，这里展示配套课件。预览图从 PPTX 直接导出，个别字体可能与 PowerPoint 里略有不同，以下载的文件为准。教学内容请由老师核对后使用。</p>
+  </section>
+</main>
+
+<footer>
+  <div class="brand"><svg aria-hidden="true"><use href="#logo"/></svg>School AI Demo</div>
+  一些自己写的小工具 · <a href="https://liangz77.cn/" target="_blank" rel="noopener">liangz77.cn</a>
+</footer>
+
+<div class="lb" id="lightbox" role="dialog" aria-modal="true" aria-label="课件预览" hidden>
+  <div class="lbox">
+    <div class="bar">
+      <span class="n" id="lbCount">01 / 18</span>
+      <span class="t" id="lbTitle"></span>
+      <button class="x" id="lbClose" type="button" aria-label="关闭预览">✕</button>
+    </div>
+    <div class="stage" id="lbStage">
+      <button class="nv p" id="lbPrev" type="button" aria-label="上一页">‹</button>
+      <img id="lbImg" alt="" width="1600" height="900">
+      <button class="nv n2" id="lbNext" type="button" aria-label="下一页">›</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="lesson/lesson.js?v=553fc7142a8c"></script>
+</body>
+</html>

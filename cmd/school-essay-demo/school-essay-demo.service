@@ -1,0 +1,33 @@
+[Unit]
+Description=School AI Demo - Essay Review API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=schoolai
+Group=schoolai
+WorkingDirectory=/srv/apps/school-essay-demo/shared
+EnvironmentFile=/srv/apps/school-ai-demo/shared/school-ai-demo.env
+Environment=ESSAY_ADDR=127.0.0.1:9026
+Environment=ESSAY_DB_PATH=/srv/apps/school-essay-demo/shared/quota.db
+Environment=ESSAY_DAILY_LIMIT=50
+ExecStart=/srv/apps/school-essay-demo/current/school-essay-demo
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=120
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/apps/school-essay-demo/shared
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

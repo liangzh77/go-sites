@@ -38,6 +38,27 @@ Templates are data, not code: drop another annotated HTML file into
 already discovered. The bundled two are the real 学生入学登记表 and 学生信息采集登记表,
 kept byte-for-byte in layout and print CSS.
 
+## 作文点评（已上线）
+
+新增页面源码为 `web/essay-review.html`，包含两组预置作文图片/点评及
+文字、上传、粘贴图片的实时点评入口；首页卡片位于 `web/app.js`。
+新 API 独立于本应用运行，复用现有 DeepSeek 配置，避免重建当前线上二进制。
+本地实现、测试及最小发布方案见 [school-essay-demo](../school-essay-demo/README.md)。
+2026-11-24 已上线：<https://liangz77.cn/school-ai-demo/essay-review.html>，首页可直接进入。新 API 独立运行于 9026；旧填表进程和数据库未改动。
+
+## 数学判卷（示例 + 实时判卷，已上线）
+
+新增静态页 `web/math-review.html`，展示两张原始数学练习照片和用户提供的
+AI 判卷表格，统一提示词为 `作为初一数学老师，判卷`。支持原图放大、
+复制提示词/Markdown 表格；首页源码已新增分类和入口。
+2026-11-24 已上线：<https://liangz77.cn/school-ai-demo/math-review.html>。
+支持上传/粘贴试卷、DeepSeek 实时分析和逐题结果表格，同时保留两组预置示例。
+数学提示词可在页面编辑（默认 `作为初一数学老师，判卷`），示例图可一键放入实时区。
+`/api/math-review` 与作文共用 50 次日额度，失败退还；模糊题目标为待确认，
+没有明确评分依据时不自行编造总分，结果需老师复核。
+内容见 [math-demo.md](math-demo.md)，实时升级与发布方案见
+[math-live.md](../school-essay-demo/math-live.md)。
+
 ## Endpoints
 
 All under `SCHOOL_AI_DEMO_BASE_PATH` (default `/school-ai-demo`).
@@ -142,6 +163,69 @@ SCHOOL_AI_DEEPSEEK_API_KEY=sk-... SCHOOL_AI_DAILY_LIMIT=100 ./school-ai-demo
 On the server it runs as a systemd unit on `127.0.0.1:9025`, with the key in
 `/srv/apps/school-ai-demo/shared/school-ai-demo.env` (mode 600). Releases live
 in `/srv/apps/school-ai-demo/releases/<timestamp>` behind a `current` symlink.
+
+### Caddy route
+
+Keep this route in the repository's root `Caddyfile` as well as the live site
+configuration; a later main-site deployment installs that file and otherwise
+removes server-only routes. The backend expects the `/school-ai-demo` prefix,
+so use `handle`, not `handle_path`. The following is only the basic proxy
+illustration: **do not replace the current routes with it**. The root `Caddyfile`
+is authoritative and also includes disjoint lesson/essay/math static and essay API
+matchers, described below.
+
+```caddyfile
+handle /school-ai-demo {
+    redir * /school-ai-demo/ permanent
+}
+handle /school-ai-demo/* {
+    reverse_proxy 127.0.0.1:9025
+}
+```
+
+For a route-only repair, back up the live site configuration, apply only this
+route, run `caddy validate --config /etc/caddy/Caddyfile`, then reload Caddy.
+Do not run the full `deploy.ps1` or restart the application for this change.
+Check the public page, `app.css`, `app.js`, and `/school-ai-demo/health`.
+If the backend on port 9025 returns 200 but the public URL returns 404, check
+that this route is present and loaded before rebuilding the application.
+
+### Versioned lesson assets
+
+The live binary originally included lesson assets missing from this checkout.
+The WorkBuddy lesson page, live `app.js`, lesson CSS and preview script have now
+been recovered. The prompt matches the user's supplied wording, including
+`45 分钟教案 ppt`. The downloadable file is the unchanged uploaded
+`从百草园到三味书屋·第一课时教案.pptx` (18 slides, 1,497,052 bytes), stored as
+`web/lesson/baicaoyuan-lesson-plan.pptx`.
+
+SHA-256: `553fc7142a8cc6024611e2d97a741062d84186b095f0a795af74a66b36f9fd92`.
+
+Previews are rendered from this deck using LibreOffice PDF export and PDFKit,
+with CJK font fallbacks, then converted to WebP (1600×900 full / 480×270 thumb).
+The original PPTX is never re-exported. Preview captions and homepage counts
+match all 18 slides. Asset URLs use the deck hash as a cache-busting version.
+
+Caddy serves `lesson-plan.html`, `app.js`, `lesson/*`, `essay-review.html`,
+`essay/*`, `math-review.html` and `math/*` from
+`/srv/apps/school-ai-demo/page-overrides/releases/20261124-111138-math`.
+The original 45 lesson/essay assets are byte-for-byte unchanged in this new release;
+`20261124-103100-essay` and `20261124-553fc7142a8c` remain available for rollback.
+`/api/essay-review` and its child routes proxy to the companion API on 9026.
+All remaining application paths still proxy to the original binary on 9025.
+The static, essay API and original application matchers are explicitly disjoint. Never serve the application's `shared`
+directory. `Cache-Control: no-cache` keeps browsers from retaining old assets.
+
+For updates, upload a complete new overlay release, verify its files, back up
+the live Caddy config, update its versioned root, validate and reload Caddy,
+then check the prompt, all previews, and the downloaded PPTX hash. Restore the
+previous Caddy config and reload to roll back; previous assets remain intact.
+Keep source and root `Caddyfile` in sync. Do not run the full main-site deploy.
+
+Before rebuilding the Go application, reconcile the remaining live homepage
+HTML/CSS and other assets missing or older in this checkout. Once all frontend
+assets are embedded in a verified release, remove the overlay route and test
+the backend-served pages, previews and PPTX download.
 
 ## Tests
 

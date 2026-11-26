@@ -1,0 +1,14 @@
+http://localhost:9027 {
+	bind 127.0.0.1
+	handle /school-ai-demo/api/math-review* {
+		reverse_proxy 127.0.0.1:9026
+	}
+	handle /school-ai-demo/api/essay-review* {
+		reverse_proxy 127.0.0.1:9026
+	}
+	handle_path /school-ai-demo/* {
+		root * cmd/school-ai-demo/web
+		file_server
+	}
+	redir / /school-ai-demo/essay-review.html
+}

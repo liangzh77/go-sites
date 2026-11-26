@@ -94,6 +94,36 @@
         reverse_proxy 127.0.0.1:9020
     }
 
+    # School AI Demo: preserve the base path expected by the Go service.
+    handle /school-ai-demo {
+        redir * /school-ai-demo/ permanent
+    }
+
+    # Essay and math analysis APIs are isolated from the existing form service.
+    @school_essay_api path /school-ai-demo/api/essay-review /school-ai-demo/api/essay-review/* /school-ai-demo/api/math-review /school-ai-demo/api/math-review/*
+    handle @school_essay_api {
+        reverse_proxy 127.0.0.1:9026 {
+            header_up X-Real-IP {remote_host}
+        }
+    }
+
+    # Versioned lesson, essay and math assets; preserve the existing application binary.
+    @school_ai_static path /school-ai-demo/lesson-plan.html /school-ai-demo/app.js /school-ai-demo/lesson/* /school-ai-demo/essay-review.html /school-ai-demo/essay/* /school-ai-demo/math-review.html /school-ai-demo/math/*
+    handle @school_ai_static {
+        root * /srv/apps/school-ai-demo/page-overrides/releases/20261124-232836-math-nocard
+        uri strip_prefix /school-ai-demo
+        header Cache-Control "no-cache"
+        file_server
+    }
+
+    @school_ai_app {
+        path /school-ai-demo/*
+        not path /school-ai-demo/lesson-plan.html /school-ai-demo/app.js /school-ai-demo/lesson/* /school-ai-demo/essay-review.html /school-ai-demo/essay/* /school-ai-demo/api/essay-review /school-ai-demo/api/essay-review/* /school-ai-demo/math-review.html /school-ai-demo/math/* /school-ai-demo/api/math-review /school-ai-demo/api/math-review/*
+    }
+    handle @school_ai_app {
+        reverse_proxy 127.0.0.1:9025
+    }
+
     handle /wiki {
         respond "Page removed" 410
     }

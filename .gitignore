@@ -14,3 +14,10 @@ node_modules/
 # binary next to its sources in cmd/x/x.
 cmd/school-ai-demo/school-ai-demo
 cmd/school-ai-demo/school-ai-demo-data/
+
+# Essay review companion: quota-only database and local secrets/builds.
+/school-essay-demo
+/school-essay-quota.db*
+cmd/school-essay-demo/school-essay-demo
+cmd/school-essay-demo/*.db*
+cmd/school-essay-demo/*.env

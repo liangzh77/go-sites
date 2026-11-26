@@ -1,0 +1,128 @@
+/* 生成教案 — the static showcase page. It sits on top of app.css and only adds
+ * what the home and the studio do not have: the resets the rendered slide grid
+ * needs, the <pre> reset for the prompt, and the lightbox overlay. */
+
+/* The prompt is a <pre> so its own line breaks survive; it still has to read
+   like the design's paragraph, not like code. The block itself must not keep
+   white-space, or the indentation around the <pre> shows up as blank lines. */
+.prompt{white-space:normal}
+.prompt pre{margin:0;font:inherit;white-space:pre-wrap;word-break:break-word}
+
+/* The copy button keeps its icon while the label changes under it. */
+.copy svg{display:block;flex:none}
+.copy.done{background:var(--good);color:#fff}
+
+/* lesson.js fills this list: a plain grid, no markers, no indent. */
+.slides{list-style:none;margin:0;padding:0}
+
+/* Each card is a <button> (keyboard and screen readers for free), so undo the
+   user-agent button styling the design's .sl rule does not cover. */
+.sl{display:block;width:100%;padding:6px 6px 10px;text-align:left;font:inherit;color:inherit}
+
+/* lightbox ---------------------------------------------------------------- */
+/* Nothing is drawn on the slide. The lightbox is a column: a bar (counter,
+   title, close) above the image, then a row of prev | image | next on wide
+   screens. The whole column fits in 90vw x 90vh, so the image gets whatever is
+   left: the side buttons' room on wide screens, the bar (and, in portrait, the
+   button strip) off its height. It scales up, so the size is set here rather
+   than left to the image's intrinsic width.
+   dvh follows the visible area on phones where browser chrome collapses; the
+   plain vh line above it is the fallback for engines without dvh. */
+.lb{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:0;background:rgba(10,10,10,.88);overflow:hidden}
+
+.lbox{
+  --bar-h:48px;          /* the control row above the image */
+  --btn:40px;            /* prev/next diameter */
+  --gap:12px;
+  --side:calc(var(--btn) + var(--gap));
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  width:auto;
+  max-width:none;
+  margin:0;
+  padding:0;
+  border-radius:0;
+  background:none;
+  box-shadow:none;
+}
+
+/* control row: its own line above the image, aligned with the image's edges */
+.lbox .bar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  height:var(--bar-h);
+  padding:0 var(--side);
+  background:none;
+  color:#e9e7e2;
+}
+.lbox .bar .n{color:rgba(255,255,255,.72);font-size:12.5px;font-variant-numeric:tabular-nums}
+.lbox .bar .t{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f2f0ec;font-size:13px}
+.lbox .bar .x{width:36px;height:36px;padding:0;border-radius:10px;background:rgba(255,255,255,.14);color:#fff;font-size:14px;line-height:1}
+.lbox .bar .x:hover{background:rgba(255,255,255,.28)}
+
+/* prev | image | next */
+.lbox .stage{display:flex;align-items:center;justify-content:center;gap:var(--gap)}
+
+/* the width/height attributes on the <img> are a ratio hint, not a fixed size */
+.lbox .stage img{
+  display:block;
+  flex:0 1 auto;
+  width:min(calc(90vw - 2 * var(--side)), calc((90vh - var(--bar-h)) * 1467 / 825));
+  width:min(calc(90vw - 2 * var(--side)), calc((90dvh - var(--bar-h)) * 1467 / 825));
+  height:auto;
+  max-width:none;
+  max-height:none;
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 18px 50px rgba(0,0,0,.45);
+}
+
+/* the arrows are siblings of the image, never on top of it */
+.lbox .nv{
+  position:static;
+  top:auto;
+  left:auto;
+  right:auto;
+  transform:none;
+  flex:0 0 auto;
+  width:var(--btn);
+  height:var(--btn);
+  border-radius:50%;
+  background:rgba(255,255,255,.92);
+  color:#1c1c1c;
+  display:grid;
+  place-items:center;
+  font-size:20px;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);
+}
+
+body.lp-locked{overflow:hidden}
+
+/* A phone in portrait has no room beside the slide, so the arrows move to a
+   strip under it: the image keeps the full 90vw and the strip is taken off the
+   height budget. */
+@media (max-aspect-ratio: 1/1){
+  .lbox{
+    width:min(90vw, calc((90vh - var(--bar-h) - var(--btn) - var(--gap)) * 1467 / 825));
+    width:min(90vw, calc((90dvh - var(--bar-h) - var(--btn) - var(--gap)) * 1467 / 825));
+  }
+  .lbox .bar{padding:0}
+  .lbox .stage{flex-wrap:wrap;gap:var(--gap)}
+  .lbox .stage img{order:1;flex:0 0 100%;width:100%}
+  .lbox .nv.p{order:2}
+  .lbox .nv.n2{order:3}
+}
+
+/* phones (any orientation): a denser scrim, so the page behind does not read
+   as part of the lightbox. pointer:coarse is what a touch screen reports even
+   when it is wide enough to look like a desktop. */
+@media (max-width:700px), (pointer: coarse){
+  .lb{background:rgba(10,10,10,.94)}
+}
+@media (max-width:520px){
+  .lbox{--bar-h:44px;--btn:38px;--gap:10px}
+  .lbox .bar .t{font-size:12px}
+  .lbox .nv{font-size:18px}
+}
