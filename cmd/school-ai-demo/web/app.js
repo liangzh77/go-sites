@@ -274,6 +274,13 @@
     tags: () => ['互动网页', { text: '视频', outline: true }],
     note: () => '复制网址即可让 Agent 安装', cta: '介绍与安装',
     open: () => { window.location.href = BASE + '/pop-sticker-studio/'; },
+  }, {
+    key: 'ink-story-film', cat: 'production', cover: 'ink', title: '水墨视频',
+    glyph: '水墨', typeLabel: 'Agent Skill', keepTypeEnglish: true,
+    desc: '用几幅静止的插画讲一个故事。先确认分镜，再试听旁白，最后用推拉和横移引导视线。',
+    tags: () => ['分镜插画', { text: '视频', outline: true }],
+    note: () => '内含《半步》静画版', cta: '介绍与安装',
+    open: () => { window.location.href = BASE + '/ink-story-film/'; },
   });
 
   // The cover art is decoration, not data: the form sketch mirrors the sample
@@ -290,7 +297,9 @@
       const t = typeof raw === 'string' ? { text: raw } : raw;
       return `<span class="tg${t.outline ? ' o' : ''}">${escapeHTML(t.text)}</span>`;
     }).join('');
-    const cover = d.cover === 'stickers'
+    const cover = d.cover === 'ink'
+      ? '<img class="shot" src="ink-story-film/half-step/poster.jpg" alt="" width="190" height="107" loading="lazy">'
+      : d.cover === 'stickers'
       ? '<img class="shot" src="pop-sticker-studio/style-board.jpg" alt="" width="190" height="107" loading="lazy">'
       : d.cover === 'trade'
       ? '<div class="shot" style="padding:22px;background:#fff;border-radius:12px;font-size:14px;line-height:2">原始材料 → 整理校验<br>人工确认 → 再往下走</div>'

@@ -1,0 +1,21 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>水墨视频 · 制作 · AI Demo</title><meta name="description" content="用静止插画、旁白、字幕和镜头运动制作叙事短片。观看《半步》静画版，或复制安装指令给 Agent 安装完整技能。">
+<link rel="canonical" href="https://liangz77.cn/ai-demo/ink-story-film/"><link rel="alternate" type="text/markdown" href="install.md" title="Agent 安装说明"><link rel="icon" href="../favicon.svg"><link rel="stylesheet" href="../app.css"><link rel="stylesheet" href="../case-nav.css"><link rel="stylesheet" href="../pop-sticker-studio/studio.css"></head><body>
+<header class="nav case-nav"><a class="brand" href="../#production">AI Demo · 制作</a><a class="case-return" href="../#production">← 全部案例</a></header>
+<main class="maker"><section class="intro"><small>制作工具　/　<span lang="en" translate="no" class="notranslate">Agent Skill</span>　·　v1.0.0</small><h1>水墨视频</h1><p>画里的人不动，镜头带你去看。先把故事画成几幅插画，等你确认，再录旁白；声音定下后，按讲述的节奏运镜、配字幕，剪成短片。默认沿用《半步》的纸本水彩，也可以指定传统水墨画风。</p></section>
+<a class="example" href="half-step/"><img src="half-step/poster.jpg" alt="雨夜里，女孩从亮着暖灯的书店向街上望去"><div><small>静画短片　/　18 秒</small><h2>半步</h2><p>“我把伞递给她。她没接。只往我这边，挪了半步。”</p><strong>观看《半步》 →</strong></div></a>
+<section class="card" id="install"><small>01　/　安装</small><h2>发给你的 Agent 安装</h2>
+<p>复制下面这段话，发给你的 Agent 即可安装。</p>
+<div class="promptrow"><blockquote id="install-prompt">请帮我安装这个页面里的「水墨视频」技能：https://liangz77.cn/ai-demo/ink-story-film/</blockquote><button id="copy" type="button" aria-label="复制安装指令" hidden>复制</button></div>
+<p id="notice" role="status"></p><p><a href="ink-story-film-1.0.0.zip" download>下载完整技能包（ZIP）</a></p></section>
+<section class="card" id="usage"><small>02　/　使用</small><h2>安装后，这样调用</h2>
+<h3>做一部短片</h3><blockquote>用 $ink-story-film 把下面的故事做成水墨视频，先给我看分镜插画。</blockquote>
+<h3>调整一个镜头</h3><blockquote>用 $ink-story-film 把第三镜改成缓慢拉远，保留旁白、字幕和其他镜头，导出新版视频。</blockquote></section></main>
+<script>
+const button=document.getElementById('copy'), promptText=document.getElementById('install-prompt'), notice=document.getElementById('notice');
+button.hidden=false;
+button.onclick=async()=>{
+  try{await navigator.clipboard.writeText(promptText.textContent);notice.textContent='已复制，可以发给你的 Agent 了。'}
+  catch{const selection=window.getSelection();const range=document.createRange();range.selectNodeContents(promptText);selection.removeAllRanges();selection.addRange(range);notice.textContent='已选中安装指令，请手动复制。'}
+};
+</script></body></html>

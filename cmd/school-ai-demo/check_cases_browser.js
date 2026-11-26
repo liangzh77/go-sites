@@ -25,7 +25,7 @@ async () => {
     for(let n=0;n<60&&!d.querySelector('[data-demo]');n++) await new Promise(r=>setTimeout(r,100));
     check('three categories',d.querySelectorAll('#demoFilters button').length===3);
     d.querySelector('#demoFilters [data-cat="production"]').click();
-    check('one production skill',d.querySelectorAll('[data-demo]:not([hidden])').length===1&&!!d.querySelector('[data-demo="pop-sticker-studio"]:not([hidden])'));
+    check('two production skills',d.querySelectorAll('[data-demo]:not([hidden])').length===2&&['pop-sticker-studio','ink-story-film'].every(k=>d.querySelector('[data-demo="'+k+'"]:not([hidden])')));
     check('four school cards',d.querySelectorAll('[data-demo][data-cat="school"]').length===4);
     d.querySelector('#demoFilters [data-cat="trade"]').click();
     check('three trade cards',d.querySelectorAll('[data-demo]:not([hidden])').length===3);

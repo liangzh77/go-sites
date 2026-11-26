@@ -1,0 +1,16 @@
+{
+  "name": "ink-story-film",
+  "version": "1.0.0",
+  "page": "https://liangz77.cn/ai-demo/ink-story-film/",
+  "instructions": "https://liangz77.cn/ai-demo/ink-story-film/install.md",
+  "archive": "https://liangz77.cn/ai-demo/ink-story-film/ink-story-film-1.0.0.zip",
+  "sha256": "91361e1a23aaeb4e002c16c23213e5b6fea71d7aeeeb3a5f9c9440c1247ee747",
+  "archive_root": "ink-story-film",
+  "entrypoint": "SKILL.md",
+  "files": [
+    "SKILL.md",
+    "agents/openai.yaml",
+    "assets/风格板.jpg",
+    "references/制作与验收.md"
+  ]
+}
