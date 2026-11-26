@@ -18,7 +18,7 @@ async () => {
     // leave an in-flight real state request racing the isolated mock below.
     await new Promise(resolve=>{frame.onload=resolve;frame.src='/ai-demo/quotation/';});
     const w=frame.contentWindow,d=w.document;
-    d.open();d.write(html.replace(/<script src="app.js"><\/script>/,''));d.close();
+    d.open();d.write(html.replace(/<script src="app\.js(?:\?[^"]*)?"><\/script>/,''));d.close();
     w.history.replaceState(null,'','/ai-demo/'+hash);
     Object.defineProperty(w,'sessionStorage',{configurable:true,value:{
       getItem:k=>{if(opts.storageBlocked)throw Error('Storage disabled');return memory.get(k)||null;},
@@ -37,7 +37,7 @@ async () => {
   };
   try {
     let env=await load();
-    check('cold list renders all 7 cards synchronously',env.d.querySelectorAll('[data-demo]').length===7);
+    check('cold list renders all 8 cards synchronously',env.d.querySelectorAll('[data-demo]').length===8);
     check('cold list makes no API requests',env.requests.length===0);
     check('cold school category has four cards',env.d.querySelectorAll('[data-demo]:not([hidden])').length===4);
     check('unknown template count is not fabricated',!env.d.querySelector('[data-demo="ai-fill"]').textContent.includes('共 0'));
@@ -67,14 +67,14 @@ async () => {
     env.d.getElementById('backBtn').click();
     check('direct form back adds no API call',env.requests.length===2);
     memory.set(key,'{broken');env=await load('#trade');
-    check('corrupt storage keeps all cards',env.d.querySelectorAll('[data-demo]').length===7&&env.requests.length===0);
+    check('corrupt storage keeps all cards',env.d.querySelectorAll('[data-demo]').length===8&&env.requests.length===0);
     memory.set(key,JSON.stringify({templates:[{slug:'bad/path',name:'invalid',fieldCount:0}],filter:'trade'}));env=await load();
-    check('invalid schema ignored safely',env.d.querySelectorAll('[data-demo]').length===7&&env.requests.length===0);
+    check('invalid schema ignored safely',env.d.querySelectorAll('[data-demo]').length===8&&env.requests.length===0);
     env=await load('#trade',{storageBlocked:true});
     check('disabled browser storage still shows trade immediately',env.d.querySelectorAll('[data-demo]:not([hidden])').length===3&&env.requests.length===0);
     env=await load('#school',{fail:true});env.d.querySelector('[data-demo="ai-fill"] button').click();
     await until(()=>env.d.getElementById('toast').textContent.includes('无法读取'));
-    check('failed status never hides catalog or opens stale form',env.d.getElementById('studio').hidden&&env.d.querySelectorAll('[data-demo]').length===7);
+    check('failed status never hides catalog or opens stale form',env.d.getElementById('studio').hidden&&env.d.querySelectorAll('[data-demo]').length===8);
     // Actual navigation, no mocks: all three detail pages return to cached catalog.
     frame.remove();frame=document.createElement('iframe');document.body.append(frame);
     await new Promise(resolve=>{frame.onload=resolve;frame.src='/ai-demo/#trade';});

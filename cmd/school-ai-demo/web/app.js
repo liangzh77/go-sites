@@ -23,6 +23,7 @@
   // Card definitions live in this JS bundle. Only non-sensitive template
   // summaries and the selected category survive page navigation in this tab.
   const CATALOG_KEY = 'ai-demo:catalog:v1:' + BASE;
+  const isCategory = key => ['school', 'trade', 'production'].includes(key);
   function templateSummaries(value) {
     if (!Array.isArray(value) || value.length > 100 || !value.every(t =>
       t && typeof t.slug === 'string' && /^[a-z0-9-]{1,80}$/.test(t.slug) &&
@@ -34,7 +35,7 @@
     try {
       const saved = JSON.parse(sessionStorage.getItem(CATALOG_KEY));
       const templates = templateSummaries(saved?.templates);
-      if (templates && ['school', 'trade'].includes(saved.filter)) return { templates, filter: saved.filter };
+      if (templates && isCategory(saved.filter)) return { templates, filter: saved.filter };
     } catch (_) { /* Storage may be disabled or contain an older/broken value. */ }
     return { templates: [], filter: 'school' };
   }
@@ -51,7 +52,7 @@
     quota: null,          // today's AI budget, as the server reports it
     aiOff: false,         // no API key configured on the server
     demo: false,          // the sheet currently holds the generated sample data
-    filter: location.hash === '#trade' ? 'trade' : location.hash === '#school' ? 'school' : cachedCatalog.filter,
+    filter: isCategory(location.hash.slice(1)) ? location.hash.slice(1) : cachedCatalog.filter,
   };
 
   function saveCatalog() {
@@ -188,6 +189,7 @@
   const DEMO_CATS = [
     { key: 'school', label: '学校' },
     { key: 'trade', label: '外贸' },
+    { key: 'production', label: '制作' },
   ];
 
   const TRADE_CASES = [
@@ -266,7 +268,13 @@
     },
   ];
 
-  DEMOS.push(...TRADE_CASES);
+  DEMOS.push(...TRADE_CASES, {
+    key: 'pop-sticker-studio', cat: 'production', cover: 'stickers', title: '波普贴纸工作室',
+    glyph: '贴纸', typeLabel: 'Agent Skill', desc: '先画贴纸，再用代码编排动作。同一套素材可以做成滚动互动网页，也可以导出 MP4。',
+    tags: () => ['互动网页', { text: 'MP4 短片', outline: true }],
+    note: () => '复制网址即可让 Agent 安装', cta: '介绍与安装',
+    open: () => { window.location.href = BASE + '/pop-sticker-studio/'; },
+  });
 
   // The cover art is decoration, not data: the form sketch mirrors the sample
   // the studio itself can load, and the slide is a real exported thumbnail.
@@ -282,7 +290,9 @@
       const t = typeof raw === 'string' ? { text: raw } : raw;
       return `<span class="tg${t.outline ? ' o' : ''}">${escapeHTML(t.text)}</span>`;
     }).join('');
-    const cover = d.cover === 'trade'
+    const cover = d.cover === 'stickers'
+      ? '<img class="shot" src="pop-sticker-studio/style-board.jpg" alt="" width="190" height="107" loading="lazy">'
+      : d.cover === 'trade'
       ? '<div class="shot" style="padding:22px;background:#fff;border-radius:12px;font-size:14px;line-height:2">原始材料 → 整理校验<br>人工确认 → 再往下走</div>'
       : d.cover === 'slide'
       ? '<img class="shot" src="lesson/thumbs/slide-01.webp?v=553fc7142a8c" alt="" width="190" height="107">'
@@ -346,14 +356,14 @@
       return `<button type="button" class="${on ? 'on' : ''}" data-cat="${c.key}" aria-pressed="${on}">${escapeHTML(label)}</button>`;
     }).join('');
     box.querySelectorAll('button[data-cat]').forEach((b) => {
-      b.addEventListener('click', () => { state.filter = b.dataset.cat; history.replaceState(null, '', state.filter === 'trade' ? '#trade' : '#school'); applyFilter(); });
+      b.addEventListener('click', () => { state.filter = b.dataset.cat; history.replaceState(null, '', '#' + state.filter); applyFilter(); });
     });
     applyFilter();
   }
 
   function applyFilter() {
     saveCatalog();
-    $('categoryTitle').textContent = state.filter === 'trade' ? '外贸 · 把一笔生意往前推进' : '学校 · 日常教学小工具';
+    $('categoryTitle').textContent = ({ school: '学校 · 日常教学小工具', trade: '外贸 · 把一笔生意往前推进', production: '制作 · 从素材到作品' })[state.filter];
     $('demoCards').querySelectorAll('[data-demo]').forEach((card) => {
       card.hidden = state.filter !== 'all' && card.dataset.cat !== state.filter;
     });
@@ -1156,8 +1166,8 @@
   // or a hand-edited URL. Form slugs are checked against fresh server metadata.
   window.addEventListener('hashchange', () => {
     const slug = slugFromHash();
-    if (!slug || ['trade', 'school', 'demos'].includes(slug)) {
-      if (['trade', 'school'].includes(slug)) state.filter = slug;
+    if (!slug || slug === 'demos' || isCategory(slug)) {
+      if (isCategory(slug)) state.filter = slug;
       if (!$('studio').hidden) closeStudio();
       else { applyFilter(); setNav('home'); }
       return;
@@ -1177,6 +1187,6 @@
   renderDemos();
   const initialSlug = slugFromHash();
   if (initialSlug === 'fill') openFill();
-  else if (initialSlug && !['trade', 'school', 'demos'].includes(initialSlug)) openStudio(initialSlug);
+  else if (initialSlug && initialSlug !== 'demos' && !isCategory(initialSlug)) openStudio(initialSlug);
   else setNav('home');
 })();

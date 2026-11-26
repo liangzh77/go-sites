@@ -1,0 +1,24 @@
+{
+  "name": "pop-sticker-studio",
+  "version": "1.0.0",
+  "page": "https://liangz77.cn/ai-demo/pop-sticker-studio/",
+  "instructions": "https://liangz77.cn/ai-demo/pop-sticker-studio/install.md",
+  "archive": "https://liangz77.cn/ai-demo/pop-sticker-studio/pop-sticker-studio-1.0.0.zip",
+  "sha256": "cc2b16c2bf3f6012467b1a140523fa426c46a9779b3b1353c9a06c2f5c45f77b",
+  "archive_root": "pop-sticker-studio",
+  "entrypoint": "SKILL.md",
+  "files": [
+    "SKILL.md",
+    "agents/openai.yaml",
+    "examples/art/pan.webp",
+    "examples/art/raw.webp",
+    "examples/art/seared.webp",
+    "examples/scene.json",
+    "references/motion.md",
+    "references/style-board.jpg",
+    "scripts/export_web.py",
+    "scripts/outline.py",
+    "scripts/render.py",
+    "scripts/stage.html"
+  ]
+}
