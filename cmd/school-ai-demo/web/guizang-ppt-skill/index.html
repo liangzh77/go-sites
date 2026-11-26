@@ -28,7 +28,6 @@
 <section class="card" id="facts"><small>04　/　这一份是怎么来的</small><h2>《江雪》的实际参数</h2>
 <dl class="facts"><div><dt>风格</dt><dd>A · 电子杂志风</dd></div><div><dt>主题色</dt><dd>牛皮纸 <code>kraft-paper</code></dd></div><div><dt>页数 / 时长</dt><dd>10 页 / 11.8 分钟</dd></div><div><dt>配图</dt><dd>3 张公版宋元古画做底图与图卡</dd></div><div><dt>校验</dt><dd><code>validate-presenter-mode</code>：0 error 0 warning</dd></div><div><dt>交付物</dt><dd>index.html + images/ + motion.min.js，共 1.6 MB</dd></div></dl>
 <p>图都来自公共领域：北宋范宽《雪景寒林图》、元黄公望《九峰雪霁图轴》、南宋马远《寒江独钓图》。底图压得很暗，只留山形和雪意，文字压在上面还读得清。</p>
-<p>两个真踩过的坑，复刻时可以直接跳过：<strong>流水线页的标题不要加 <code>data-anim</code></strong>，那个动效配方会把整页标记压到 15% 亮度，标题会一直灰着；<strong>底图压暗不能用 <code>z-index:-1</code> 的遮罩层</strong>，会掉到幻灯片背景下面完全不生效，要写成 section 的多层背景。</p>
 <p>从一句需求到能上台讲，大约半小时，其中一半时间在改版式。</p></section></main>
 <script>
 for(const row of document.querySelectorAll('.promptrow')){
