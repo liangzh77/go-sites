@@ -25,6 +25,14 @@ node --check cmd/school-ai-demo/web/cases.js
 
 素材位于 `cmd/school-ai-demo/cases/`。生成器和生成后的 HTML 一起提交；测试检查生成结果无漂移、金额和跨案例衔接、相对链接和旧路径清除。浏览器回归脚本为 `cmd/school-ai-demo/check_cases_browser.js`，在同源测试页执行（可通过 Chrome DevTools evaluate_script）。脚本仅在测试 iframe 操作，不发送邮件、不调模型，不修改系统剪贴板；375/768/1440 CSS 像素宽度覆盖不是实际手机触摸测试。
 
+## 首页前端缓存（2026-11-26 增量修复）
+
+- 案例定义本来就随 `app.js` 发布；首页改为同步渲染，不再等待 `/api/state`。首次打开、分类切换、详情返回、浏览器后退及填表返回都不为列表请求后端。
+- `sessionStorage` 的 `ai-demo:catalog:v1:<basePath>` 只保存当前分类、模板的 slug / name / fieldCount。同一标签页跨页面返回复用；显式 `#school` / `#trade` 优先。缓存损坏或浏览器禁用存储时仍显示静态案例，不呈现错误的“0 种表格”。
+- 不缓存学生资料、最近会话、表格字段、模型配置或额度；真正进入填表时刷新状态及模板，状态请求失败不会用旧额度打开表格，快速重复点击合并处理。
+- 缓存回归脚本 `cmd/school-ai-demo/check_catalog_browser.js`：34 项检查通过，覆盖无缓存/损坏/禁用存储、返回分类、敏感字段排除、额度更新、直达表格、错误恢复与三个案例真实页面往返；另以浏览器后退实际确认外贸三张卡片和 0 次 state 请求。原有 126 项页面检查及 Go / Python 测试仍通过。
+- 本轮只从已提交 `web/` 制作新静态 release，核对旧 REVISION 后原子切换 current；保留旧 release 和 previous-target，失败切回。无需改 Caddy、导航或重启后台。
+
 ## 最小部署
 
 - 前端：`/srv/apps/ai-demo/releases/<时间>-<commit>/`；`current` 原子软链；`REVISION` 为实际源码提交。

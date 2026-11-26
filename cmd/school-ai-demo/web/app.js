@@ -20,8 +20,27 @@
   // it. Anything narrower is handled by scaling the wrapper, not the sheet.
   const PAPER_W = 794;
 
+  // Card definitions live in this JS bundle. Only non-sensitive template
+  // summaries and the selected category survive page navigation in this tab.
+  const CATALOG_KEY = 'ai-demo:catalog:v1:' + BASE;
+  function templateSummaries(value) {
+    if (!Array.isArray(value) || value.length > 100 || !value.every(t =>
+      t && typeof t.slug === 'string' && /^[a-z0-9-]{1,80}$/.test(t.slug) &&
+      typeof t.name === 'string' && t.name.length <= 160 &&
+      Number.isInteger(t.fieldCount) && t.fieldCount >= 0)) return null;
+    return value.map(({ slug, name, fieldCount }) => ({ slug, name, fieldCount }));
+  }
+  function readCatalog() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(CATALOG_KEY));
+      const templates = templateSummaries(saved?.templates);
+      if (templates && ['school', 'trade'].includes(saved.filter)) return { templates, filter: saved.filter };
+    } catch (_) { /* Storage may be disabled or contain an older/broken value. */ }
+    return { templates: [], filter: 'school' };
+  }
+  const cachedCatalog = readCatalog();
   const state = {
-    templates: [],
+    templates: cachedCatalog.templates,
     ai: { configured: false, model: '', keyEnv: '' },
     current: null,        // { slug, name, fields, html }
     sessionId: '',
@@ -32,8 +51,16 @@
     quota: null,          // today's AI budget, as the server reports it
     aiOff: false,         // no API key configured on the server
     demo: false,          // the sheet currently holds the generated sample data
-    filter: location.hash === '#trade' ? 'trade' : 'school',        // which demo category pill is on
+    filter: location.hash === '#trade' ? 'trade' : location.hash === '#school' ? 'school' : cachedCatalog.filter,
   };
+
+  function saveCatalog() {
+    try {
+      sessionStorage.setItem(CATALOG_KEY, JSON.stringify({
+        templates: templateSummaries(state.templates) || [], filter: state.filter,
+      }));
+    } catch (_) { /* Static cards still work without browser storage. */ }
+  }
 
   // --- tiny helpers ---------------------------------------------------------
   const escapeHTML = (s) => String(s).replace(/[&<>"']/g, (c) =>
@@ -77,23 +104,29 @@
   };
 
   // --- demo list ------------------------------------------------------------
-  async function loadState() {
-    let data;
-    try {
-      data = await api('/api/state');
-    } catch (e) {
-      renderDemos();
-      $('demoSoon').insertAdjacentHTML(
-        'beforebegin',
-        `<div class="notice"><strong>读取失败。</strong><span>${escapeHTML(e.message)}</span></div>`
-      );
-      return;
-    }
-    state.templates = data.templates || [];
-    state.ai = data.ai || state.ai;
-    state.quota = data.quota || state.quota;
-    renderAIDisabled();
-    renderDemos();
+  // Browsing/returning to the catalog never needs /api/state. Fetch current
+  // templates, readiness and quota only when entering a form; don't cache the
+  // response's recent sessions, field data, AI configuration or quota.
+  let stateRequest = null;
+  function loadState() {
+    if (stateRequest) return stateRequest;
+    stateRequest = (async () => {
+      try {
+        const data = await api('/api/state');
+        const templates = templateSummaries(data.templates);
+        if (!templates) throw new Error('表格列表格式异常，请稍后重试。');
+        state.templates = templates;
+        state.ai = data.ai || state.ai;
+        state.quota = data.quota || state.quota;
+        renderAIDisabled();
+        renderDemos();
+        return true;
+      } catch (e) {
+        toast('暂时无法读取填表状态：' + e.message);
+        return false;
+      } finally { stateRequest = null; }
+    })();
+    return stateRequest;
   }
 
   function renderAIDisabled() {
@@ -112,7 +145,7 @@
   }
 
   // renderQuota draws today's budget. The limit is a server-side counter, not
-  // a browser one, so every page load re-reads it from /api/state.
+  // a browser one, so entering a form re-reads it from /api/state.
   // Nothing here prints a count: the only visible state is "gone", and the
   // button says what happened the one time it matters.
   function renderQuota() {
@@ -178,15 +211,14 @@
       typeLabel: 'AI 语义匹配',
       cover: 'form',
       desc: '上传 Excel 或粘贴文字，自动填进学生表格。对不上的格子留空，绝不编造。',
-      // Both tags come from /api/state: how many forms exist, and what they are
-      // called. A number that is not in the data does not go on the card.
+      // Use cached template summaries if known; otherwise show generic copy.
+      // Never invent a count, or hide this static card while waiting for data.
       tags: (tpls) => [
-        `共 ${tpls.length} 种表格`,
+        tpls.length ? `共 ${tpls.length} 种表格` : '校对后导出',
         { text: 'Excel / CSV / 文字', outline: true },
       ],
-      note: (tpls) => tpls.map((t) => t.name).join(' · '),
+      note: (tpls) => tpls.length ? tpls.map((t) => t.name).join(' · ') : '打开后选择表格',
       cta: '开始填写',
-      available: (tpls) => tpls.length > 0,
       open: () => openFill(),
     },
     {
@@ -320,6 +352,7 @@
   }
 
   function applyFilter() {
+    saveCatalog();
     $('categoryTitle').textContent = state.filter === 'trade' ? '外贸 · 把一笔生意往前推进' : '学校 · 日常教学小工具';
     $('demoCards').querySelectorAll('[data-demo]').forEach((card) => {
       card.hidden = state.filter !== 'all' && card.dataset.cat !== state.filter;
@@ -336,18 +369,20 @@
 
   // One entry point for every "fill a form" affordance on the page: the nav
   // link, 开始填表 and the AI 填表 card all land here.
-  function openFill() {
-    // Already filling? Then the click is a "take me back to the top", not a
-    // request to throw away the half-filled sheet and start over.
+  let openingFill = false;
+  async function openFill() {
+    // Already filling? Don't throw away the current sheet.
     if (!$('studio').hidden) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    if (!state.templates.length) {
-      toast('表格还没加载好，稍等一下再试。');
-      return;
-    }
-    openStudio(pickTemplate(state.templates).slug, { autoDemo: true });
+    if (openingFill) return;
+    openingFill = true;
+    try {
+      if (!await loadState()) return;
+      if (!state.templates.length) { toast('暂时没有可用的表格。'); return; }
+      await openStudio(pickTemplate(state.templates).slug, { autoDemo: true, stateReady: true });
+    } finally { openingFill = false; }
   }
 
   // A bookmarked hash wins; otherwise the first template in the folder opens.
@@ -534,7 +569,9 @@
   }
 
   async function openStudio(slug, opts = {}) {
-    const { sessionId = '', draft = null, autoDemo = false } = opts;
+    const { sessionId = '', draft = null, autoDemo = false, stateReady = false } = opts;
+    if (!stateReady && !await loadState()) return;
+    if (!state.templates.some(t => t.slug === slug)) { toast('这张表格已不可用，请重新选择。'); return; }
     let data;
     try {
       data = await api('/api/templates/' + encodeURIComponent(slug));
@@ -579,12 +616,12 @@
     $('studio').hidden = true;
     $('app').hidden = false;
     setNav('home');
-    if (location.hash) history.replaceState(null, '', location.pathname);
+    history.replaceState(null, '', '#' + state.filter);
     state.current = null;
     state.doc = null;
     state.demo = false;
-    // A fresh reload keeps the list in step with what was just saved.
-    loadState();
+    // The cards and their cached metadata are already here; no return fetch.
+    applyFilter();
   }
 
   // The tab list is built from /api/state, so a file added to templates/
@@ -1113,19 +1150,16 @@
   }
 
   // replaceState does not fire hashchange, so this only runs for back/forward
-  // or a hand-edited URL. Unknown slugs are left alone on purpose.
+  // or a hand-edited URL. Form slugs are checked against fresh server metadata.
   window.addEventListener('hashchange', () => {
-    if (location.hash === '#trade' || location.hash === '#school') {
-      state.filter = location.hash.slice(1); applyFilter();
-    }
     const slug = slugFromHash();
-    // A cleared hash means "no form is open": the nav is visible in the studio,
-    // so ending up on the list URL with the form still on screen is a dead end.
-    if (!slug) {
+    if (!slug || ['trade', 'school', 'demos'].includes(slug)) {
+      if (['trade', 'school'].includes(slug)) state.filter = slug;
       if (!$('studio').hidden) closeStudio();
+      else { applyFilter(); setNav('home'); }
       return;
     }
-    if (!state.templates.some((t) => t.slug === slug)) return;
+    if (slug === 'fill') { openFill(); return; }
     if (state.current && state.current.slug === slug) return;
     if ($('studio').hidden) openStudio(slug, { autoDemo: true });
     else switchTemplate(slug);
@@ -1136,13 +1170,10 @@
   // (the card, the sample button, back/forward) brings the sample in, because
   // someone who refreshed is about to type their own data and does not want a
   // half-filled form they have to clear first.
-  loadState().then(() => {
-    const slug = slugFromHash();
-    if (slug && state.templates.some((t) => t.slug === slug)) {
-      openStudio(slug);
-    } else {
-      // No form is open, so whatever the URL says, the list is on screen.
-      setNav('home');
-    }
-  });
+  // Synchronous first render: static cases don't wait for any backend response.
+  renderDemos();
+  const initialSlug = slugFromHash();
+  if (initialSlug === 'fill') openFill();
+  else if (initialSlug && !['trade', 'school', 'demos'].includes(initialSlug)) openStudio(initialSlug);
+  else setNav('home');
 })();
