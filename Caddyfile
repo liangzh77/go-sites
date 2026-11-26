@@ -94,34 +94,33 @@
         reverse_proxy 127.0.0.1:9020
     }
 
-    # School AI Demo: preserve the base path expected by the Go service.
-    handle /school-ai-demo {
-        redir * /school-ai-demo/ permanent
-    }
+    # AI Demo: public paths are /ai-demo; existing school APIs retain their
+    # internal base path. No backend restart or data migration is required.
+    @legacy_school path_regexp legacy_school ^/school-ai-demo(?:/(.*))?$
+    redir @legacy_school /ai-demo/{re.legacy_school.1}?{query} 308
+    redir /ai-demo /ai-demo/ 308
 
-    # Essay and math analysis APIs are isolated from the existing form service.
-    @school_essay_api path /school-ai-demo/api/essay-review /school-ai-demo/api/essay-review/* /school-ai-demo/api/math-review /school-ai-demo/api/math-review/*
-    handle @school_essay_api {
-        reverse_proxy 127.0.0.1:9026 {
-            header_up X-Real-IP {remote_host}
+    handle /ai-demo/* {
+        @review_api path /ai-demo/api/essay-review /ai-demo/api/essay-review/* /ai-demo/api/math-review /ai-demo/api/math-review/*
+        handle @review_api {
+            uri strip_prefix /ai-demo
+            rewrite * /school-ai-demo{uri}
+            reverse_proxy 127.0.0.1:9026 {
+                header_up X-Real-IP {remote_host}
+            }
         }
-    }
-
-    # Versioned lesson, essay and math assets; preserve the existing application binary.
-    @school_ai_static path /school-ai-demo/lesson-plan.html /school-ai-demo/app.js /school-ai-demo/lesson/* /school-ai-demo/essay-review.html /school-ai-demo/essay/* /school-ai-demo/math-review.html /school-ai-demo/math/*
-    handle @school_ai_static {
-        root * /srv/apps/school-ai-demo/page-overrides/releases/20261124-232836-math-nocard
-        uri strip_prefix /school-ai-demo
-        header Cache-Control "no-cache"
-        file_server
-    }
-
-    @school_ai_app {
-        path /school-ai-demo/*
-        not path /school-ai-demo/lesson-plan.html /school-ai-demo/app.js /school-ai-demo/lesson/* /school-ai-demo/essay-review.html /school-ai-demo/essay/* /school-ai-demo/api/essay-review /school-ai-demo/api/essay-review/* /school-ai-demo/math-review.html /school-ai-demo/math/* /school-ai-demo/api/math-review /school-ai-demo/api/math-review/*
-    }
-    handle @school_ai_app {
-        reverse_proxy 127.0.0.1:9025
+        @form_api path /ai-demo/api/* /ai-demo/health
+        handle @form_api {
+            uri strip_prefix /ai-demo
+            rewrite * /school-ai-demo{uri}
+            reverse_proxy 127.0.0.1:9025
+        }
+        handle {
+            uri strip_prefix /ai-demo
+            root * /srv/apps/ai-demo/current
+            header Cache-Control "no-cache"
+            file_server
+        }
     }
 
     handle /wiki {

@@ -1,0 +1,306 @@
+{
+  "schema_version": 2,
+  "is_synthetic": true,
+  "scenario_id": "chenghe-harbor-b750-2027",
+  "notice": "业务模拟，非真实客户成果。全部输入和预期输出为人工编写，未运行真实模型、未接入业务系统。",
+  "permissions": {
+    "mailbox_connected": false,
+    "auto_send": false,
+    "auto_approve_price": false,
+    "auto_commit_delivery": false,
+    "auto_write_erp": false,
+    "auto_release_production": false
+  },
+  "case_id": "order_validation",
+  "customer": {
+    "id": "demo-customer-harbor",
+    "company": "Harbor Sample Trading（虚构）",
+    "contact": "Alex Demo",
+    "email": "alex@harbor.example"
+  },
+  "approved_quote": {
+    "id": "Q-20270806-017",
+    "revision": 1,
+    "issued_at": "2027-08-06",
+    "valid_until": "2027-08-13",
+    "currency": "USD",
+    "items": [
+      {
+        "model": "B750",
+        "color": "matte black",
+        "quantity": 600,
+        "unit": "PCS",
+        "unit_price": "3.93",
+        "amount": "2358.00"
+      },
+      {
+        "model": "B750",
+        "color": "matte white",
+        "quantity": 200,
+        "unit": "PCS",
+        "unit_price": "3.93",
+        "amount": "786.00"
+      }
+    ],
+    "total_quantity": 800,
+    "unit_price": "3.93",
+    "total_amount": "3144.00",
+    "trade_term": "FOB Ningbo",
+    "incoterms_version": "2020",
+    "customization": "Single-position laser engraving, max 30x20mm; plain white individual box.",
+    "payment": {
+      "deposit_percent": 30,
+      "deposit_usd": "943.20",
+      "balance_percent": 70,
+      "balance_usd": "2200.80",
+      "balance_due": "after inspection, before shipment"
+    },
+    "production": {
+      "calendar_days": 25,
+      "starts_after": [
+        "deposit_received",
+        "final_artwork_approved"
+      ],
+      "committed_completion_date": null
+    },
+    "requested_arrival_date": "2027-09-30",
+    "confirmed_arrival_date": null,
+    "arrival_note": "Customer target only, subject to separately checked shipping schedule.",
+    "excluded": "International sea freight, insurance, destination and import-related costs.",
+    "status": "simulated_approved_quote_not_actually_sent"
+  },
+  "customer_cover_email": {
+    "id": "P0",
+    "body": "Please find attached PO-HS-270809. Please arrange production as soon as possible."
+  },
+  "documents": [
+    {
+      "id": "PO-HS-270809",
+      "revision": 0,
+      "received_at": "2027-08-09",
+      "document_demo_id": "fixture-po-hs-270809-r0",
+      "items": [
+        {
+          "customer_sku": "HB-B750-BK",
+          "color": "matte black",
+          "quantity": 20,
+          "quantity_unit": "CTN",
+          "pcs_per_carton": 40,
+          "derived_pcs": 800,
+          "price_unit": "PCS",
+          "unit_price_usd": "3.93",
+          "amount_usd": "3144.00"
+        },
+        {
+          "customer_sku": "HB-B750-WH",
+          "color": "matte white",
+          "quantity": 5,
+          "quantity_unit": "CTN",
+          "pcs_per_carton": 40,
+          "derived_pcs": 200,
+          "price_unit": "PCS",
+          "unit_price_usd": "3.93",
+          "amount_usd": "786.00"
+        }
+      ],
+      "total_cartons": 25,
+      "total_pcs": 1000,
+      "total_usd": "3930.00",
+      "trade_term": "DDP Hamburg",
+      "payment": "Net 60 days after receipt of goods",
+      "requested_arrival_date": "2027-09-30",
+      "production_clause": null
+    },
+    {
+      "id": "PO-HS-270809",
+      "revision": 1,
+      "received_at": "2027-08-10",
+      "document_demo_id": "fixture-po-hs-270809-r1",
+      "items": [
+        {
+          "customer_sku": "HB-B750-BK",
+          "color": "matte black",
+          "quantity": 15,
+          "quantity_unit": "CTN",
+          "pcs_per_carton": 40,
+          "derived_pcs": 600,
+          "price_unit": "PCS",
+          "unit_price_usd": "3.93",
+          "amount_usd": "2358.00"
+        },
+        {
+          "customer_sku": "HB-B750-WH",
+          "color": "matte white",
+          "quantity": 5,
+          "quantity_unit": "CTN",
+          "pcs_per_carton": 40,
+          "derived_pcs": 200,
+          "price_unit": "PCS",
+          "unit_price_usd": "3.93",
+          "amount_usd": "786.00"
+        }
+      ],
+      "total_cartons": 20,
+      "total_pcs": 800,
+      "total_usd": "3144.00",
+      "trade_term": "FOB Ningbo",
+      "payment": "30% deposit, 70% after inspection before shipment",
+      "requested_arrival_date": "2027-09-30",
+      "arrival_note": "Customer target only; subject to shipping schedule.",
+      "production_clause": "25 calendar days after both deposit receipt and final artwork approval"
+    }
+  ],
+  "master_data": {
+    "id": "MAP1",
+    "status": "simulated_human_verified",
+    "sku_mappings": {
+      "HB-B750-BK": "CH-B750-BK",
+      "HB-B750-WH": "CH-B750-WH"
+    },
+    "pcs_per_carton_for_this_order": 40
+  },
+  "expected_v0": {
+    "state": "blocked_pending_clarification",
+    "arithmetic_valid": true,
+    "create_executable_order": false,
+    "differences": [
+      {
+        "key": "black_quantity",
+        "quote": 600,
+        "po": 800,
+        "delta": 200,
+        "source_ids": [
+          "Q-20270806-017",
+          "fixture-po-hs-270809-r0"
+        ]
+      },
+      {
+        "key": "total_quantity",
+        "quote": 800,
+        "po": 1000,
+        "delta": 200,
+        "source_ids": [
+          "Q-20270806-017",
+          "fixture-po-hs-270809-r0"
+        ]
+      },
+      {
+        "key": "total_usd",
+        "quote": "3144.00",
+        "po": "3930.00",
+        "delta": "786.00",
+        "source_ids": [
+          "Q-20270806-017",
+          "fixture-po-hs-270809-r0"
+        ]
+      },
+      {
+        "key": "trade_term",
+        "quote": "FOB Ningbo",
+        "po": "DDP Hamburg"
+      },
+      {
+        "key": "payment",
+        "quote": "30% deposit, 70% after inspection before shipment",
+        "po": "Net 60 days after receipt of goods"
+      },
+      {
+        "key": "arrival_date",
+        "quote": null,
+        "po": "2027-09-30",
+        "note": "需求未变为双方承诺；不能把生产期等同到货期。"
+      }
+    ]
+  },
+  "clarification_draft": {
+    "status": "requires_human_review",
+    "sent": false,
+    "points": [
+      "是否有意把黑色加到 800 个？",
+      "确认 FOB 宁波或提出重新报价需求",
+      "确认付款条款",
+      "到货目标尚未确认，生产开始有前提"
+    ]
+  },
+  "customer_revision_email": {
+    "id": "C1",
+    "body": "Please keep 600 black and 200 white. The DDP and Net 60 fields came from an old template. Please use FOB Ningbo and the payment terms in your quotation. Attached is Revision 1. September 30 remains our target, subject to the shipping schedule."
+  },
+  "expected_v1_draft": {
+    "customer_id": "demo-customer-harbor",
+    "customer_po": "PO-HS-270809",
+    "revision": 1,
+    "quote_id": "Q-20270806-017",
+    "quote_revision": 1,
+    "items": [
+      {
+        "sku": "CH-B750-BK",
+        "quantity": 600,
+        "unit": "PCS",
+        "unit_price_usd": "3.93",
+        "amount_usd": "2358.00"
+      },
+      {
+        "sku": "CH-B750-WH",
+        "quantity": 200,
+        "unit": "PCS",
+        "unit_price_usd": "3.93",
+        "amount_usd": "786.00"
+      }
+    ],
+    "total_usd": "3144.00",
+    "trade_term": "FOB Ningbo",
+    "deposit_usd": "943.20",
+    "balance_usd": "2200.80",
+    "deposit_status": "pending_finance_confirmation",
+    "artwork_status": "pending_final_approval",
+    "production_complete_on": null,
+    "status": "draft_requires_human_review",
+    "production_released": false
+  },
+  "duplicate_events": [
+    {
+      "event_id": "E1",
+      "customer_po": "PO-HS-270809",
+      "revision": 1,
+      "document_demo_id": "fixture-po-hs-270809-r1",
+      "expected": "stage_first_draft"
+    },
+    {
+      "event_id": "E2",
+      "customer_po": "PO-HS-270809",
+      "revision": 1,
+      "document_demo_id": "fixture-po-hs-270809-r1",
+      "expected": "link_existing_no_duplicate"
+    },
+    {
+      "event_id": "E3",
+      "customer_po": "PO-HS-270809",
+      "revision": 2,
+      "document_demo_id": "fixture-po-hs-270809-r2",
+      "expected": "compare_new_revision_do_not_ignore_or_auto_overwrite"
+    }
+  ],
+  "negative_tests": [
+    {
+      "id": "order-units",
+      "input": "CTN 单位",
+      "expected": "不能按 PCS 直接录入"
+    },
+    {
+      "id": "order-unreadable",
+      "input": "数量识别不清",
+      "expected": "待核实，不补猜"
+    },
+    {
+      "id": "order-conflict",
+      "input": "新邮件与新采购单矛盾",
+      "expected": "人工核实，不简单用最新时间覆盖"
+    },
+    {
+      "id": "order-payment",
+      "input": "有订单但没有到账确认",
+      "expected": "不得启动生产倒计时"
+    }
+  ]
+}

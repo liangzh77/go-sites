@@ -32,7 +32,7 @@
     quota: null,          // today's AI budget, as the server reports it
     aiOff: false,         // no API key configured on the server
     demo: false,          // the sheet currently holds the generated sample data
-    filter: 'all',        // which demo category pill is on
+    filter: location.hash === '#trade' ? 'trade' : 'school',        // which demo category pill is on
   };
 
   // --- tiny helpers ---------------------------------------------------------
@@ -82,13 +82,11 @@
     try {
       data = await api('/api/state');
     } catch (e) {
-      const box = $('demoCards');
-      box.querySelectorAll('[data-demo], .notice').forEach((n) => n.remove());
+      renderDemos();
       $('demoSoon').insertAdjacentHTML(
         'beforebegin',
         `<div class="notice"><strong>读取失败。</strong><span>${escapeHTML(e.message)}</span></div>`
       );
-      $('demoFilters').innerHTML = '';
       return;
     }
     state.templates = data.templates || [];
@@ -155,17 +153,26 @@
   // one more entry here: nothing in renderDemos() names a specific tool.
   // `cat` drives the filter pills, `cover` picks the decorative cover art.
   const DEMO_CATS = [
-    { key: 'all', label: '全部' },
-    { key: 'form', label: '表格与登记' },
-    { key: 'lesson', label: '备课' },
-    { key: 'writing', label: '作文点评' },
-    { key: 'math', label: '数学判卷' },
+    { key: 'school', label: '学校' },
+    { key: 'trade', label: '外贸' },
   ];
+
+  const TRADE_CASES = [
+    ['customer-email', '客户邮件与跟进', '邮件', '同一客户改了数量、包装和交期要求。接班同事如何读懂来龙去脉，准备一封不乱承诺的回复？'],
+    ['quotation', '报价准备与审批', '报价', '工厂报得便宜就能选吗？把不同口径的成本算清，区分内部测算与对客报价。'],
+    ['order-validation', '订单核对与录入', '订单', '客户采购单金额没算错，却多了 200 个、改了贸易和付款条款。先拦住，再核对。'],
+  ].map(([key, title, glyph, desc]) => ({
+    key, title, glyph, desc, cat: 'trade', cover: 'trade',
+    typeLabel: '业务模拟 · 预置演示',
+    tags: () => ['原始单据', {text: '人工审批', outline: true}],
+    note: () => '未连接真实业务系统', cta: '查看案例',
+    open: () => { window.location.href = BASE + '/' + key + '/'; },
+  }));
 
   const DEMOS = [
     {
       key: 'ai-fill',
-      cat: 'form',
+      cat: 'school',
       title: 'AI 填表',
       glyph: '填表',
       typeLabel: 'AI 语义匹配',
@@ -185,7 +192,7 @@
     {
       // A static page next to this one: no templates, no model call.
       key: 'lesson-plan',
-      cat: 'lesson',
+      cat: 'school',
       title: '生成教案',
       glyph: '教案',
       typeLabel: '提示词示例',
@@ -201,7 +208,7 @@
     },
     {
       key: 'essay-review',
-      cat: 'writing',
+      cat: 'school',
       title: '批改作文',
       glyph: '作文',
       typeLabel: '示例 + 实时点评',
@@ -214,7 +221,7 @@
     },
     {
       key: 'math-review',
-      cat: 'math',
+      cat: 'school',
       title: '数学判卷',
       glyph: '判卷',
       typeLabel: '示例 + 实时判卷',
@@ -226,6 +233,8 @@
       open: () => { window.location.href = BASE + '/math-review.html'; },
     },
   ];
+
+  DEMOS.push(...TRADE_CASES);
 
   // The cover art is decoration, not data: the form sketch mirrors the sample
   // the studio itself can load, and the slide is a real exported thumbnail.
@@ -241,7 +250,9 @@
       const t = typeof raw === 'string' ? { text: raw } : raw;
       return `<span class="tg${t.outline ? ' o' : ''}">${escapeHTML(t.text)}</span>`;
     }).join('');
-    const cover = d.cover === 'slide'
+    const cover = d.cover === 'trade'
+      ? '<div class="shot" style="padding:22px;background:#fff;border-radius:12px;font-size:14px;line-height:2">原始材料 → 整理校验<br>人工确认 → 再往下走</div>'
+      : d.cover === 'slide'
       ? '<img class="shot" src="lesson/thumbs/slide-01.webp?v=553fc7142a8c" alt="" width="190" height="107">'
       : d.cover === 'essay'
         ? '<img class="shot" src="essay/example-aunt.png" alt="" width="190" height="107">'
@@ -296,19 +307,20 @@
     const counts = {};
     items.forEach((d) => { counts[d.cat] = (counts[d.cat] || 0) + 1; });
     const cats = DEMO_CATS.filter((c) => c.key === 'all' || counts[c.key]);
-    if (!cats.some((c) => c.key === state.filter)) state.filter = 'all';
+    if (!cats.some((c) => c.key === state.filter)) state.filter = cats[0]?.key || 'school';
     box.innerHTML = cats.map((c) => {
       const on = c.key === state.filter;
       const label = c.key === 'all' ? `${c.label} · ${items.length}` : c.label;
       return `<button type="button" class="${on ? 'on' : ''}" data-cat="${c.key}" aria-pressed="${on}">${escapeHTML(label)}</button>`;
     }).join('');
     box.querySelectorAll('button[data-cat]').forEach((b) => {
-      b.addEventListener('click', () => { state.filter = b.dataset.cat; applyFilter(); });
+      b.addEventListener('click', () => { state.filter = b.dataset.cat; history.replaceState(null, '', state.filter === 'trade' ? '#trade' : '#school'); applyFilter(); });
     });
     applyFilter();
   }
 
   function applyFilter() {
+    $('categoryTitle').textContent = state.filter === 'trade' ? '外贸 · 把一笔生意往前推进' : '学校 · 日常教学小工具';
     $('demoCards').querySelectorAll('[data-demo]').forEach((card) => {
       card.hidden = state.filter !== 'all' && card.dataset.cat !== state.filter;
     });
@@ -1103,6 +1115,9 @@
   // replaceState does not fire hashchange, so this only runs for back/forward
   // or a hand-edited URL. Unknown slugs are left alone on purpose.
   window.addEventListener('hashchange', () => {
+    if (location.hash === '#trade' || location.hash === '#school') {
+      state.filter = location.hash.slice(1); applyFilter();
+    }
     const slug = slugFromHash();
     // A cleared hash means "no form is open": the nav is visible in the studio,
     // so ending up on the list URL with the form still on screen is a dead end.

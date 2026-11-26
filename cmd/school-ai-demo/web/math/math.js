@@ -82,7 +82,7 @@
   } else window.addEventListener('resize', updateScrollHints);
   updateScrollHints();
 
-  const API = '/school-ai-demo/api/math-review';
+  const API = '/ai-demo/api/math-review';
   let available = false, remaining = 0, busy = false, preparing = false, selected = null;
   let previewURL = '', pickVersion = 0, output = '', model = 'deepseek-v4.1-flash';
   function liveError(message = '') { $('mathError').textContent = message; $('mathError').hidden = !message; }

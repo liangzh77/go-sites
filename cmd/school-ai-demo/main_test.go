@@ -53,7 +53,7 @@ func TestIndexIsServed(t *testing.T) {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "School AI Demo") {
+	if !strings.Contains(body, "AI Demo") {
 		t.Fatal("page does not name itself")
 	}
 	if !strings.Contains(body, "app.js") || !strings.Contains(body, "app.css") {
@@ -484,7 +484,7 @@ func TestUnknownPathUnderBaseIsTheAppShell(t *testing.T) {
 	svc := newTestService(t, nil)
 	// A deep link someone bookmarked should still load the page.
 	rec := do(t, svc, httptest.NewRequest(http.MethodGet, defaultBasePath+"/enrollment", nil))
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "School AI Demo") {
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "AI Demo") {
 		t.Fatalf("status = %d", rec.Code)
 	}
 }

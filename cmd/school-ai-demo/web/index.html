@@ -3,113 +3,137 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#16295c">
-<title>School AI Demo</title>
+<meta name="theme-color" content="#fcfbf8">
+<title>AI Demo · 一些自己写的小工具</title>
+<meta name="description" content="学校日常小工具与外贸业务模拟案例：看原始材料、整理结果与人工接手流程。">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<header class="topbar">
-  <div class="wrap topbar-inner">
-    <a class="brand" href="./">
-      <span class="brand-mark" aria-hidden="true">学</span>
-      <span class="brand-text">
-        <strong>School AI Demo</strong>
-        <small>一些自己写的小工具</small>
-      </span>
-    </a>
-    <div class="topbar-links">
-      <a href="https://liangz77.cn/" target="_blank" rel="noopener">liangz77.cn</a>
-    </div>
+
+<svg class="svg-defs" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="rg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff6b35"/><stop offset=".5" stop-color="#ff3d8b"/><stop offset="1" stop-color="#7b61ff"/>
+    </linearGradient>
+    <symbol id="logo" viewBox="0 0 32 32">
+      <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#rg)"/>
+      <rect x="1.5" y="1.5" width="29" height="29" rx="8.5" fill="none" stroke="#fff" stroke-opacity=".25"/>
+      <text x="16" y="22.4" text-anchor="middle" font-size="17.5" font-weight="700" fill="#fff" font-family="PingFang SC,Noto Sans CJK SC,Noto Sans SC,Microsoft YaHei,sans-serif">学</text>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- The nav and the footer sit outside #app: they stay on screen while the
+     studio is open, exactly like the design. -->
+<header class="nav">
+  <a class="brand" href="./" data-home-link><svg aria-hidden="true"><use href="#logo"/></svg>AI Demo</a>
+  <nav class="links" aria-label="主要">
+    <a href="#demos" class="on" data-nav="home" data-home-link>全部 demo</a>
+    <a href="#fill" data-nav="fill" data-open-fill>AI 填表</a>
+    <a href="lesson-plan.html">生成教案</a>
+  </nav>
+  <div class="actions">
+    <a class="btn btn-o" href="https://liangz77.cn/" target="_blank" rel="noopener">liangz77.cn <span class="ar">↗</span></a>
+    <a class="btn btn-b" href="#fill" data-open-fill>开始填表</a>
   </div>
 </header>
 
-<main class="wrap" id="app">
-  <section class="hero">
-    <h1>一些自己写的小工具</h1>
-    <p>放在这里的是我平时自己用的几个小工具，都是打开就能用、不用注册的小页面。现在先上线了第一个，后面还会陆续加。</p>
-  </section>
-
-  <div class="notice" id="aiNotice" hidden>
-    <strong>AI 填写还没开通。</strong>
-    <span id="aiNoticeText">服务器上还没有配置 DeepSeek API Key，上传后会提示错误，但表格仍可手动填写、打印和导出。</span>
-  </div>
-
-  <div class="quota-spent" id="quotaSpent" hidden>
-    <strong>今天的 AI 填表次数已用完。</strong>
-    <span id="quotaSpentText">每天 100 次，明天 00:00 重置；表格照常可以手动填写、打印和导出。</span>
-  </div>
-
-  <section class="demos" id="demoList" aria-live="polite">
-    <h2 class="section-head">可用 demo</h2>
-    <div class="cards" id="demoCards">
-      <div class="skeleton-card"></div>
+<div id="app">
+  <main class="wrap home">
+    <!-- Shown by app.js only when the server has no model key configured.
+         Hidden by default, and never a counter. -->
+    <div class="quota warn" id="aiNotice" hidden>
+      <div class="moon" aria-hidden="true">!</div>
+      <div>
+        <h4>AI 填写还没开通</h4>
+        <p id="aiNoticeText">服务器上还没有配置模型 Key，提交后会提示错误，但表格仍可手动填写、打印和导出。</p>
+      </div>
     </div>
-  </section>
-</main>
+
+    <section class="home-sec" id="demos">
+      <div class="sec-h">
+        <div><h2 id="categoryTitle">学校 · 日常教学小工具</h2><p>学校工具可以直接试用；外贸案例为业务模拟，非真实客户成果。</p></div>
+        <div class="pills" id="demoFilters" role="group" aria-label="按类别筛选 demo"></div>
+      </div>
+      <div class="grid" id="demoCards">
+        <!-- Cards are rendered by app.js from its DEMOS list; this one is the
+             standing "next up" slot and is not counted as a demo. -->
+        <article class="demo soon" id="demoSoon">
+          <div class="cover"><span class="plus" aria-hidden="true">＋</span></div>
+          <div class="body">
+            <div class="tags"><span class="tg o">即将上线</span></div>
+            <h3>下一个小工具</h3>
+            <p>还在写。新的 demo 会以同样的卡片出现在这里，不用改版。</p>
+            <div class="foot"><span>陆续更新</span></div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+</div>
 
 <!-- Filling screen -->
 <section class="studio" id="studio" hidden>
-  <div class="studio-bar">
-    <div class="wrap studio-bar-inner">
-      <button class="ghost back" id="backBtn" type="button">
-        <span aria-hidden="true">←</span> 返回列表
-      </button>
-      <div class="studio-title" id="studioTitle">AI 填表</div>
-      <div class="tpl-switch" id="tplSwitch" role="tablist" aria-label="选择表格" hidden></div>
-      <div class="studio-tools">
-        <span class="pill" id="fillPill" hidden></span>
-        <button class="ghost" id="saveBtn" type="button" disabled>保存修改</button>
-        <button class="ghost" id="printBtn" type="button">打印 / PDF</button>
-        <button class="primary" id="exportBtn" type="button" disabled>导出 Excel</button>
+  <div class="sbar">
+    <div class="wrap sbar-in">
+      <button class="back" id="backBtn" type="button"><span aria-hidden="true">←</span> 全部 demo</button>
+      <span class="vsep" aria-hidden="true"></span>
+      <span class="stitle" id="studioTitle">AI 填表</span>
+      <div class="seg" id="tplSwitch" role="tablist" aria-label="选择表格" hidden></div>
+      <div class="stools">
+        <span class="fpill" id="fillPill" hidden></span>
+        <button class="btn btn-o" id="saveBtn" type="button" disabled>保存修改</button>
+        <button class="btn btn-o" id="printBtn" type="button">打印 / PDF</button>
+        <button class="btn btn-b" id="exportBtn" type="button" disabled>导出 Excel</button>
       </div>
     </div>
     <div class="wrap">
-      <p class="tpl-switch-note" id="tplSwitchNote" hidden>换表格会清空已填内容，但会保留你上传的资料，可以直接再填一次。</p>
+      <p class="snote" id="tplSwitchNote" hidden>换表格会清空已填内容，但会保留你给的资料，可以直接再填一次。</p>
     </div>
   </div>
 
   <div class="wrap studio-body">
     <aside class="panel">
-      <div class="panel-head">
-        <h2>1 · 给资料</h2>
-        <p>Excel（.xlsx）、CSV、TXT 都可以，也可以直接把文字粘进来。</p>
-      </div>
-
-      <div class="panel-demo">
-        <button class="ghost block" id="demoBtn" type="button">填入示例资料</button>
-        <p class="dz-sub">没有现成资料？先灌一份示例看看表格长什么样。</p>
-      </div>
+      <div class="step"><b>1</b><h2>给资料</h2></div>
+      <p class="hint">Excel（.xlsx）、CSV、TXT 都可以，也可以直接把文字粘进来。</p>
 
       <label class="dropzone" id="dropzone" for="fileInput">
         <input type="file" id="fileInput" accept=".xlsx,.xlsm,.csv,.txt,.md" hidden>
-        <span class="dz-icon" aria-hidden="true">＋</span>
-        <span class="dz-main">点击选择文件，或把文件拖到这里</span>
-        <span class="dz-sub" id="dzSub">支持 .xlsx / .csv / .txt，最大 8MB</span>
+        <span class="ic" aria-hidden="true">＋</span>
+        <span class="dz-text">
+          <b>点击选择文件，或拖到这里</b>
+          <span class="dz-sub" id="dzSub">支持 .xlsx / .csv / .txt，最大 8MB</span>
+        </span>
       </label>
 
       <div class="or"><span>或者粘贴文字</span></div>
 
-      <textarea id="pasteBox" rows="16" placeholder="例如：&#10;张三，男，2019年3月出生，汉族&#10;家庭住址：河北省石家庄市长安区……&#10;父亲：张伟，工人，138……"></textarea>
-
-      <div class="panel-actions">
-        <button class="primary block" id="fillBtn" type="button">开始 AI 填写</button>
-        <button class="ghost block" id="clearBtn" type="button">清空</button>
+      <div class="sample">
+        <span>没有现成资料？</span>
+        <button class="linkbtn" id="demoBtn" type="button">填入示例资料</button>
       </div>
 
-      <p class="quota-inline" id="quotaInline" hidden></p>
+      <textarea class="ta" id="pasteBox" rows="16" placeholder="例如：&#10;张三，男，2019年3月出生，汉族&#10;家庭住址：河北省石家庄市长安区……&#10;父亲：张伟，工人，138……"></textarea>
+
+      <div class="pact">
+        <button class="btn btn-b btn-lg" id="fillBtn" type="button">开始 AI 填写</button>
+        <button class="btn btn-o btn-lg" id="clearBtn" type="button">清空</button>
+      </div>
+
       <div class="status" id="status" hidden></div>
       <div class="warnbox" id="warnBox" hidden></div>
 
-      <div class="panel-note">
-        <h3>2 · 校对并导出</h3>
-        <p>右侧表格里的内容可以直接改。改完点「保存修改」，再打印成 PDF 或导出 Excel。</p>
+      <div class="pnote">
+        <div class="step lt"><b>2</b><h2>校对并导出</h2></div>
+        <p>表格里的内容可以直接改。改完点「保存修改」，再打印成 PDF 或导出 Excel。</p>
       </div>
     </aside>
 
     <div class="paper-area">
-      <div class="paper-toolbar">
-        <span class="paper-hint">蓝色虚线格为可填位置，点一下即可编辑</span>
-        <span class="paper-legend"><i class="dot ai"></i>已填写<i class="dot empty"></i>留空</span>
+      <div class="ptool">
+        <span>虚线格为可填位置，点一下即可编辑</span>
+        <span class="legend"><span><i class="sw f"></i>AI 已填</span><span><i class="sw e"></i>留空</span></span>
       </div>
       <div class="paper-scroll" id="paperScroll">
         <div class="paper-holder" id="paperHolder">
@@ -120,7 +144,28 @@
       </div>
     </div>
   </div>
+
+  <!-- Shown by app.js when /api/state (or a 429 from /api/fill) says today's
+       AI budget is gone. Never a counter, and the form keeps working. -->
+  <div class="wrap studio-quota" id="quotaSpent" hidden>
+    <div class="quota">
+      <div class="moon" aria-hidden="true">☾</div>
+      <div>
+        <h4>今天的 AI 填表次数用完了</h4>
+        <p id="quotaSpentText">今天的次数用完了，明天 00:00 自动恢复。表格照常可以手动填写、打印和导出，已填的内容不会丢。</p>
+        <div class="acts">
+          <button class="btn btn-o btn-sm" id="manualBtn" type="button">手动填写这张表</button>
+          <a class="btn btn-o btn-sm" href="lesson-plan.html">先看看生成教案</a>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
+
+<footer>
+  <div class="brand"><svg aria-hidden="true"><use href="#logo"/></svg>AI Demo</div>
+  一些自己写的小工具 · <a href="https://liangz77.cn/" target="_blank" rel="noopener">liangz77.cn</a>
+</footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 

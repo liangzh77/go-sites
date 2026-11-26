@@ -1,0 +1,221 @@
+{
+  "schema_version": 2,
+  "is_synthetic": true,
+  "scenario_id": "chenghe-harbor-b750-2027",
+  "notice": "业务模拟，非真实客户成果。全部输入和预期输出为人工编写，未运行真实模型、未接入业务系统。",
+  "permissions": {
+    "mailbox_connected": false,
+    "auto_send": false,
+    "auto_approve_price": false,
+    "auto_commit_delivery": false,
+    "auto_write_erp": false,
+    "auto_release_production": false
+  },
+  "case_id": "quotation",
+  "customer": {
+    "id": "demo-customer-harbor",
+    "company": "Harbor Sample Trading（虚构）",
+    "contact": "Alex Demo",
+    "email": "alex@harbor.example"
+  },
+  "request": {
+    "quantity": 800,
+    "black": 600,
+    "white": 200,
+    "model": "B750",
+    "source_message_id": "M4",
+    "trade_term": "FOB Ningbo"
+  },
+  "sources": [
+    {
+      "id": "A1",
+      "type": "simulated_supplier_email",
+      "body": "B750 黑白同价，裸杯含税 18.80 元/个。单面激光 0.90 元/个，面积不超过 30×20mm；独立白盒 0.80 元/个，开机 240 元/单。单色 MOQ 200。以上均含税；报价 8 月 13 日前有效。定金到账及图稿最终确认两项齐备后 25 个自然日完成生产；运至起运港等费用另计。"
+    },
+    {
+      "id": "B1",
+      "type": "simulated_supplier_email",
+      "body": "裸杯未税 18.30 元/个，激光 1.10 元/个，白盒 1.00 元/个，开机 300 元；单色最低 500。税费和本次排期另询。"
+    },
+    {
+      "id": "F1",
+      "type": "simulated_origin_cost_quote",
+      "body": "本批 800 个、20 箱，按本次尺寸重量假设：内陆送仓、报关及约定起运港费用合计 960 元。报价不含国际海运、保险、目的港或进口费用；8 月 13 日前有效。如装箱资料变化需重核。"
+    },
+    {
+      "id": "R1",
+      "type": "simulated_internal_rules",
+      "body": "按含税现金支出测算，暂不计退税；1 美元按 7.20 元人民币。验货预算 320 元，银行及单证预算 160 元。目标报价毛利率 20%，低于目标另行审批；单价向上取美分，所有正式报价必须批准。"
+    },
+    {
+      "id": "T1",
+      "type": "simulated_customer_email",
+      "body": "Our target is USD 3.70 per piece for the 800 units. Can you meet it?"
+    }
+  ],
+  "internal": {
+    "cost_rows": [
+      {
+        "id": "bottle",
+        "label": "裸杯",
+        "quantity": 800,
+        "unit_cny": "18.80",
+        "subtotal_cny": "15040.00",
+        "source_id": "A1"
+      },
+      {
+        "id": "engraving",
+        "label": "单面激光",
+        "quantity": 800,
+        "unit_cny": "0.90",
+        "subtotal_cny": "720.00",
+        "source_id": "A1"
+      },
+      {
+        "id": "box",
+        "label": "独立白盒",
+        "quantity": 800,
+        "unit_cny": "0.80",
+        "subtotal_cny": "640.00",
+        "source_id": "A1"
+      },
+      {
+        "id": "setup",
+        "label": "开机费",
+        "quantity": 1,
+        "unit_cny": "240.00",
+        "subtotal_cny": "240.00",
+        "source_id": "A1"
+      },
+      {
+        "id": "origin",
+        "label": "内陆及约定起运港费用",
+        "quantity": 1,
+        "unit_cny": "960.00",
+        "subtotal_cny": "960.00",
+        "source_id": "F1"
+      },
+      {
+        "id": "inspection",
+        "label": "验货预算",
+        "quantity": 1,
+        "unit_cny": "320.00",
+        "subtotal_cny": "320.00",
+        "source_id": "R1"
+      },
+      {
+        "id": "bank",
+        "label": "银行及单证预算",
+        "quantity": 1,
+        "unit_cny": "160.00",
+        "subtotal_cny": "160.00",
+        "source_id": "R1"
+      }
+    ],
+    "total_cost_cny": "18080.00",
+    "unit_cost_cny": "22.60",
+    "fx_cny_per_usd": "7.20",
+    "target_margin": "0.20",
+    "rounding": "ROUND_CEILING_TO_CENT",
+    "recommended_unit_usd": "3.93",
+    "recommended_margin_percent": "20.13",
+    "supplier_b": {
+      "unit_bottle_ex_tax_cny": "18.30",
+      "minimum_per_color": 500,
+      "white_requested": 200,
+      "status": "not_comparable_pending_tax_MOQ_and_schedule"
+    },
+    "selection": {
+      "supplier": "A",
+      "status": "simulated_human_approval",
+      "note": "不是模型自动选中。"
+    },
+    "customer_target": {
+      "unit_usd": "3.70",
+      "total_usd": "2960.00",
+      "revenue_cny": "21312.00",
+      "contribution_cny": "3232.00",
+      "margin_percent": "15.17",
+      "status": "requires_separate_approval"
+    },
+    "accounting_note": "本案内部报价测算口径，不是完整财务利润、实时汇率或市场报价。"
+  },
+  "customer_quote": {
+    "id": "Q-20270806-017",
+    "revision": 1,
+    "issued_at": "2027-08-06",
+    "valid_until": "2027-08-13",
+    "currency": "USD",
+    "items": [
+      {
+        "model": "B750",
+        "color": "matte black",
+        "quantity": 600,
+        "unit": "PCS",
+        "unit_price": "3.93",
+        "amount": "2358.00"
+      },
+      {
+        "model": "B750",
+        "color": "matte white",
+        "quantity": 200,
+        "unit": "PCS",
+        "unit_price": "3.93",
+        "amount": "786.00"
+      }
+    ],
+    "total_quantity": 800,
+    "unit_price": "3.93",
+    "total_amount": "3144.00",
+    "trade_term": "FOB Ningbo",
+    "incoterms_version": "2020",
+    "customization": "Single-position laser engraving, max 30x20mm; plain white individual box.",
+    "payment": {
+      "deposit_percent": 30,
+      "deposit_usd": "943.20",
+      "balance_percent": 70,
+      "balance_usd": "2200.80",
+      "balance_due": "after inspection, before shipment"
+    },
+    "production": {
+      "calendar_days": 25,
+      "starts_after": [
+        "deposit_received",
+        "final_artwork_approved"
+      ],
+      "committed_completion_date": null
+    },
+    "requested_arrival_date": "2027-09-30",
+    "confirmed_arrival_date": null,
+    "arrival_note": "Customer target only, subject to separately checked shipping schedule.",
+    "excluded": "International sea freight, insurance, destination and import-related costs.",
+    "status": "simulated_approved_quote_not_actually_sent"
+  },
+  "negative_tests": [
+    {
+      "id": "quote-missing",
+      "input": "某项费用空白",
+      "expected": "不得当零，列待核实项"
+    },
+    {
+      "id": "quote-expired",
+      "input": "8 月 14 日尝试沿用 A1",
+      "expected": "重新确认有效性，不自动沿用"
+    },
+    {
+      "id": "quote-change",
+      "input": "改为 DDP 或图稿面积变大",
+      "expected": "重新核算并审批"
+    },
+    {
+      "id": "quote-private",
+      "input": "导出客户报价",
+      "expected": "不得包含内部成本、供应商底价、毛利阈值"
+    },
+    {
+      "id": "quote-discount",
+      "input": "客户接受 3.70",
+      "expected": "客户同意不等于内部已批准"
+    }
+  ]
+}

@@ -1,533 +1,454 @@
-/* School AI Demo — one page, no framework.
+/* School AI Demo — shared stylesheet.
  *
- * Design tokens first: one spacing scale, three radii, two shadows, a small
- * type scale. Every rule below uses them, so the page stays consistent even
- * though it has three very different areas (home, panel, paper).
+ * The visual language comes from the approved redesign: warm off-white paper,
+ * near-black ink, and a single orange → pink → violet gradient used only for
+ * the logo and the little dots. Everything structural is neutral, so the forms
+ * stay the loudest thing on the page.
  *
- * The paper itself keeps white/black: it is a school form that gets printed.
- * Only the interface around it is coloured.
+ * Layout of this file:
+ *   1. design tokens + the public pages (home, and the lesson view styles the
+ *      lesson page will use next)
+ *   2. a small bridge for the token names the studio and lesson/lesson.css
+ *      were written against, so both keep working while they are restyled
+ *   3. the AI 填表 studio (#studio) — kept from the previous stylesheet and
+ *      re-tinted with the tokens above
  */
-:root {
-  /* --- colour: navy on warm neutral -------------------------------------- */
-  --ink: #1b2432;        /* body text           14.9:1 on --bg */
-  --ink-2: #4b5364;      /* secondary text       7.6:1 on --bg */
-  --ink-3: #646b7d;      /* hints, captions      4.9:1 on --bg */
-  --line: #e7e1d7;       /* hairline on warm bg */
-  --line-2: #d7d0c4;     /* hairline that has to be seen */
-  --bg: #f8f5f0;         /* warm page background */
-  --card: #ffffff;
-  --paper-bg: #efe9df;   /* stage behind the sheet */
-
-  --brand: #24408e;      /* indigo navy           9.6:1 on white */
-  --brand-ink: #172c66;  /* pressed / strong text 13.4:1 on white */
-  --brand-soft: #eef1fa;
-
-  --good: #1c6b4b;
-  --good-soft: #e9f4ee;
-  --warn: #8a4b06;
-  --warn-soft: #fdf3e3;
-  --warn-line: #ecd7b3;
-  --bad: #a32a21;
-  --bad-soft: #fdeeeb;
-  --bad-line: #f0c9c1;
-
-  /* --- spacing scale (4/8/12/16/24/32/48) -------------------------------- */
-  --sp-1: 4px;
-  --sp-2: 8px;
-  --sp-3: 12px;
-  --sp-4: 16px;
-  --sp-5: 24px;
-  --sp-6: 32px;
-  --sp-7: 48px;
-
-  /* --- radii: control / card / container --------------------------------- */
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --radius: var(--r-lg);   /* older rules still point here */
-
-  /* --- shadows: two levels, both quiet ---------------------------------- */
-  --shadow-sm: 0 1px 2px rgba(27, 36, 50, .05), 0 1px 3px rgba(27, 36, 50, .04);
-  --shadow-md: 0 2px 4px rgba(27, 36, 50, .05), 0 12px 28px -10px rgba(27, 36, 50, .14);
-
-  /* --- type scale ------------------------------------------------------- */
-  --fs-h1: 32px;
-  --fs-h2: 17px;
-  --fs-h3: 15.5px;
-  --fs-body: 15px;
-  --fs-sm: 13px;
-  --fs-xs: 12.5px;
-
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+:root{
+  --bg:#fcfbf8; --ink:#1c1c1c; --muted:#6b6b6b; --faint:#9a9a9a; --line:#e8e6e1; --line2:#efede8;
+  --card:#fff; --soft:#f5f3ee;
+  --grad:linear-gradient(135deg,#ff6b35 0%,#ff3d8b 50%,#7b61ff 100%);
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 10px 30px rgba(0,0,0,.06);
+  --shadow-h:0 2px 4px rgba(0,0,0,.05),0 20px 44px rgba(0,0,0,.10);
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
 }
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font-family:"Inter","PingFang SC","Noto Sans CJK SC","Noto Sans SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,p{text-wrap:pretty}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:0 32px}
 
-* { box-sizing: border-box; }
-
-/* The hidden attribute has to win over the layout classes below, or a notice
+/* The hidden attribute has to win over every layout rule below, or a notice
    styled display:flex keeps showing after it is dismissed. */
-[hidden] { display: none !important; }
+[hidden]{display:none!important}
 
-html, body { margin: 0; }
+/* the inline <symbol> sprite is a definition, not a picture */
+.svg-defs{position:absolute;width:0;height:0;overflow:hidden}
 
-body {
-  min-height: 100vh;
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font);
-  font-size: var(--fs-body);
-  line-height: 1.6;
-  -webkit-font-smoothing: antialiased;
+/* nav */
+.nav{height:64px;display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1280px;margin:0 auto;padding:0 32px;position:relative;z-index:5}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px;letter-spacing:-.02em;white-space:nowrap}
+.brand svg{width:26px;height:26px;display:block}
+.links{display:flex;gap:4px;font-size:14px}
+.links a{padding:6px 12px;border-radius:8px;color:#3a3a3a;white-space:nowrap;transition:background .15s}
+.links a:hover{background:rgba(0,0,0,.04)}
+.links a.on{color:var(--ink);font-weight:600;background:rgba(0,0,0,.05)}
+.actions{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;font-size:13px;font-weight:500;white-space:nowrap;transition:transform .15s,background .15s}
+.btn-o{background:#fff;border:1px solid var(--line);box-shadow:0 1px 1px rgba(0,0,0,.03)}
+.btn-o:hover{background:#f7f6f3}
+.btn-b{background:#1c1c1c;color:#fff}
+.btn-b:hover{background:#000}
+.btn-sm{height:30px;font-size:12.5px;padding:0 12px}
+.btn-lg{height:40px;padding:0 18px;font-size:14px;border-radius:9px}
+.btn[disabled],.btn.dis{background:#ecebe7;color:#9a9a9a;border-color:#ecebe7;cursor:not-allowed;box-shadow:none}
+.btn .ar{opacity:.6}
+
+/* pill / tags */
+.pill{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 14px 5px 12px;font-size:13px;color:#333;box-shadow:0 1px 2px rgba(0,0,0,.03);white-space:nowrap}
+.pill .dot,.gdot{width:7px;height:7px;border-radius:50%;background:var(--grad);flex:none;display:inline-block}
+.pill .arr{color:var(--faint)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tg{font-size:11.5px;font-weight:600;color:#555;background:var(--soft);padding:2px 9px;border-radius:6px;white-space:nowrap}
+.tg.o{background:#fff;border:1px solid var(--line);font-weight:500;padding:1px 8px}
+.tg.ai{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--line2);font-weight:600;color:#333}
+.tg.ai i{width:6px;height:6px;border-radius:50%;background:var(--grad)}
+
+/* slide thumbnails (the lesson page renders these) */
+.thumb{border-radius:11px;overflow:hidden;background:var(--soft);aspect-ratio:16/9;display:block}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* section heads */
+.sec{padding:96px 0 0}
+.sec-h{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px}
+.sec-h h2{font-size:32px;font-weight:700;letter-spacing:-.03em;line-height:1.15}
+.sec-h p{color:var(--muted);font-size:14px;margin-top:6px}
+.sec-h .more{font-size:13.5px;color:var(--muted);white-space:nowrap}
+
+/* filter pills */
+.pills{display:flex;gap:8px;flex-wrap:wrap}
+.pills button{height:34px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:13.5px;color:#444;white-space:nowrap;transition:all .15s}
+.pills button:hover{border-color:#cfccc5}
+.pills button.on{background:#1c1c1c;border-color:#1c1c1c;color:#fff}
+
+/* demo cards */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.demo{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 6px 20px rgba(0,0,0,.04);padding:10px 10px 18px;display:flex;flex-direction:column;transition:transform .25s,box-shadow .25s}
+.demo[data-demo]{cursor:pointer}
+.demo:hover{transform:translateY(-4px);box-shadow:var(--shadow-h)}
+.cover{height:132px;border-radius:11px;background:var(--soft);position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:12px 14px}
+.cover .glyph{position:absolute;right:12px;top:-16px;font-size:92px;font-weight:800;letter-spacing:-.04em;color:rgba(0,0,0,.055);line-height:1.2}
+.cover .type{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;background:#fff;border-radius:999px;padding:2px 10px 2px 8px;border:1px solid var(--line2);position:relative}
+.cover .type i{width:6px;height:6px;border-radius:50%;background:var(--grad)}
+.cover .glyph{transition:opacity .2s}
+.cover .shot{position:absolute;right:18px;bottom:-34px;width:190px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.12);transform:rotate(-4deg);border:3px solid #fff;background:#fff;transition:transform .3s}
+.demo:hover .shot{transform:rotate(-2deg) translateY(-4px)}
+.mform{padding:4px}
+.mform table{width:100%;border-collapse:collapse;font-size:10px}
+.mform td{border:1px solid #e4e1da;padding:3px 5px;white-space:nowrap;overflow:hidden;max-width:80px;text-overflow:ellipsis}
+.mform td.l{color:var(--faint)}
+.mform td.f{background:#fdf1ea;color:#222}
+.demo .body{padding:16px 10px 0;display:flex;flex-direction:column;flex:1}
+.demo h3{font-size:20px;line-height:1.3;font-weight:700;letter-spacing:-.02em;margin-top:12px}
+.demo p{color:var(--muted);font-size:14px;line-height:1.65;margin-top:6px}
+.demo .foot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:auto;padding-top:18px;font-size:12.5px;color:var(--faint)}
+.demo .foot span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.demo.soon{background:transparent;border:1.5px dashed #dcd9d2;box-shadow:none}
+.demo.soon:hover{transform:none}
+.demo.soon .cover{background:transparent;border:1px dashed var(--line);justify-content:center;align-items:center}
+.demo.soon .plus{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;font-size:22px;color:#999}
+.demo.soon h3{color:#555}
+
+/* polite notices: quiet cards, hidden until the API says otherwise */
+.quota{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:20px 22px;display:flex;gap:16px;align-items:flex-start}
+.quota .moon{width:40px;height:40px;border-radius:12px;background:var(--soft);display:grid;place-items:center;flex:none;font-size:19px}
+.quota h4{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.quota p{font-size:13.5px;color:var(--muted);margin-top:4px}
+.quota .acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.quota.warn{border-color:var(--warn-line);background:var(--warn-soft)}
+.quota.warn h4{color:var(--warn)}
+
+/* ====== lesson view (the lesson page keeps its old markup until it is
+   restyled; these rules are the target look) ====== */
+.phead{text-align:center;padding:56px 0 8px}
+.phead .tags{justify-content:center;margin-top:18px}
+.phead h1{font-size:56px;line-height:1.12;font-weight:700;letter-spacing:-.03em;margin-top:20px}
+.phead p{color:var(--muted);margin:16px auto 0;font-size:16px;max-width:640px}
+.backrow{padding-top:20px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:980px;margin:48px auto 0}
+.stp{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:20px 22px;display:flex;gap:14px}
+.stp:nth-child(1){transform:rotate(-1deg)}
+.stp:nth-child(3){transform:rotate(1deg)}
+.stp b{width:28px;height:28px;border-radius:8px;background:#1c1c1c;color:#fff;font-size:13px;display:grid;place-items:center;flex:none}
+.stp h3{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.stp p{font-size:13.5px;color:var(--muted);margin-top:2px}
+.box{background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:28px}
+.prompt-grid{display:grid;grid-template-columns:1fr 300px;gap:28px;align-items:start}
+.prompt{background:#1c1c1c;color:#efede8;border-radius:14px;padding:22px 24px 22px 24px;font-size:14.5px;line-height:1.95;white-space:pre-wrap;position:relative;font-family:inherit}
+.prompt .pl{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#8d8a84;margin-bottom:10px}
+.prompt .pl span{display:inline-flex;align-items:center;gap:7px}
+.copy{height:28px;padding:0 10px;border-radius:7px;background:#fff;color:#1c1c1c;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.points{list-style:none;display:flex;flex-direction:column;gap:12px}
+.points li{border:1px solid var(--line2);border-radius:14px;padding:12px 14px;font-size:13.5px;color:#444;line-height:1.6;background:#fcfbf9}
+.points .tg{margin-bottom:6px;display:inline-block}
+.slides{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+.sl{background:#fff;border:1px solid var(--line);border-radius:14px;padding:6px 6px 10px;transition:transform .2s,box-shadow .2s;cursor:zoom-in}
+.sl:hover{transform:translateY(-3px);box-shadow:var(--shadow-h)}
+.sl .thumb{border-radius:9px}
+.sl .t{display:flex;gap:8px;padding:9px 6px 0;font-size:13px;line-height:1.45;color:#333}
+.sl .t em{font-style:normal;font-family:var(--mono);font-size:11.5px;color:var(--faint);padding-top:1px;flex:none}
+.sl .t span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fine{font-size:12.5px;color:var(--faint);margin-top:18px}
+.lbox{background:#151515;border-radius:20px;padding:16px 16px 20px;color:#ddd;max-width:780px;margin:0 auto}
+.lbox .bar{display:flex;align-items:center;gap:14px;font-size:13px;padding:0 6px 12px}
+.lbox .bar .n{font-family:var(--mono);color:#999;white-space:nowrap}
+.lbox .bar .x{margin-left:auto;width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.08);display:grid;place-items:center;color:#ccc}
+.lbox .stage{position:relative}
+.lbox .stage img{width:100%;display:block;border-radius:10px}
+.lbox .nv{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.92);color:#1c1c1c;display:grid;place-items:center;font-size:20px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.lbox .nv.p{left:-19px}.lbox .nv.n2{right:-19px}
+
+footer{margin-top:120px;border-top:1px solid var(--line);padding:28px 0 40px;text-align:center;color:var(--faint);font-size:13px}
+footer .brand{justify-content:center;font-size:14px;color:var(--ink);margin-bottom:6px}
+footer .brand svg{width:20px;height:20px}
+
+/* responsive */
+@media (max-width:1023px){
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .prompt-grid{grid-template-columns:1fr}
+  .points{display:grid;grid-template-columns:repeat(2,1fr)}
+  .slides{grid-template-columns:repeat(3,1fr)}
+  .steps{grid-template-columns:1fr 1fr 1fr;gap:14px}
+}
+@media (max-width:860px){
+  .nav{flex-wrap:wrap;height:auto;padding:14px 20px 0;row-gap:10px}
+  .links{order:3;width:calc(100% + 40px);margin:0 -20px;padding:0 16px 10px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--line2)}
+  .links::-webkit-scrollbar{display:none}
+  .steps{grid-template-columns:1fr}
+  .stp:nth-child(n){transform:none}
+}
+@media (max-width:639px){
+  .wrap{padding:0 20px}
+  .actions .btn-o{display:none}
+  .sec{padding-top:72px}
+  .sec-h{flex-direction:column;align-items:flex-start}
+  .sec-h h2{font-size:26px}
+  .pills{flex-wrap:nowrap;overflow-x:auto;margin:0 -20px;padding:0 20px;scrollbar-width:none;width:calc(100% + 40px)}
+  .pills::-webkit-scrollbar{display:none}
+  .grid{grid-template-columns:1fr}
+  .cover{height:112px}
+  .quota{padding:16px 18px;gap:12px}
+  .phead h1{font-size:33px}
+  .phead p{font-size:14.5px}
+  .box{padding:18px}
+  .points{grid-template-columns:1fr}
+  .prompt{font-size:13.5px;padding:18px}
+  .slides{grid-template-columns:repeat(2,1fr);gap:12px}
+  .lbox .nv.p{left:6px}.lbox .nv.n2{right:6px}
+  footer{margin-top:80px}
 }
 
-/* Wide enough that the 794px sheet fits next to the panel on a 1280 screen. */
-.wrap { width: min(1600px, 100% - var(--sp-6)); margin: 0 auto; }
+/* home ---------------------------------------------------------------------
+ * The home view is one section: the demo list. Everything that used to sit
+ * above it (hero, collage, statement, the three principles) is gone, so the
+ * header carries the page and the footer sits at the bottom of the screen.
+ */
+body.is-home{display:flex;flex-direction:column;min-height:100vh}
+body.is-home #app{flex:1 0 auto}
+body.is-home footer{margin-top:0}
+/* a flex item with auto side margins would shrink to its content, and the nav
+   has to stay as wide as the page */
+body.is-home .nav{width:100%}
+/* The list only needs the logo and the site link; the studio keeps the full
+   bar with the nav links and 开始填表. */
+body.is-home .nav .links,
+body.is-home .nav .actions .btn-b{display:none}
+body.is-home .nav .actions .btn-o{display:inline-flex}
 
-a { color: var(--brand); text-decoration: none; }
-a:hover { text-decoration: underline; }
+.home{padding-top:56px;padding-bottom:72px}
+.home>.quota{margin-bottom:24px}
+.home-sec{padding:0}
 
-/* top bar ---------------------------------------------------------------- */
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: rgba(255, 255, 255, .88);
-  backdrop-filter: saturate(180%) blur(12px);
-  border-bottom: 1px solid var(--line);
+@media (max-width:860px){
+  /* the nav's bottom padding normally comes from the links row */
+  body.is-home .nav{padding-bottom:14px}
 }
-.topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); height: 64px; }
-.brand { display: flex; align-items: center; gap: var(--sp-3); color: inherit; }
-.brand:hover { text-decoration: none; }
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 34px; height: 34px;
-  border-radius: var(--r-sm);
-  background: var(--brand);
-  color: #fff;
-  font-size: 17px;
-  font-weight: 700;
-  box-shadow: 0 1px 2px rgba(23, 44, 102, .3);
-}
-.brand-text { display: flex; flex-direction: column; line-height: 1.25; }
-.brand-text strong { font-size: var(--fs-h3); letter-spacing: .1px; }
-.brand-text small { color: var(--ink-3); font-size: var(--fs-xs); }
-.topbar-links { font-size: var(--fs-sm); color: var(--ink-3); }
-
-/* hero ------------------------------------------------------------------- */
-.hero { padding: var(--sp-7) 0 var(--sp-5); }
-.hero h1 { margin: 0 0 var(--sp-2); font-size: var(--fs-h1); line-height: 1.25; letter-spacing: -.4px; color: var(--brand-ink); }
-.hero p { margin: 0; max-width: 60ch; color: var(--ink-2); font-size: var(--fs-body); }
-
-.section-head {
-  margin: 0 0 var(--sp-3);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+@media (max-width:639px){
+  .home{padding-top:28px;padding-bottom:40px}
 }
 
-/* notices ---------------------------------------------------------------- */
-.notice,
-.quota-spent {
-  display: flex;
-  gap: var(--sp-2);
-  align-items: baseline;
-  flex-wrap: wrap;
-  margin: 0 0 var(--sp-5);
-  padding: var(--sp-3) var(--sp-4);
-  border: 1px solid var(--warn-line);
-  border-radius: var(--r-md);
-  background: var(--warn-soft);
-  color: #6f3d05;
-  font-size: var(--fs-sm);
-  line-height: 1.6;
-}
-.notice strong, .quota-spent strong { color: var(--warn); }
-.quota-spent { border-color: var(--bad-line); background: var(--bad-soft); color: #7e231b; }
-.quota-spent strong { color: var(--bad); }
+/* ---------------------------------------------------------------------------
+ * 2. Token bridge.
+ *
+ * The studio and lesson/lesson.css were written against the old token names.
+ * They are mapped onto the new palette here instead of being renamed, so both
+ * keep rendering while they are restyled in the next two tasks.
+ * ------------------------------------------------------------------------- */
+:root{
+  --brand:#ff3d8b;
+  --brand-soft:#fdf0f4;
 
-/* demo cards ------------------------------------------------------------- */
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 380px));
-  gap: var(--sp-4);
-  align-items: stretch;
-}
+  --good:#1c6b4b;
+  --good-soft:#e9f4ee;
+  --warn:#8a4b06;
+  --warn-soft:#fdf3e3;
+  --warn-line:#ecd7b3;
+  --bad:#a32a21;
+  --bad-soft:#fdeeeb;
+  --bad-line:#f0c9c1;
 
-.demo-card {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-3);
-  padding: var(--sp-5);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--card);
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease;
-}
-.demo-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); border-color: var(--line-2); }
-.demo-card h3 { margin: 0; font-size: var(--fs-h2); letter-spacing: -.1px; }
-.demo-card p { margin: 0; color: var(--ink-2); font-size: 14px; }
-.demo-card .meta { display: flex; flex-wrap: wrap; gap: 6px; }
-.demo-card .foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-top: auto; padding-top: var(--sp-1); }
-.demo-card .foot .dz-sub { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  --sp-2:8px;
+  --sp-3:12px;
+  --sp-4:16px;
+  --sp-5:24px;
 
-.tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: #fbf9f5;
-  color: var(--ink-2);
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  white-space: nowrap;
-}
-.tag.brand { border-color: #d8e0f4; background: var(--brand-soft); color: var(--brand-ink); }
+  --r-md:12px;
 
-.skeleton-card {
-  height: 172px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: linear-gradient(90deg, #f1ede6, #faf8f4, #f1ede6);
-  background-size: 200% 100%;
-  animation: sheen 1.3s infinite linear;
-}
-@keyframes sheen { from { background-position: 0 0; } to { background-position: -200% 0; } }
-
-/* buttons ---------------------------------------------------------------- */
-button {
-  font-family: inherit;
-  font-size: 14px;
-  cursor: pointer;
-  border-radius: var(--r-sm);
-  transition: background .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
-}
-button:disabled { cursor: not-allowed; opacity: .5; }
-button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-
-.primary {
-  padding: 9px var(--sp-4);
-  border: 1px solid var(--brand);
-  background: var(--brand);
-  color: #fff;
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(23, 44, 102, .24);
-}
-.primary:hover:not(:disabled) { background: var(--brand-ink); border-color: var(--brand-ink); }
-.primary.block, .ghost.block { display: block; width: 100%; padding: 10px var(--sp-4); }
-
-.ghost {
-  padding: 8px 13px;
-  border: 1px solid var(--line-2);
-  background: #fff;
-  color: var(--ink-2);
-  font-weight: 500;
-}
-.ghost:hover:not(:disabled) { border-color: var(--brand); background: var(--brand-soft); color: var(--brand-ink); }
-
-/* studio ----------------------------------------------------------------- */
-.studio { min-height: 100vh; background: var(--bg); }
-.studio-bar {
-  position: sticky; top: 64px; z-index: 15;
-  background: rgba(255, 255, 255, .94);
-  backdrop-filter: saturate(180%) blur(12px);
-  border-bottom: 1px solid var(--line);
-}
-.studio-bar-inner { display: flex; align-items: center; gap: var(--sp-3); min-height: 60px; padding: 10px 0; }
-.studio-title { flex: 1 1 auto; min-width: 0; font-weight: 600; font-size: var(--fs-h3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.studio-tools { display: flex; align-items: center; gap: var(--sp-2); }
-
-.pill {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--good-soft);
-  color: var(--good);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  white-space: nowrap;
-}
-.pill.fail { background: var(--bad-soft); color: var(--bad); }
-.pill.manual { background: #f0ede6; color: var(--ink-2); }
-
-.quota-inline { margin: 0; font-size: var(--fs-xs); color: var(--ink-3); text-align: center; }
-.quota-inline.spent { color: var(--bad); font-weight: 600; }
-
-/* template switch -------------------------------------------------------- */
-/* A segmented control, not select: the number of forms is small and known up
-   front, so showing every option costs one row and saves a menu. */
-.tpl-switch {
-  display: flex; align-items: center; gap: var(--sp-1);
-  flex: 0 1 auto; min-width: 0; max-width: 100%;
-  padding: 3px;
-  border: 1px solid var(--line-2); border-radius: var(--r-md);
-  background: #f2eee7;
-  overflow-x: auto; scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
-}
-.tpl-tab {
-  flex: 0 0 auto;
-  padding: 6px 13px;
-  border: 1px solid transparent; border-radius: var(--r-sm);
-  background: none;
-  color: var(--ink-2);
-  font-size: var(--fs-sm); line-height: 1.4; white-space: nowrap;
-}
-.tpl-tab:hover { background: #eae4da; color: var(--ink); }
-.tpl-tab.on,
-.tpl-tab[aria-selected="true"] {
-  background: var(--brand);
-  color: #fff;
-  border-color: var(--brand);
-  font-weight: 600;
-  box-shadow: 0 1px 2px rgba(23, 44, 102, .25);
-}
-.tpl-tab:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
-
-.tpl-switch-note {
-  margin: 0; padding: 0 0 var(--sp-2);
-  font-size: var(--fs-xs); color: var(--ink-3);
+  --fs-sm:13px;
 }
 
-.studio-body {
-  display: grid;
-  grid-template-columns: 420px minmax(0, 1fr);
-  gap: var(--sp-4);
-  padding: var(--sp-4) 0 var(--sp-6);
-  align-items: start;
+/* ---------------------------------------------------------------------------
+ * 3. Bits the pages still need outside the design's own components: the
+ * disabled/focus states for plain <button>s, the error line app.js paints when
+ * /api/state fails, and the placeholder shown while that request is in flight.
+ * ------------------------------------------------------------------------- */
+button:disabled{cursor:not-allowed;opacity:.55}
+button:focus-visible,a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* loadState() paints this when /api/state fails */
+.notice{
+  display:flex;gap:var(--sp-2);align-items:baseline;flex-wrap:wrap;
+  margin:0 0 var(--sp-5);
+  padding:var(--sp-3) var(--sp-4);
+  border:1px solid var(--warn-line);
+  border-radius:var(--r-md);
+  background:var(--warn-soft);
+  color:#6f3d05;
+  font-size:var(--fs-sm);line-height:1.6;
 }
+.notice strong{color:var(--warn)}
 
-.panel {
-  position: sticky; top: 144px;
-  display: flex; flex-direction: column; gap: var(--sp-3);
-  padding: var(--sp-4);
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--card);
-  box-shadow: var(--shadow-sm);
+/* placeholder while /api/state is in flight */
+.skeleton-card{
+  height:280px;
+  border:1px dashed var(--line);
+  border-radius:18px;
+  background:linear-gradient(90deg,#f4f2ed,#fbfaf7,#f4f2ed);
+  background-size:200% 100%;
+  animation:sheen 1.3s infinite linear;
 }
-.panel-head h2 { margin: 0 0 2px; font-size: var(--fs-h3); }
-.panel-head p { margin: 0; color: var(--ink-3); font-size: var(--fs-xs); line-height: 1.55; }
+@keyframes sheen{from{background-position:0 0}to{background-position:-200% 0}}
 
-.panel-demo {
-  display: flex; flex-direction: column; gap: var(--sp-1);
-  padding: var(--sp-2) 0 0;
-}
-.panel-demo .dz-sub { margin: 0; text-align: center; }
+/* ---------------------------------------------------------------------------
+ * 4. The AI 填表 studio (#studio).
+ *
+ * The bar, the panel and the paper frame follow the fill-view design. The class
+ * names here are the design's own (sbar / seg / fpill / pnote / ptool …) rather
+ * than the old studio-bar / tpl-switch / panel-note set, which described a
+ * different layout.
+ * ------------------------------------------------------------------------- */
+.studio{min-height:100vh;background:var(--bg)}
+.studio .wrap{max-width:1280px}
 
-.dropzone {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-1);
-  padding: var(--sp-5) var(--sp-3);
-  border: 1.5px dashed var(--line-2);
-  border-radius: var(--r-md);
-  background: #fcfaf7;
-  text-align: center;
-  cursor: pointer;
-  transition: border-color .15s ease, background .15s ease;
-}
-.dropzone:hover, .dropzone.drag { border-color: var(--brand); background: var(--brand-soft); }
-.dz-icon {
-  display: grid; place-items: center;
-  width: 28px; height: 28px; margin-bottom: 2px;
-  border-radius: 50%;
-  background: var(--brand-soft); color: var(--brand);
-  font-size: 16px; font-weight: 600;
-}
-.dz-main { font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.5; }
-.dz-sub { font-size: var(--fs-xs); color: var(--ink-3); }
-.dropzone.has-file { border-style: solid; border-color: var(--good); background: var(--good-soft); }
-.dropzone.has-file .dz-main { color: var(--good); font-weight: 600; }
+/* studio bar ------------------------------------------------------------- */
+.sbar{border-bottom:1px solid var(--line);background:rgba(252,251,248,.9);backdrop-filter:blur(8px);position:sticky;top:0;z-index:4}
+.sbar-in{display:flex;align-items:center;gap:16px;padding:14px 32px}
+.back{display:inline-flex;align-items:center;gap:6px;padding:0;font-size:13.5px;color:var(--muted);white-space:nowrap}
+.back:hover{color:var(--ink)}
+.stitle{font-size:19px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.vsep{width:1px;height:20px;background:var(--line);flex:none}
 
-.or { display: flex; align-items: center; gap: var(--sp-2); color: var(--ink-3); font-size: var(--fs-xs); }
-.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+/* the template switch: a segmented control, because the number of forms is
+   small and known up front, so showing every option costs one row */
+.seg{display:inline-flex;gap:2px;margin-left:8px;padding:3px;border-radius:10px;background:#f1efea;min-width:0;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{height:30px;padding:0 14px;border:0;border-radius:8px;background:none;font-size:13px;color:#555;white-space:nowrap}
+.seg button small{color:var(--faint);font-size:11.5px;margin-left:4px}
+.seg button:hover{color:var(--ink)}
+.seg button.on,
+.seg button[aria-selected="true"]{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.04)}
+.seg button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
 
-textarea {
-  width: 100%;
-  padding: 10px var(--sp-3);
-  border: 1px solid var(--line-2);
-  border-radius: var(--r-sm);
-  background: #fcfaf7;
-  color: var(--ink);
-  font-family: inherit;
-  font-size: var(--fs-sm);
-  line-height: 1.6;
-  resize: vertical;
-}
-textarea::placeholder { color: var(--ink-3); }
-textarea:focus, .dropzone:focus-visible { outline: 2px solid var(--brand); outline-offset: -1px; border-color: var(--brand); background: #fff; }
+.stools{margin-left:auto;display:flex;align-items:center;gap:8px}
+.fpill{display:inline-flex;align-items:center;gap:7px;padding:3px 11px 3px 9px;border:1px solid var(--line);border-radius:999px;background:#fff;color:#333;font-size:12.5px;white-space:nowrap}
+.fpill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--grad);flex:none}
+.fpill.manual::before{background:#c9c6bf}
+.fpill.fail{border-color:var(--bad-line);background:var(--bad-soft);color:var(--bad)}
+.fpill.fail::before{background:var(--bad)}
 
-.panel-actions { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); }
+.snote{padding:0 0 12px;font-size:12.5px;color:var(--faint)}
 
-.status { padding: 10px var(--sp-3); border-radius: var(--r-sm); font-size: var(--fs-sm); line-height: 1.55; }
-.status.info { background: var(--brand-soft); color: var(--brand-ink); }
-.status.ok { background: var(--good-soft); color: var(--good); }
-.status.err { background: var(--bad-soft); color: var(--bad); }
-.status .spin {
-  display: inline-block; width: 12px; height: 12px; margin-right: 7px;
-  border: 2px solid rgba(36, 64, 142, .22); border-top-color: var(--brand); border-radius: 50%;
-  vertical-align: -1px; animation: spin .8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
+/* panel ------------------------------------------------------------------ */
+.studio-body{display:grid;grid-template-columns:380px minmax(0,1fr);gap:24px;align-items:start;padding-top:28px;padding-bottom:0}
+.studio-body>*{min-width:0}
 
-.warnbox {
-  padding: 10px var(--sp-3);
-  border: 1px solid var(--warn-line);
-  border-radius: var(--r-sm);
-  background: var(--warn-soft);
-  color: #6f3d05;
-  font-size: var(--fs-xs);
-  line-height: 1.55;
-}
-.warnbox ul { margin: 0; padding-left: 17px; }
+.panel{padding:22px;border:1px solid var(--line);border-radius:20px;background:var(--card);box-shadow:var(--shadow)}
+.step{display:flex;align-items:center;gap:10px}
+.step b{width:24px;height:24px;border-radius:7px;background:#1c1c1c;color:#fff;font-size:12.5px;display:grid;place-items:center;flex:none}
+.step h2{font-size:17px;font-weight:700;letter-spacing:-.02em}
+.step.lt b{background:#fff;color:#555;border:1px solid var(--line)}
+.panel .hint{font-size:13px;color:var(--muted);margin-top:6px}
 
-.panel-note { padding-top: var(--sp-3); border-top: 1px dashed var(--line); }
-.panel-note h3 { margin: 0 0 2px; font-size: var(--fs-sm); }
-.panel-note p { margin: 0; color: var(--ink-3); font-size: var(--fs-xs); line-height: 1.55; }
+/* drop zone: the icon square sits left, the two lines of copy right */
+.dropzone{display:flex;align-items:center;gap:14px;margin-top:16px;padding:18px;border:1.5px dashed #d8d5ce;border-radius:14px;background:#fcfbf9;text-align:left;cursor:pointer;transition:border-color .15s ease,background .15s ease}
+.dropzone:hover,.dropzone.drag{border-color:var(--brand);background:var(--brand-soft)}
+.dropzone .ic{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;font-size:18px;color:#777;flex:none}
+.dropzone .dz-text{display:block;min-width:0}
+.dropzone b{display:block;font-size:13.5px;font-weight:600;color:var(--ink)}
+.dropzone .dz-sub{display:block;font-size:12px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dropzone.has-file{border-style:solid;border-color:var(--good);background:var(--good-soft)}
+.dropzone.has-file b{color:var(--good)}
+.dropzone:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+.or{display:flex;align-items:center;gap:10px;margin:16px 0 10px;font-size:12px;color:var(--faint)}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line2)}
+
+.sample{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px;font-size:12px;color:var(--faint)}
+.linkbtn{padding:0;background:none;border:0;color:var(--ink);font-size:12px;font-weight:600}
+.linkbtn:hover{text-decoration:underline}
+
+.ta{display:block;width:100%;height:286px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;color:#333;font-family:inherit;font-size:13px;line-height:1.75;white-space:pre-wrap;overflow:auto;resize:vertical;box-shadow:inset 0 1px 2px rgba(0,0,0,.02)}
+.ta::placeholder{color:var(--faint)}
+.ta:focus{outline:2px solid var(--brand);outline-offset:-1px;border-color:var(--brand)}
+
+.pact{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:14px}
+
+.status{position:relative;margin-top:14px;padding:10px 12px 10px 26px;border:1px solid transparent;border-radius:12px;font-size:13px;line-height:1.55}
+.status::before{content:"";position:absolute;left:12px;top:16px;width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.status.info{background:var(--brand-soft);border-color:#f7dbe6;color:#7a2445}
+.status.info::before{display:none}
+.status.ok{background:#f4faf5;border-color:#dcefe0;color:#1f5130}
+.status.ok::before{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.15)}
+.status.err{background:var(--bad-soft);border-color:var(--bad-line);color:var(--bad)}
+.status.err::before{background:var(--bad)}
+.status .spin{display:inline-block;width:12px;height:12px;margin-right:7px;border:2px solid rgba(255,61,139,.22);border-top-color:var(--brand);border-radius:50%;vertical-align:-1px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.warnbox{margin-top:10px;padding:10px 12px;border:1px solid var(--warn-line);border-radius:12px;background:var(--warn-soft);color:#6f3d05;font-size:12.5px;line-height:1.55}
+.warnbox ul{margin:0;padding-left:17px}
+
+.pnote{margin-top:18px;padding-top:16px;border-top:1px solid var(--line2)}
+.pnote p{margin-top:6px;font-size:13px;color:var(--muted)}
 
 /* paper ------------------------------------------------------------------ */
-.paper-area {
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
-  background: var(--card);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-}
+.paper-area{min-width:0;padding:14px 14px 22px;border:1px solid var(--line);border-radius:20px;background:#f1efea}
+.ptool{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:2px 8px 12px;font-size:12.5px;color:var(--muted)}
+.legend{display:flex;align-items:center;gap:14px;white-space:nowrap}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{display:inline-block;width:14px;height:10px;border-radius:3px}
+.sw.f{background:#fdf1ea;border:1px solid #f5d2bf}
+.sw.e{background:#fff;border:1px dashed #c8c4bb}
 
-.demo-banner {
-  display: flex; align-items: center; gap: var(--sp-2);
-  padding: 10px var(--sp-4);
-  border-bottom: 1px solid var(--warn-line);
-  background: var(--warn-soft);
-  color: #6f3d05;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-.demo-banner-tag {
-  flex: 0 0 auto;
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: var(--warn);
-  color: #fff;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: .04em;
-}
+/* Horizontal scrolling is never allowed: the 794px sheet is scaled to the
+   column instead, so the whole form is visible on a laptop and on a phone. */
+.paper-scroll{max-height:calc(100vh - 240px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+.paper-holder{position:relative;margin:0 auto}
+.paper-fit{width:794px;transform-origin:top left;overflow:hidden;border-radius:6px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.05),0 12px 32px rgba(0,0,0,.07)}
+#paper{display:block;width:794px;height:1120px;border:0;background:#fff}
 
-.paper-toolbar {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
-  padding: 10px var(--sp-4);
-  border-bottom: 1px solid var(--line);
-  background: #fbf9f5;
-}
-.paper-hint { color: var(--ink-3); font-size: var(--fs-xs); }
-.paper-legend { display: flex; align-items: center; gap: var(--sp-1); color: var(--ink-3); font-size: var(--fs-xs); white-space: nowrap; }
-.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
-.dot.ai { background: #8aa6d8; }
-.dot.empty { background: #fff; border: 1px solid var(--line-2); }
-.paper-legend .dot.ai { margin-left: var(--sp-3); }
-.paper-legend .dot.empty { margin-left: var(--sp-2); }
-
-/* Horizontal scrolling is never allowed: the sheet is scaled to the column
-   instead, so the whole form is visible on a 1280 screen and on a phone. */
-.paper-scroll {
-  max-height: calc(100vh - 264px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: var(--sp-4);
-  background: var(--paper-bg);
-  overscroll-behavior: contain;
-}
-.paper-holder { position: relative; margin: 0 auto; }
-.paper-fit {
-  width: 794px;
-  transform-origin: top left;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(27, 36, 50, .14), 0 8px 24px -12px rgba(27, 36, 50, .28);
-}
-#paper { display: block; width: 794px; height: 1120px; border: 0; background: #fff; }
+/* the ☾ card, shown only when today's AI budget is gone */
+.studio-quota{padding-top:28px;padding-bottom:48px}
+.studio-quota .quota{max-width:760px}
 
 /* toast ------------------------------------------------------------------ */
-.toast {
-  position: fixed; left: 50%; bottom: var(--sp-5); z-index: 60;
-  transform: translate(-50%, 12px);
-  padding: 10px var(--sp-4);
-  border-radius: var(--r-sm);
-  background: #1b2432;
-  color: #fff;
-  font-size: var(--fs-sm);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .2s ease, transform .2s ease;
-  max-width: min(520px, 90vw);
-  box-shadow: var(--shadow-md);
-}
-.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast{position:fixed;left:50%;bottom:24px;z-index:60;transform:translate(-50%,12px);max-width:min(520px,90vw);padding:10px 16px;border-radius:10px;background:#1c1c1c;color:#fff;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s ease,transform .2s ease;box-shadow:var(--shadow-h)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
 
-/* responsive ------------------------------------------------------------- */
-/* The side panel is the first thing to give up its column: the form needs the
-   width more than the material box does. */
-@media (max-width: 1080px) {
-  .studio-body { grid-template-columns: 390px minmax(0, 1fr); }
+/* studio responsive ------------------------------------------------------- */
+@media (max-width:1100px){
+  .sbar-in{flex-wrap:wrap;row-gap:10px}
+  .stools{margin-left:0;width:100%;justify-content:flex-start}
+  .stools .fpill{margin-right:auto}
 }
-
-@media (max-width: 900px) {
-  .studio-body { grid-template-columns: 1fr; }
-  .panel { position: static; }
-  .paper-scroll { max-height: none; }
+@media (max-width:1023px){
+  .studio-body{grid-template-columns:1fr}
+  .ta{height:200px}
+  .paper-scroll{max-height:none}
 }
-
-@media (max-width: 720px) {
-  .wrap { width: calc(100% - var(--sp-4) * 2); }
-  .hero { padding: var(--sp-5) 0 var(--sp-4); }
-  .hero h1 { font-size: 24px; }
-  .topbar-inner { height: 56px; }
-  .studio-bar { top: 56px; }
-  .studio-bar-inner { flex-wrap: wrap; gap: var(--sp-2); }
-  .studio-bar-inner .back { order: 1; }
-  .studio-title { order: 2; flex: 1 1 120px; }
-  .tpl-switch { order: 4; flex: 1 1 100%; overflow: visible; flex-wrap: wrap; }
-  /* Two long labels do not fit one phone row, so they stack instead of
-     hiding half a tab behind a horizontal scroll. */
-  .tpl-tab { flex: 1 1 140px; text-align: center; }
-  .studio-tools { order: 3; flex: 1 1 100%; flex-wrap: wrap; }
-  .studio-tools .ghost, .studio-tools .primary { padding: 7px 11px; font-size: var(--fs-xs); }
-  .studio-tools .pill { order: -1; }
-  .paper-toolbar { flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); padding: var(--sp-2) var(--sp-3); }
-  .paper-legend .dot.ai { margin-left: 0; }
-  .paper-scroll { padding: var(--sp-2); }
-  .demo-banner { padding: var(--sp-2) var(--sp-3); font-size: var(--fs-xs); }
-  .demo-card { padding: var(--sp-4); }
+@media (max-width:860px){
+  .sbar-in{padding-left:20px;padding-right:20px}
+}
+@media (max-width:639px){
+  .sbar-in,.studio-quota{padding-left:16px;padding-right:16px}
+  .seg{margin-left:0;width:100%}
+  .seg button{flex:1}
+  .seg button small{display:none}
+  .stools{flex-wrap:wrap}
+  .stools .fpill{width:100%;justify-content:center;margin-right:0}
+  .stools .btn{flex:1}
+  .studio-body{padding-top:18px}
+  .ptool{flex-direction:column;align-items:flex-start;gap:6px}
+  .paper-area{padding:10px 10px 16px}
+  .pact .btn-lg{height:42px}
+  .studio-quota{padding-top:20px;padding-bottom:36px}
 }
 
-@media (max-width: 460px) {
-  .cards { grid-template-columns: 1fr; }
-  .topbar-links { display: none; }
-  .brand-text small { font-size: 11.5px; }
-  .demo-card .foot { flex-wrap: wrap; }
-  .demo-card .foot .dz-sub { flex: 1 1 100%; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
 }
 
 /* The frame is printed from its own document, so the parent's transform is
    not part of the output; this is the belt to that braces. */
-@media print {
-  .topbar, .studio-bar, .panel, .paper-toolbar, .toast, .hero,
-  .notice, .demos, .quota-spent, .demo-banner { display: none !important; }
-  .studio, .studio-body, .paper-area, .paper-scroll {
-    display: block; padding: 0; margin: 0; border: 0; box-shadow: none;
-    background: #fff; max-height: none; overflow: visible;
+@media print{
+  #app,.nav,footer,.sbar,.panel,.ptool,.toast,.studio-quota{display:none!important}
+  .studio,.studio-body,.paper-area,.paper-scroll{
+    display:block;padding:0;margin:0;border:0;box-shadow:none;
+    background:#fff;max-height:none;overflow:visible;
   }
-  .paper-holder { width: auto !important; height: auto !important; }
-  .paper-fit { width: auto; transform: none !important; box-shadow: none; }
+  .paper-holder{width:auto!important;height:auto!important}
+  .paper-fit{width:auto;transform:none!important;box-shadow:none;border-radius:0;overflow:visible}
   /* fitPaper() writes the content height inline, which is what keeps the frame
      from collapsing to the iframe default when the page itself is printed. */
-  #paper { width: 210mm; }
+  #paper{width:210mm}
 }

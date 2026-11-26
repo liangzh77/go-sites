@@ -4,7 +4,19 @@ Fill a school form from material the user brings: upload an Excel, paste some
 text, and the service places what it finds onto the right blanks. It is a demo
 of one idea, not a form tool — it knows no form's schema.
 
-Live at <https://liangz77.cn/school-ai-demo/>.
+Live at <https://liangz77.cn/ai-demo/>.
+
+## AI Demo 统一入口（2026-11-26）
+
+首页恢复原学校站视觉，分类为「学校」「外贸」。外贸三页：
+`/ai-demo/customer-email/`、`/ai-demo/quotation/`、`/ai-demo/order-validation/`。
+全部是人工编写的业务模拟，不是已交付客户成果，不接业务系统。
+
+发布静态资源为 `web/`；案例素材在 `cases/`，修改后运行
+`python3 -B cmd/school-ai-demo/build_cases.py`。测试及最小部署/回滚见
+[AI Demo 部署说明](../../docs/ai-demo-deployment.md)。学校后台内部路径继续沿用
+`/school-ai-demo`，Caddy 将新公开 API 路径映射到旧进程；旧公开链接只作 308 跳转。
+
 
 ## Why it is built this way
 
@@ -44,14 +56,14 @@ kept byte-for-byte in layout and print CSS.
 文字、上传、粘贴图片的实时点评入口；首页卡片位于 `web/app.js`。
 新 API 独立于本应用运行，复用现有 DeepSeek 配置，避免重建当前线上二进制。
 本地实现、测试及最小发布方案见 [school-essay-demo](../school-essay-demo/README.md)。
-2026-11-24 已上线：<https://liangz77.cn/school-ai-demo/essay-review.html>，首页可直接进入。新 API 独立运行于 9026；旧填表进程和数据库未改动。
+2026-11-24 已上线：<https://liangz77.cn/ai-demo/essay-review.html>，首页可直接进入。新 API 独立运行于 9026；旧填表进程和数据库未改动。
 
 ## 数学判卷（示例 + 实时判卷，已上线）
 
 新增静态页 `web/math-review.html`，展示两张原始数学练习照片和用户提供的
 AI 判卷表格，统一提示词为 `作为初一数学老师，判卷`。支持原图放大、
 复制提示词/Markdown 表格；首页源码已新增分类和入口。
-2026-11-24 已上线：<https://liangz77.cn/school-ai-demo/math-review.html>。
+2026-11-24 已上线：<https://liangz77.cn/ai-demo/math-review.html>。
 支持上传/粘贴试卷、DeepSeek 实时分析和逐题结果表格，同时保留两组预置示例。
 数学提示词可在页面编辑（默认 `作为初一数学老师，判卷`），示例图可一键放入实时区。
 `/api/math-review` 与作文共用 50 次日额度，失败退还；模糊题目标为待确认，
@@ -83,7 +95,7 @@ All under `SCHOOL_AI_DEMO_BASE_PATH` (default `/school-ai-demo`).
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `SCHOOL_AI_DEMO_ADDR` | `127.0.0.1:9025` | Caddy proxies to this; keep it on loopback |
-| `SCHOOL_AI_DEMO_BASE_PATH` | `/school-ai-demo` | must match the Caddy `handle` path |
+| `SCHOOL_AI_DEMO_BASE_PATH` | `/school-ai-demo` | internal prefix; Caddy maps public `/ai-demo` APIs onto it |
 | `SCHOOL_AI_DEMO_DATA_DIR` | `./school-ai-demo-data` | SQLite (WAL) lives here |
 | `SCHOOL_AI_DEEPSEEK_API_KEY` | *(empty)* | primary key; without it the page works and says AI filling is off |
 | `SCHOOL_AI_DEEPSEEK_API_KEY_BACKUP` | *(empty)* | optional; used once if the primary answers 401, 402 or 429 |

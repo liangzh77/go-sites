@@ -1,7 +1,7 @@
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
-const API = '/school-ai-demo/api/essay-review';
+const API = '/ai-demo/api/essay-review';
 let mode='text', busy=false, preparing=false, available=false, remaining=0, imageSupported=true;
 let selected=null, previewURL='', generation=0, output='', model='deepseek-v4.1-flash', toastTimer;
 function error(message=''){ $('error').textContent=message; $('error').hidden=!message; }
