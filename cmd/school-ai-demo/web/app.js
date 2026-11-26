@@ -271,7 +271,7 @@
   DEMOS.push(...TRADE_CASES, {
     key: 'pop-sticker-studio', cat: 'production', cover: 'stickers', title: '波普贴纸工作室',
     glyph: '贴纸', typeLabel: 'Agent Skill', keepTypeEnglish: true, desc: '先画贴纸，再用代码编排动作。同一套素材可以做成滚动互动网页，也可以导出 MP4。',
-    tags: () => ['互动网页', { text: 'MP4 短片', outline: true }],
+    tags: () => ['互动网页', { text: '视频', outline: true }],
     note: () => '复制网址即可让 Agent 安装', cta: '介绍与安装',
     open: () => { window.location.href = BASE + '/pop-sticker-studio/'; },
   });
