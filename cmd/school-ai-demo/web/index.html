@@ -8,6 +8,7 @@
 <meta name="description" content="学校日常小工具与外贸业务模拟案例：看原始材料、整理结果与人工接手流程。">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="case-nav.css">
 </head>
 <body>
 
@@ -26,17 +27,10 @@
 
 <!-- The nav and the footer sit outside #app: they stay on screen while the
      studio is open, exactly like the design. -->
-<header class="nav">
+<header class="nav case-nav">
   <a class="brand" href="./" data-home-link><svg aria-hidden="true"><use href="#logo"/></svg>AI Demo</a>
-  <nav class="links" aria-label="主要">
-    <a href="#demos" class="on" data-nav="home" data-home-link>全部 demo</a>
-    <a href="#fill" data-nav="fill" data-open-fill>AI 填表</a>
-    <a href="lesson-plan.html">生成教案</a>
-  </nav>
-  <div class="actions">
-    <a class="btn btn-o" href="https://liangz77.cn/" target="_blank" rel="noopener">liangz77.cn <span class="ar">↗</span></a>
-    <a class="btn btn-b" href="#fill" data-open-fill>开始填表</a>
-  </div>
+  <a class="btn btn-o" id="homeSiteLink" href="https://liangz77.cn/" target="_blank" rel="noopener">liangz77.cn <span class="ar">↗</span></a>
+  <button class="case-return" id="backBtn" type="button" hidden>← 全部案例</button>
 </header>
 
 <div id="app">
@@ -77,8 +71,6 @@
 <section class="studio" id="studio" hidden>
   <div class="sbar">
     <div class="wrap sbar-in">
-      <button class="back" id="backBtn" type="button"><span aria-hidden="true">←</span> 全部 demo</button>
-      <span class="vsep" aria-hidden="true"></span>
       <span class="stitle" id="studioTitle">AI 填表</span>
       <div class="seg" id="tplSwitch" role="tablist" aria-label="选择表格" hidden></div>
       <div class="stools">

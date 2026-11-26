@@ -65,14 +65,14 @@ def page(slug, title, intro, sections, data):
     before, after = before_after[slug]
     compare = '<section class="case-card compare-section"><h2>同一件工作，两种做法</h2><div class="compare"><div><h3>原来的做法</h3><p>'+before+'</p></div><div><h3>这个流程想改变的</h3><p>'+after+'</p></div></div><p class="draft-note">这是模拟工作方式，不是已经测得的客户成效。</p></section>'
     content = f'''<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fcfbf8"><title>{title} · AI Demo</title><meta name="description" content="{esc(intro)}"><link rel="icon" href="../favicon.svg"><link rel="stylesheet" href="../app.css"><link rel="stylesheet" href="../cases.css"></head>
-<body class="case-page"><header class="nav"><a class="brand" href="../"><span class="case-logo" aria-hidden="true">AI</span>AI Demo</a><a class="btn btn-o" href="../#trade">← 全部案例</a></header>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fcfbf8"><title>{title} · AI Demo</title><meta name="description" content="{esc(intro)}"><link rel="icon" href="../favicon.svg"><link rel="stylesheet" href="../app.css"><link rel="stylesheet" href="../cases.css"><link rel="stylesheet" href="../case-nav.css"></head>
+<body class="case-page"><header class="nav case-nav"><a class="brand" href="../#trade"><span class="case-logo" aria-hidden="true">AI</span>AI Demo</a><a class="case-return" href="../#trade">← 全部案例</a></header>
 <main class="case-wrap"><nav class="case-siblings" aria-label="外贸案例">{nav}</nav><header class="case-intro"><span class="case-label">外贸 · {title}</span><h1>{headlines[slug]}</h1><p>{esc(intro)}</p></header>
 {note('业务模拟，非真实客户成果。公司、客户和单据均为虚构；输入与展示结果由人工编写预置，未运行真实模型、未连接邮箱或 ERP。','neutral')}
 <p class="context">宁波澄禾礼品贸易（虚构，12 人） · 德国客户 Harbor Sample Trading / Alex Demo · 2027 年 8 月</p>
 <div class="case-workspace"><div class="case-steps" role="tablist" aria-label="演示步骤"><button type="button" role="tab" id="step-materials" aria-controls="materials" aria-selected="true">① 看原始材料</button><button type="button" role="tab" id="step-result" aria-controls="result" aria-selected="false" tabindex="-1">② 看整理结果</button><button type="button" role="tab" id="step-handoff" aria-controls="handoff" aria-selected="false" tabindex="-1">③ 看如何接手</button></div>
 {sections}</div>{compare}{section('boundaries','落地时，哪些事不能自动做？',checks(data)+note('AI 理解材料、生成草稿；程序负责确定性计算和校验；人批准价格、账期、交期、外发与生产放行。当前页面只演示流程，不执行这些操作。','neutral'))}
-<p class="case-end"><a class="btn btn-o" href="../#trade">← 返回外贸案例</a><a href="#materials">回到原始材料 ↑</a></p></main><footer>AI Demo · 学校 / 外贸 · <a href="https://liangz77.cn/">liangz77.cn</a></footer><p id="copy-status" class="case-toast" role="status" aria-live="polite"></p><script src="../cases.js"></script></body></html>'''
+<p class="case-end"><a href="#materials">回到原始材料 ↑</a></p></main><footer>AI Demo · 学校 / 外贸 · <a href="https://liangz77.cn/">liangz77.cn</a></footer><p id="copy-status" class="case-toast" role="status" aria-live="polite"></p><script src="../cases.js"></script></body></html>'''
     path = WEB / slug / 'index.html'
     path.parent.mkdir(exist_ok=True)
     path.write_text(content)

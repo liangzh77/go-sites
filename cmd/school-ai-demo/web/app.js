@@ -554,12 +554,12 @@
   // --- studio ---------------------------------------------------------------
   // The header is shared between the list and the studio, so it has to say
   // where the reader is: the home list shows only the logo and the site link,
-  // while the studio keeps the nav links with AI 填表 marked as current.
+  // while a case has one explicit return control in the top-right corner.
   function setNav(which) {
-    document.querySelectorAll('.links a[data-nav]').forEach((a) => {
-      a.classList.toggle('on', a.dataset.nav === which);
-    });
-    document.body.classList.toggle('is-home', which === 'home');
+    const home = which === 'home';
+    document.body.classList.toggle('is-home', home);
+    $('backBtn').hidden = home;
+    $('homeSiteLink').hidden = !home;
   }
 
   // A template is openable from the URL, so a teacher can bookmark one form
@@ -613,6 +613,7 @@
   }
 
   function closeStudio() {
+    state.filter = 'school';
     $('studio').hidden = true;
     $('app').hidden = false;
     setNav('home');
@@ -622,6 +623,8 @@
     state.demo = false;
     // The cards and their cached metadata are already here; no return fetch.
     applyFilter();
+    window.scrollTo({ top: 0 });
+    document.querySelector('#demoFilters [data-cat="school"]')?.focus({ preventScroll: true });
   }
 
   // The tab list is built from /api/state, so a file added to templates/

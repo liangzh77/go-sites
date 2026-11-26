@@ -1,0 +1,39 @@
+/* Shared detail-page header: a single explicit return action, top-right. */
+.nav.case-nav {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.case-nav .brand { min-width: 0; flex-shrink: 0; }
+.case-nav .case-return {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line, #e6e2da);
+  border-radius: 8px;
+  background: #fff;
+  color: #1c1c1c;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+  text-decoration: none;
+  box-shadow: 0 1px 1px rgba(0,0,0,.03);
+  cursor: pointer;
+}
+.case-nav .case-return:hover { background: #f7f6f3; }
+.case-nav .case-return:focus-visible { outline: 2px solid #b72c65; outline-offset: 3px; }
+.case-nav [hidden] { display: none !important; }
+@media (max-width: 640px) {
+  .nav.case-nav { padding: 12px 16px; gap: 12px; height: auto; }
+}
+@media print { .nav.case-nav { display: none !important; } }
