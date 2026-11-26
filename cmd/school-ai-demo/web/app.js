@@ -279,7 +279,7 @@
     glyph: '水墨', typeLabel: 'Agent Skill', keepTypeEnglish: true,
     desc: '用几幅静止的插画讲一个故事。先确认分镜，再试听旁白，最后用推拉和横移引导视线。',
     tags: () => ['分镜插画', { text: '视频', outline: true }],
-    note: () => '内含《半步》静画版', cta: '介绍与安装',
+    note: () => '示例：《寒衣 · 孟姜女哭长城》', cta: '介绍与安装',
     open: () => { window.location.href = BASE + '/ink-story-film/'; },
   });
 
@@ -298,7 +298,7 @@
       return `<span class="tg${t.outline ? ' o' : ''}">${escapeHTML(t.text)}</span>`;
     }).join('');
     const cover = d.cover === 'ink'
-      ? '<img class="shot" src="ink-story-film/half-step/poster.jpg" alt="" width="190" height="107" loading="lazy">'
+      ? '<img class="shot" src="ink-story-film/meng-jiang-nv/poster.jpg" alt="" width="190" height="107" loading="lazy">'
       : d.cover === 'stickers'
       ? '<img class="shot" src="pop-sticker-studio/style-board.jpg" alt="" width="190" height="107" loading="lazy">'
       : d.cover === 'trade'
