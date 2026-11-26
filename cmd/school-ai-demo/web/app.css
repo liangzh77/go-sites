@@ -99,6 +99,8 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .mform td{border:1px solid #e4e1da;padding:3px 5px;white-space:nowrap;overflow:hidden;max-width:80px;text-overflow:ellipsis}
 .mform td.l{color:var(--faint)}
 .mform td.f{background:#fdf1ea;color:#222}
+.tool-title{display:flex;align-items:center;gap:10px}
+.tool-title img{flex:none;object-fit:contain;border-radius:7px}
 .demo .body{padding:16px 10px 0;display:flex;flex-direction:column;flex:1}
 .demo h3{font-size:20px;line-height:1.3;font-weight:700;letter-spacing:-.02em;margin-top:12px}
 .demo p{color:var(--muted);font-size:14px;line-height:1.65;margin-top:6px}

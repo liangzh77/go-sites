@@ -306,7 +306,7 @@
     if (d.cat === 'tools') return `
       <a class="demo" data-demo="${escapeHTML(d.key)}" data-cat="tools" href="${escapeHTML(d.url)}" target="_blank" rel="noopener noreferrer">
         <div class="body"><div class="tags"><span class="tg">${escapeHTML(d.price || d.kind)}</span></div>
-          <h3>${escapeHTML(d.title)}</h3><p>${escapeHTML(d.desc || d.url)}</p>
+          <h3 class="tool-title"><img src="tool-icons/${escapeHTML(d.key)}.png" width="36" height="36" alt="">${escapeHTML(d.title)}</h3><p>${escapeHTML(d.desc || d.url)}</p>
           <div class="foot"><span>${escapeHTML(d.price ? '价格以官网为准' : new URL(d.url).hostname)}</span><span class="btn btn-b btn-sm">访问网站 ↗</span></div>
         </div>
       </a>`;
