@@ -270,7 +270,7 @@
 
   DEMOS.push(...TRADE_CASES, {
     key: 'pop-sticker-studio', cat: 'production', cover: 'stickers', title: '波普贴纸工作室',
-    glyph: '贴纸', typeLabel: 'Agent Skill', desc: '先画贴纸，再用代码编排动作。同一套素材可以做成滚动互动网页，也可以导出 MP4。',
+    glyph: '贴纸', typeLabel: 'Agent Skill', keepTypeEnglish: true, desc: '先画贴纸，再用代码编排动作。同一套素材可以做成滚动互动网页，也可以导出 MP4。',
     tags: () => ['互动网页', { text: 'MP4 短片', outline: true }],
     note: () => '复制网址即可让 Agent 安装', cta: '介绍与安装',
     open: () => { window.location.href = BASE + '/pop-sticker-studio/'; },
@@ -307,7 +307,7 @@
         <div class="cover">
           <span class="glyph" aria-hidden="true">${escapeHTML(d.glyph || '')}</span>
           ${cover}
-          <span class="type"><i></i>${escapeHTML(d.typeLabel || '')}</span>
+          <span class="type${d.keepTypeEnglish ? ' notranslate' : ''}"${d.keepTypeEnglish ? ' lang="en" translate="no"' : ''}><i></i>${escapeHTML(d.typeLabel || '')}</span>
         </div>
         <div class="body">
           <div class="tags">${tags}</div>
