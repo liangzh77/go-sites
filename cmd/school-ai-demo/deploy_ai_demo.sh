@@ -54,7 +54,7 @@ mv -Tf "$app/current.next" "$app/current"
 install -m 644 "$stage/site.caddy" "$site"
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 systemctl reload caddy
-for path in '' customer-email/ quotation/ order-validation/ lesson-plan.html essay-review.html math-review.html app.css app.js cases.css cases.js favicon.svg api/state api/templates/enrollment api/essay-review/status api/math-review/status; do
+for path in '' customer-email/ quotation/ order-validation/ lesson-plan.html essay-review.html math-review.html app.css app.js cases.css cases.js favicon.svg logo.svg guizang-ppt-skill/ api/state api/templates/enrollment api/essay-review/status api/math-review/status; do
   echo "Checking /ai-demo/$path"
   curl --retry 2 -fsS -o /dev/null "https://liangz77.cn/ai-demo/$path"
 done

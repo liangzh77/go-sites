@@ -39,7 +39,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 /* nav */
 .nav{height:64px;display:flex;align-items:center;justify-content:space-between;gap:24px;max-width:1280px;margin:0 auto;padding:0 32px;position:relative;z-index:5}
 .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px;letter-spacing:-.02em;white-space:nowrap}
-.brand svg{width:26px;height:26px;display:block}
+.brand .brandmark,.brand svg{width:26px;height:26px;display:block;flex:none}
 .links{display:flex;gap:4px;font-size:14px}
 .links a{padding:6px 12px;border-radius:8px;color:#3a3a3a;white-space:nowrap;transition:background .15s}
 .links a:hover{background:rgba(0,0,0,.04)}
@@ -163,7 +163,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 
 footer{margin-top:120px;border-top:1px solid var(--line);padding:28px 0 40px;text-align:center;color:var(--faint);font-size:13px}
 footer .brand{justify-content:center;font-size:14px;color:var(--ink);margin-bottom:6px}
-footer .brand svg{width:20px;height:20px}
+footer .brand .brandmark,footer .brand svg{width:20px;height:20px}
 
 /* responsive */
 @media (max-width:1023px){

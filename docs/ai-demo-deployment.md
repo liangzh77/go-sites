@@ -33,6 +33,14 @@ node --check cmd/school-ai-demo/web/cases.js
 - 只发布静态资源：不改 Caddy、不重启 `school-ai-demo` / `school-essay-demo` 进程、不动数据库。
 - 回归：`check_cases_browser.js` 135 项（新增三张制作卡、PPT 卡片海报与示例文案、新页面三种宽度的横向溢出）、`check_catalog_browser.js` 34 项（卡片总数 16）通过；`go test ./...`、两处 Go 构建、`node --check` 通过。
 
+## 站点图标换成分格标（2026-11-26）
+
+- 原来的图标是渐变方块里一个「学」字，只覆盖学校场景；页面里还并存三种写法（首页内联 SVG 的「学」、学校页的 `<span class="logo">学</span>`、外贸页的 `<span class="case-logo">AI</span>`）。现在统一成一个文件：`web/logo.svg` 渐变方块 + 2×2 白色圆角方块，代表四类案例。
+- 页头、页脚、各案例页、技能页都用 `<img class="brandmark" src="…/logo.svg" width="26" height="26" alt="">`；`.case-logo`、`.logo` 这两个渐变 span 规则删掉，尺寸改由 `app.css` / `cases.css` / `essay/essay.css` 的 `.brandmark` 规则统一到 26px（页脚 20px）。
+- `favicon.svg` 换成同一图案，并给所有页面的 `<link rel="icon">` 加 `?v=mark-1`，否则浏览器会一直显示旧的「学」；`app.css?v=mark-1`、`essay/essay.css?v=mark-1` 同步换号。
+- 部署脚本的线上校验清单加上 `/ai-demo/logo.svg` 和 `/ai-demo/guizang-ppt-skill/`。
+- 仍只动静态文件：不改 Caddy、不重启服务、不写库。回归 `check_cases_browser.js` 135 项、`check_catalog_browser.js` 34 项通过。
+
 ## 首页前端缓存（2026-11-26 增量修复）
 
 - 案例定义本来就随 `app.js` 发布；首页改为同步渲染，不再等待 `/api/state`。首次打开、分类切换、详情返回、浏览器后退及填表返回都不为列表请求后端。
