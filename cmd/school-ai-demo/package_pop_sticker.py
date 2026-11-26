@@ -5,7 +5,7 @@ from shutil import copyfile
 
 files = """SKILL.md agents/openai.yaml examples/scene.json examples/art/pan.webp examples/art/raw.webp examples/art/seared.webp references/style-board.jpg references/motion.md scripts/export_web.py scripts/stage.html scripts/render.py scripts/outline.py""".split()
 p=argparse.ArgumentParser(description=__doc__);p.add_argument('source',type=Path);args=p.parse_args()
-out=Path(__file__).parent/'web/pop-sticker-studio';out.mkdir(exist_ok=True);name='pop-sticker-studio';version='1.0.0';base='https://liangz77.cn/ai-demo/'+name+'/'
+out=Path(__file__).parent/'web/pop-sticker-studio';out.mkdir(exist_ok=True);name='pop-sticker-studio';version='1.0.1';base='https://liangz77.cn/ai-demo/'+name+'/'
 archive=out/f'{name}-{version}.zip'
 with zipfile.ZipFile(archive,'w') as z:
     for f in sorted(files):
