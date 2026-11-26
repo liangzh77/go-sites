@@ -14,7 +14,9 @@ async () => {
   const load=async (hash='',opts={})=>{
     frame?.remove();frame=document.createElement('iframe');frame.style.cssText='width:375px;height:700px;position:fixed;top:0;left:0;background:#fff;z-index:9999';
     document.body.append(frame);
-    await new Promise(resolve=>{frame.onload=resolve;frame.src='/ai-demo/'+hash;});
+    // Start on an API-free static page. Loading the real form first would
+    // leave an in-flight real state request racing the isolated mock below.
+    await new Promise(resolve=>{frame.onload=resolve;frame.src='/ai-demo/quotation/';});
     const w=frame.contentWindow,d=w.document;
     d.open();d.write(html.replace(/<script src="app.js"><\/script>/,''));d.close();
     w.history.replaceState(null,'','/ai-demo/'+hash);
