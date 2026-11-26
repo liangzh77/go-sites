@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS providers (
 	auth_mode      TEXT NOT NULL,
 	note           TEXT NOT NULL DEFAULT '',
 	enabled        INTEGER NOT NULL DEFAULT 1,
+	sort_order     INTEGER NOT NULL DEFAULT 0,
 	config_rev     INTEGER NOT NULL DEFAULT 1,
 	created_at     TEXT NOT NULL,
 	updated_at     TEXT NOT NULL
@@ -136,6 +137,17 @@ func openKeyStore(path string, cipher *secretCipher) (*keyStore, error) {
 		db.Close()
 		return nil, fmt.Errorf("migrate model metadata: %w", err)
 	}
+	if err := ensureColumn(db, "providers", "sort_order", "INTEGER NOT NULL DEFAULT 0"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate provider order: %w", err)
+	}
+	if _, err := db.Exec(`
+		UPDATE providers
+		   SET sort_order = rowid * 10
+		 WHERE sort_order = 0`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("initialize provider order: %w", err)
+	}
 	for _, column := range []struct {
 		name       string
 		definition string
@@ -194,7 +206,7 @@ func (s *keyStore) listProviders() ([]Provider, error) {
 		       p.auth_mode, p.note, p.enabled, p.created_at, p.updated_at, p.config_rev,
 		       (SELECT COUNT(*) FROM api_keys k WHERE k.provider_id = p.id)
 		  FROM providers p
-		 ORDER BY p.created_at, p.name`)
+		 ORDER BY p.sort_order, p.created_at, p.name`)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +307,7 @@ func scanAPIKey(scanner interface{ Scan(...any) error }) (APIKey, error) {
 	k.ReminderDays = reminders
 	k.ExpiryDays = expiryDays(k.ExpiresOn)
 	if json.Valid([]byte(quotaJSON)) && strings.TrimSpace(quotaJSON) != "{}" {
-		var quota OpenCodeGoQuota
+		var quota QuotaSnapshot
 		if json.Unmarshal([]byte(quotaJSON), &quota) == nil {
 			quota.FetchedAt = k.QuotaFetchedAt
 			k.Quota = &quota
@@ -382,8 +394,10 @@ func (s *keyStore) createProvider(input ProviderInput) (Provider, error) {
 	_, err = s.db.Exec(`
 		INSERT INTO providers
 			(id, name, preset_id, category, protocol, base_url, auth_mode, note, enabled,
-			 config_rev, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+			 sort_order, config_rev, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,
+		        (SELECT COALESCE(MAX(sort_order), 0) + 10 FROM providers),
+		        1, ?, ?)`,
 		id, normalized.Name, normalized.PresetID, normalized.Category, normalized.Protocol,
 		normalized.BaseURL, normalized.AuthMode, normalized.Note, boolInt(*normalized.Enabled),
 		now, now,
@@ -397,6 +411,68 @@ func (s *keyStore) createProvider(input ProviderInput) (Provider, error) {
 		AuthMode: normalized.AuthMode, Note: normalized.Note, Enabled: *normalized.Enabled,
 		Keys: []APIKey{}, Models: []ModelConfig{}, CreatedAt: now, UpdatedAt: now, ConfigRev: 1,
 	}, nil
+}
+
+func (s *keyStore) moveProvider(id, direction string) error {
+	if direction != "up" && direction != "down" {
+		return invalid("direction", "移动方向必须是 up 或 down")
+	}
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.Query(`
+		SELECT id, sort_order
+		  FROM providers
+		 ORDER BY sort_order, created_at, name`)
+	if err != nil {
+		return err
+	}
+	type orderedProvider struct {
+		id    string
+		order int64
+	}
+	providers := make([]orderedProvider, 0)
+	found := -1
+	for rows.Next() {
+		var provider orderedProvider
+		if err := rows.Scan(&provider.id, &provider.order); err != nil {
+			rows.Close()
+			return err
+		}
+		if provider.id == id {
+			found = len(providers)
+		}
+		providers = append(providers, provider)
+	}
+	if err := rows.Close(); err != nil {
+		return err
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if found < 0 {
+		return errNotFound
+	}
+	target := found - 1
+	if direction == "down" {
+		target = found + 1
+	}
+	if target < 0 || target >= len(providers) {
+		return tx.Commit()
+	}
+	left, right := providers[found], providers[target]
+	if _, err := tx.Exec(`UPDATE providers SET sort_order = ? WHERE id = ?`, right.order, left.id); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE providers SET sort_order = ? WHERE id = ?`, left.order, right.id); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (s *keyStore) updateProvider(id string, input ProviderInput) (Provider, error) {
@@ -1072,7 +1148,7 @@ func (s *keyStore) detectionTarget(keyID string) (DetectionTarget, error) {
 	target.Key.QuotaFetchedAt = quotaAt
 	target.Key.QuotaError = quotaErr
 	if json.Valid([]byte(quotaJSON)) && strings.TrimSpace(quotaJSON) != "{}" {
-		var quota OpenCodeGoQuota
+		var quota QuotaSnapshot
 		if json.Unmarshal([]byte(quotaJSON), &quota) == nil {
 			quota.FetchedAt = quotaAt
 			target.Key.Quota = &quota

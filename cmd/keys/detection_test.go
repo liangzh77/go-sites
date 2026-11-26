@@ -351,3 +351,203 @@ func TestOpenCodeGoQuotaParsing(t *testing.T) {
 		t.Fatalf("monthly percent = %f", quota.Monthly.Percent)
 	}
 }
+
+func TestOllamaQuotaParsing(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.String() != "https://ollama.com/api/balance" {
+			t.Fatalf("quota URL = %q", request.URL.String())
+		}
+		if request.Header.Get("Authorization") != "Bearer ollama_secret" {
+			t.Fatalf("quota authorization = %q", request.Header.Get("Authorization"))
+		}
+		body := `{
+			"included":{
+				"balance_usd":72.5,
+				"allowance_usd":100,
+				"period":{
+					"from":"2026-11-15T09:30:00Z",
+					"until":"2026-12-15T09:30:00Z"
+				}
+			},
+			"purchased":{"balance_usd":25}
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    request,
+		}, nil
+	})}
+	detector := newDetector()
+	detector.client = client
+	quota, err := detector.fetchOllamaQuota(context.Background(), Provider{
+		PresetID: "ollama",
+		BaseURL:  "https://ollama.com/v1",
+		AuthMode: authBearer,
+	}, "ollama_secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quota.Kind != "ollama" || quota.Ollama == nil ||
+		quota.Ollama.IncludedBalanceUSD == nil || *quota.Ollama.IncludedBalanceUSD != 72.5 ||
+		quota.Ollama.AllowanceUSD == nil || *quota.Ollama.AllowanceUSD != 100 ||
+		quota.Ollama.PurchasedBalanceUSD == nil || *quota.Ollama.PurchasedBalanceUSD != 25 ||
+		quota.Ollama.PeriodUntil != "2026-12-15T09:30:00Z" {
+		t.Fatalf("Ollama quota = %+v", quota)
+	}
+}
+
+func TestOllamaLegacyQuotaParsingClampsPercent(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		body := `{
+			"included":{
+				"session":{"remaining_percent":125,"resets_at":"2026-11-24T12:00:00Z"},
+				"weekly":{"remaining_percent":40,"resets_at":"2026-11-30T00:00:00Z"}
+			},
+			"purchased":{"balance_usd":5}
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    request,
+		}, nil
+	})}
+	detector := newDetector()
+	detector.client = client
+	quota, err := detector.fetchOllamaQuota(context.Background(), Provider{
+		PresetID: "ollama",
+		BaseURL:  "https://ollama.com/v1",
+		AuthMode: authBearer,
+	}, "ollama_secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quota.Ollama == nil ||
+		quota.Ollama.SessionRemainingPercent == nil || *quota.Ollama.SessionRemainingPercent != 100 ||
+		quota.Ollama.WeeklyRemainingPercent == nil || *quota.Ollama.WeeklyRemainingPercent != 40 {
+		t.Fatalf("legacy Ollama quota = %+v", quota.Ollama)
+	}
+}
+
+func TestDeepSeekBalanceParsing(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.String() != "https://api.deepseek.com/user/balance" {
+			t.Fatalf("balance URL = %q", request.URL.String())
+		}
+		if request.Header.Get("Authorization") != "Bearer deepseek_secret" {
+			t.Fatalf("balance authorization = %q", request.Header.Get("Authorization"))
+		}
+		body := `{
+			"is_available":true,
+			"balance_infos":[
+				{
+					"currency":"CNY",
+					"total_balance":"110.00",
+					"granted_balance":"10.00",
+					"topped_up_balance":"100.00"
+				},
+				{
+					"currency":"USD",
+					"total_balance":"5.50",
+					"granted_balance":"0.50",
+					"topped_up_balance":"5.00"
+				}
+			]
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    request,
+		}, nil
+	})}
+	detector := newDetector()
+	detector.client = client
+	quota, err := detector.fetchDeepSeekQuota(context.Background(), Provider{
+		PresetID: "deepseek",
+		BaseURL:  "https://api.deepseek.com",
+		AuthMode: authBearer,
+	}, "deepseek_secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quota.Kind != "deepseek" || quota.DeepSeek == nil || !quota.DeepSeek.IsAvailable ||
+		len(quota.DeepSeek.Balances) != 2 {
+		t.Fatalf("DeepSeek quota = %+v", quota)
+	}
+	cny := quota.DeepSeek.Balances[0]
+	if cny.Currency != "CNY" || cny.TotalBalance != "110.00" ||
+		cny.GrantedBalance != "10.00" || cny.ToppedUpBalance != "100.00" {
+		t.Fatalf("DeepSeek CNY balance = %+v", cny)
+	}
+}
+
+func TestKimiBalanceParsing(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.String() != "https://api.moonshot.cn/v1/users/me/balance" {
+			t.Fatalf("balance URL = %q", request.URL.String())
+		}
+		if request.Header.Get("Authorization") != "Bearer kimi_secret" {
+			t.Fatalf("balance authorization = %q", request.Header.Get("Authorization"))
+		}
+		body := `{
+			"code":0,
+			"data":{
+				"available_balance":49.58894,
+				"voucher_balance":46.58893,
+				"cash_balance":3.00001
+			},
+			"scode":"0x0",
+			"status":true
+		}`
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    request,
+		}, nil
+	})}
+	detector := newDetector()
+	detector.client = client
+	quota, err := detector.fetchKimiQuota(context.Background(), Provider{
+		PresetID: "moonshot",
+		BaseURL:  "https://api.moonshot.cn/v1",
+		AuthMode: authBearer,
+	}, "kimi_secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quota.Kind != "kimi" || quota.Kimi == nil || quota.Kimi.Currency != "CNY" ||
+		quota.Kimi.AvailableBalance != 49.58894 ||
+		quota.Kimi.VoucherBalance != 46.58893 ||
+		quota.Kimi.CashBalance != 3.00001 {
+		t.Fatalf("Kimi quota = %+v", quota)
+	}
+}
+
+func TestKimiInternationalBalanceCurrency(t *testing.T) {
+	detector := newDetector()
+	detector.client = &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
+		if request.URL.String() != "https://api.moonshot.ai/v1/users/me/balance" {
+			t.Fatalf("balance URL = %q", request.URL.String())
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"code":0,"status":true,"data":{"available_balance":1,"voucher_balance":0,"cash_balance":1}}`)),
+			Request:    request,
+		}, nil
+	})}
+	quota, err := detector.fetchKimiQuota(context.Background(), Provider{
+		PresetID: "moonshot",
+		BaseURL:  "https://api.moonshot.ai/v1",
+		AuthMode: authBearer,
+	}, "kimi_secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if quota.Kimi == nil || quota.Kimi.Currency != "USD" {
+		t.Fatalf("international Kimi quota = %+v", quota)
+	}
+}

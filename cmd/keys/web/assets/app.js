@@ -366,27 +366,127 @@
     </div>`;
   }
 
-  function renderQuotaTooltip(key) {
+  function quotaRemainingMeterHTML(label, percent, resetsAt, detail) {
+    const remaining = Math.max(0, Math.min(100, Number(percent || 0)));
+    const level = remaining <= 10 ? "danger" : remaining <= 30 ? "warning" : "";
+    const countdown = formatQuotaRemaining(resetsAt);
+    const resetText = countdown === "剩余时间未知" || countdown === "即将重置"
+      ? countdown
+      : `剩余 ${countdown}`;
+    return `<div class="quota-meter">
+      <div class="quota-meter-head">
+        <span>${label}</span>
+        <strong>${remaining.toFixed(2)}%</strong>
+      </div>
+      <progress class="quota-progress ${level}" max="100" value="${remaining}"></progress>
+      <div class="quota-meter-foot">
+        <span>${detail}</span>
+        <span>${resetText}</span>
+      </div>
+      <small class="quota-reset-at">重置于 ${formatQuotaReset(resetsAt)}</small>
+    </div>`;
+  }
+
+  function ollamaQuotaHTML(quota) {
+    const ollama = quota.ollama || {};
+    const included = Number(ollama.includedBalanceUsd || 0);
+    const allowance = Number(ollama.allowanceUsd || 0);
+    const purchased = Number(ollama.purchasedBalanceUsd || 0);
+    const parts = [];
+    if (ollama.includedBalanceUsd != null && ollama.allowanceUsd != null) {
+      const remainingPercent = allowance > 0 ? included / allowance * 100 : 0;
+      parts.push(quotaRemainingMeterHTML(
+        "计划内余额",
+        remainingPercent,
+        ollama.periodUntil,
+        `${formatUSD(included)} / ${formatUSD(allowance)}`,
+      ));
+    }
+    if (ollama.sessionRemainingPercent != null) {
+      parts.push(quotaRemainingMeterHTML(
+        "会话额度",
+        ollama.sessionRemainingPercent,
+        ollama.sessionResetsAt,
+        "旧套餐窗口",
+      ));
+    }
+    if (ollama.weeklyRemainingPercent != null) {
+      parts.push(quotaRemainingMeterHTML(
+        "每周额度",
+        ollama.weeklyRemainingPercent,
+        ollama.weeklyResetsAt,
+        "旧套餐窗口",
+      ));
+    }
+    parts.push(`<div class="quota-balance"><span>购买余额</span><strong>${formatUSD(purchased)}</strong></div>`);
+    return parts.join("");
+  }
+
+  function formatAccountBalance(currency, value) {
+    const amount = Number(value);
+    const code = String(currency || "").toUpperCase();
+    if (!Number.isFinite(amount)) return `${escapeHTML(value || "—")} ${escapeHTML(code)}`;
+    if (code === "CNY" || code === "USD") {
+      return new Intl.NumberFormat("zh-CN", {
+        style: "currency",
+        currency: code,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(amount);
+    }
+    return `${amount.toFixed(2)} ${escapeHTML(code)}`;
+  }
+
+  function deepSeekQuotaHTML(quota) {
+    const deepseek = quota.deepseek || {};
+    const balances = Array.isArray(deepseek.balances) ? deepseek.balances : [];
+    const availability = deepseek.isAvailable
+      ? '<span class="quota-account-status available">账户可用</span>'
+      : '<span class="quota-account-status unavailable">余额不可用</span>';
+    if (!balances.length) {
+      return `${availability}<p class="quota-hint">账户没有返回可展示的币种余额。</p>`;
+    }
+    return availability + balances.map((balance) => `<div class="quota-balance quota-balance-stack">
+      <div>
+        <span>${escapeHTML(balance.currency || "余额")} · 总余额</span>
+        <strong>${formatAccountBalance(balance.currency, balance.totalBalance)}</strong>
+      </div>
+      <small>赠送 ${formatAccountBalance(balance.currency, balance.grantedBalance)} · 充值 ${formatAccountBalance(balance.currency, balance.toppedUpBalance)}</small>
+    </div>`).join("");
+  }
+
+  function renderQuotaTooltip(provider, key) {
     if (key.quota) {
       const warning = key.quotaError
         ? `<p class="quota-warning">${escapeHTML(key.quotaError)}（当前显示上次成功结果）</p>`
         : "";
+      const isOllama = provider.presetId === "ollama" || key.quota.kind === "ollama";
+      const isDeepSeek = provider.presetId === "deepseek" || key.quota.kind === "deepseek";
+      const title = isOllama ? "Ollama Cloud 额度" : isDeepSeek ? "DeepSeek 账户余额" : "OpenCode Go 额度";
+      const details = isOllama
+        ? ollamaQuotaHTML(key.quota)
+        : isDeepSeek
+          ? deepSeekQuotaHTML(key.quota)
+          : `${quotaMeterHTML("5 小时", key.quota.rolling)}
+             ${quotaMeterHTML("本周", key.quota.weekly)}
+             ${quotaMeterHTML("本月", key.quota.monthly)}`;
       return `<div class="quota-tooltip-title">
-        <strong>OpenCode Go 额度</strong>
+        <strong>${title}</strong>
         <span>${escapeHTML(key.quota.fetchedAt ? new Date(key.quota.fetchedAt).toLocaleString("zh-CN") : key.quotaFetchedAt || "刚刚")}</span>
       </div>
-      ${quotaMeterHTML("5 小时", key.quota.rolling)}
-      ${quotaMeterHTML("本周", key.quota.weekly)}
-      ${quotaMeterHTML("本月", key.quota.monthly)}
+      ${details}
       ${warning}`;
     }
+    const isOllama = provider.presetId === "ollama";
+    const isDeepSeek = provider.presetId === "deepseek";
+    const title = isOllama ? "Ollama Cloud 额度" : isDeepSeek ? "DeepSeek 账户余额" : "OpenCode Go 额度";
     if (key.quotaError) {
-      return `<div class="quota-tooltip-title"><strong>OpenCode Go 额度</strong></div>
+      return `<div class="quota-tooltip-title"><strong>${title}</strong></div>
         <p class="quota-warning">${escapeHTML(key.quotaError)}</p>
         <p class="quota-hint">点击“检测”可再次尝试获取。</p>`;
     }
-    return `<div class="quota-tooltip-title"><strong>OpenCode Go 额度</strong></div>
-      <p class="quota-hint">尚未获取。点击对应 Key 的“检测”后会自动读取 5 小时、周、月额度。</p>`;
+    return `<div class="quota-tooltip-title"><strong>${title}</strong></div>
+      <p class="quota-hint">尚未获取。点击对应 Key 的“检测”后会自动读取额度。</p>`;
   }
 
   function positionQuotaTooltip(trigger) {
@@ -407,7 +507,7 @@
     if (!found) return;
     const tooltip = $("keyQuotaTooltip");
     state.quotaTooltipKeyID = found.key.id;
-    tooltip.innerHTML = renderQuotaTooltip(found.key);
+    tooltip.innerHTML = renderQuotaTooltip(found.provider, found.key);
     tooltip.hidden = false;
     positionQuotaTooltip(trigger);
     window.clearInterval(state.quotaTooltipTimer);
@@ -421,7 +521,7 @@
         hideQuotaTooltip();
         return;
       }
-      tooltip.innerHTML = renderQuotaTooltip(current.key);
+      tooltip.innerHTML = renderQuotaTooltip(current.provider, current.key);
       positionQuotaTooltip(currentTrigger);
     }, 60_000);
   }
@@ -433,14 +533,129 @@
     $("keyQuotaTooltip").hidden = true;
   }
 
+  function formatAccountTime(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    return Number.isNaN(date.valueOf())
+      ? escapeHTML(value)
+      : escapeHTML(date.toLocaleString("zh-CN", {
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }));
+  }
+
+  function accountItemHTML(label, value, detail = "", className = "") {
+    return `<span class="account-item ${className}">
+      <b>${escapeHTML(label)}</b>
+      <strong>${value}</strong>
+      ${detail ? `<small>${detail}</small>` : ""}
+    </span>`;
+  }
+
+  function accountQuotaItems(provider, key) {
+    const quota = key.quota;
+    if (!quota) return [];
+    const kind = quota.kind || provider.presetId;
+    if (kind === "deepseek" && quota.deepseek) {
+      const items = [accountItemHTML(
+        "账户状态",
+        quota.deepseek.isAvailable ? "可用" : "不可用",
+        "",
+        quota.deepseek.isAvailable ? "primary" : "danger",
+      )];
+      items.push(...(quota.deepseek.balances || []).map((balance) =>
+        accountItemHTML(
+          `${balance.currency || "余额"} 总余额`,
+          formatAccountBalance(balance.currency, balance.totalBalance),
+          `赠送 ${formatAccountBalance(balance.currency, balance.grantedBalance)} · 充值 ${formatAccountBalance(balance.currency, balance.toppedUpBalance)}`,
+        )));
+      return items;
+    }
+    if (kind === "kimi" && quota.kimi) {
+      const currency = quota.kimi.currency || "CNY";
+      return [
+        accountItemHTML("可用余额", formatAccountBalance(currency, quota.kimi.availableBalance), "", "primary"),
+        accountItemHTML("代金券", formatAccountBalance(currency, quota.kimi.voucherBalance)),
+        accountItemHTML("现金", formatAccountBalance(currency, quota.kimi.cashBalance)),
+      ];
+    }
+    if (kind === "ollama" && quota.ollama) {
+      const ollama = quota.ollama;
+      const items = [];
+      if (ollama.includedBalanceUsd != null && ollama.allowanceUsd != null) {
+        items.push(accountItemHTML(
+          "计划内余额",
+          `${formatUSD(ollama.includedBalanceUsd)} / ${formatUSD(ollama.allowanceUsd)}`,
+          ollama.periodUntil ? `重置于 ${formatQuotaReset(ollama.periodUntil)}` : "",
+          "primary",
+        ));
+      }
+      items.push(accountItemHTML(
+        "购买余额",
+        formatUSD(ollama.purchasedBalanceUsd),
+      ));
+      if (ollama.sessionRemainingPercent != null) {
+        items.push(accountItemHTML(
+          "会话额度",
+          `${Number(ollama.sessionRemainingPercent).toFixed(2)}%`,
+          `重置于 ${formatQuotaReset(ollama.sessionResetsAt)}`,
+        ));
+      }
+      if (ollama.weeklyRemainingPercent != null) {
+        items.push(accountItemHTML(
+          "每周额度",
+          `${Number(ollama.weeklyRemainingPercent).toFixed(2)}%`,
+          `重置于 ${formatQuotaReset(ollama.weeklyResetsAt)}`,
+        ));
+      }
+      return items;
+    }
+    if (kind === "opencode-go") {
+      return [
+        accountItemHTML("5 小时", `${Number(quota.rolling.percent || 0).toFixed(2)}%`, `${formatUSD(quota.rolling.usedUsd)} / ${formatUSD(quota.rolling.limitUsd)}`),
+        accountItemHTML("本周", `${Number(quota.weekly.percent || 0).toFixed(2)}%`, `${formatUSD(quota.weekly.usedUsd)} / ${formatUSD(quota.weekly.limitUsd)}`),
+        accountItemHTML("本月", `${Number(quota.monthly.percent || 0).toFixed(2)}%`, `${formatUSD(quota.monthly.usedUsd)} / ${formatUSD(quota.monthly.limitUsd)}`),
+      ];
+    }
+    return [];
+  }
+
+  function renderAccountRow(provider, key) {
+    const supported = ["opencode-go", "ollama", "deepseek", "moonshot"].includes(provider.presetId) ||
+      Boolean(key.quota || key.quotaError);
+    const volcengine = provider.presetId === "volcengine";
+    if (!supported && !volcengine) return "";
+    let items = accountQuotaItems(provider, key);
+    if (!items.length) {
+      if (volcengine) {
+        items = [`<span class="account-item account-unavailable"><b>账户余额</b><small>普通方舟 API Key 无法读取；需费用中心签名凭证</small></span>`];
+      } else {
+        items = [`<span class="account-item account-muted"><b>账户余额</b><small>点击“检测”后自动读取</small></span>`];
+      }
+    }
+    if (key.quotaFetchedAt && key.quota) {
+      items.push(`<span class="account-updated">更新 ${formatAccountTime(key.quotaFetchedAt || key.quota.fetchedAt)}</span>`);
+    }
+    if (key.quotaError) {
+      items.push(`<span class="account-error">${escapeHTML(key.quotaError)}</span>`);
+    }
+    return `<tr class="account-row">
+      <td colspan="7">
+        <div class="account-strip">
+          <span class="account-label">ACCOUNT</span>
+          ${items.join("")}
+        </div>
+      </td>
+    </tr>`;
+  }
+
   function renderKeyRow(provider, key) {
     const disabled = key.enabled ? "" : " is-disabled";
-    const quotaTrigger = provider.presetId === "opencode-go" || key.quota || key.quotaError
-      ? ` class="key-alias quota-trigger" tabindex="0" data-quota-key-id="${escapeAttr(key.id)}"`
-      : ' class="key-alias"';
     return `<tr class="${disabled}">
       <td data-label="KEY">
-        <span${quotaTrigger}>${escapeHTML(key.alias)}</span>
+        <span class="key-alias">${escapeHTML(key.alias)}</span>
         ${key.note ? `<span class="key-note">${escapeHTML(key.note)}</span>` : ""}
       </td>
       <td data-label="脱敏密钥"><code class="masked-key">${escapeHTML(key.maskedKey)}</code></td>
@@ -458,10 +673,12 @@
           <button class="tiny-button danger" type="button" data-action="delete-key" data-key-id="${escapeAttr(key.id)}">删除</button>
         </div>
       </td>
-    </tr>`;
+    </tr>${renderAccountRow(provider, key)}`;
   }
 
   function renderProvider(provider, keys) {
+    const providerIndex = state.providers.findIndex((item) => item.id === provider.id);
+    const moving = state.pending.has(`move:${provider.id}`);
     const visibleModels = provider.models.slice(0, 6);
     const hiddenModelCount = Math.max(0, provider.models.length - visibleModels.length);
     const models = provider.models.length
@@ -496,6 +713,8 @@
           </div>
         </div>
         <div class="provider-actions">
+          <button class="tiny-button" type="button" data-action="move-provider" data-direction="up" data-provider-id="${escapeAttr(provider.id)}" title="上移 Provider" aria-label="上移 ${escapeAttr(provider.name)}" ${providerIndex <= 0 || moving ? "disabled" : ""}>↑</button>
+          <button class="tiny-button" type="button" data-action="move-provider" data-direction="down" data-provider-id="${escapeAttr(provider.id)}" title="下移 Provider" aria-label="下移 ${escapeAttr(provider.name)}" ${providerIndex < 0 || providerIndex >= state.providers.length - 1 || moving ? "disabled" : ""}>↓</button>
           <button class="tiny-button" type="button" data-action="test-provider" data-provider-id="${escapeAttr(provider.id)}">检测启用 Key</button>
           <button class="tiny-button" type="button" data-action="add-key" data-provider-id="${escapeAttr(provider.id)}">＋ Key</button>
           <button class="tiny-button" type="button" data-action="add-model" data-provider-id="${escapeAttr(provider.id)}">＋ 模型</button>
@@ -962,6 +1181,27 @@
     }
   }
 
+  async function moveProvider(providerID, direction) {
+    const provider = providerByID(providerID);
+    if (!provider || !["up", "down"].includes(direction)) return;
+    const pendingID = `move:${provider.id}`;
+    if (state.pending.has(pendingID)) return;
+    state.pending.add(pendingID);
+    renderProviders();
+    try {
+      const payload = await api(`providers/${encodeURIComponent(provider.id)}/move`, {
+        method: "POST",
+        body: { direction },
+      });
+      state.providers = Array.isArray(payload.providers) ? payload.providers : state.providers;
+    } catch (error) {
+      showToast(errorMessage(error), "error");
+    } finally {
+      state.pending.delete(pendingID);
+      renderProviders();
+    }
+  }
+
   async function deleteProvider(providerID) {
     const provider = providerByID(providerID);
     if (!provider) return;
@@ -1180,6 +1420,7 @@
       case "add-key": openKeyDialog(provider); return true;
       case "edit-provider": openProviderDialog(provider); return true;
       case "delete-provider": deleteProvider(provider.id); return true;
+      case "move-provider": moveProvider(provider.id, element.dataset.direction); return true;
       case "add-model": openModelDialog(provider); return true;
       case "test-provider": batchTest(provider.id); return true;
       case "discover-models": openDiscovery(provider.id); return true;

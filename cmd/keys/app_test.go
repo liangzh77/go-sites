@@ -122,6 +122,13 @@ func TestHTTPAuthenticationCSRFAndPageHeaders(t *testing.T) {
 	if err := json.Unmarshal(created.body, &providerPayload); err != nil {
 		t.Fatal(err)
 	}
+	movedProvider := requestJSON(t, client, http.MethodPost,
+		server.URL+"/keys/api/providers/"+providerPayload.Provider.ID+"/move",
+		map[string]any{"direction": "down"}, loginPayload.CSRFToken)
+	if movedProvider.status != http.StatusOK ||
+		!bytes.Contains(movedProvider.body, []byte(`"providers"`)) {
+		t.Fatalf("provider move status = %d body=%s", movedProvider.status, movedProvider.body)
+	}
 
 	modelResponse := requestJSON(t, client, http.MethodPost,
 		server.URL+"/keys/api/providers/"+providerPayload.Provider.ID+"/models", map[string]any{

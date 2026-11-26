@@ -231,7 +231,8 @@ func TestDetectionPersistsOpenCodeQuota(t *testing.T) {
 	_, _, key := seedKey(t, store)
 	target := mustDetectionTarget(t, store, key.ID)
 	detection := detectionFromTarget(target, statusSuccess)
-	quota := &OpenCodeGoQuota{
+	quota := &QuotaSnapshot{
+		Kind: "opencode-go",
 		Rolling: QuotaMeter{
 			UsedUSD: 0.52520194, LimitUSD: 12, RemainingUSD: 11.47479806,
 			Percent: 4.38, ResetsAt: "2026-11-14T08:24:19Z",
@@ -258,6 +259,122 @@ func TestDetectionPersistsOpenCodeQuota(t *testing.T) {
 	if current.Quota == nil || current.Quota.Monthly.Percent != 90.74 ||
 		current.QuotaFetchedAt != quota.FetchedAt {
 		t.Fatalf("persisted quota = %+v", current.Quota)
+	}
+}
+
+func TestProviderOrderPersistsAndMoves(t *testing.T) {
+	store := testStore(t)
+	enabled := true
+	create := func(name string) Provider {
+		t.Helper()
+		provider, err := store.createProvider(ProviderInput{
+			Name: name, PresetID: "custom", Category: "测试",
+			Protocol: protocolOpenAIChat, BaseURL: "https://api.example.com/v1",
+			AuthMode: authBearer, Enabled: &enabled,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return provider
+	}
+	first := create("First")
+	second := create("Second")
+	third := create("Third")
+
+	assertOrder := func(want ...string) {
+		t.Helper()
+		providers, err := store.listProviders()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(providers) != len(want) {
+			t.Fatalf("provider count = %d, want %d", len(providers), len(want))
+		}
+		for index := range want {
+			if providers[index].ID != want[index] {
+				t.Fatalf("provider order = %+v, want %v", providers, want)
+			}
+		}
+	}
+
+	assertOrder(first.ID, second.ID, third.ID)
+	if err := store.moveProvider(third.ID, "up"); err != nil {
+		t.Fatal(err)
+	}
+	assertOrder(first.ID, third.ID, second.ID)
+	if err := store.moveProvider(first.ID, "down"); err != nil {
+		t.Fatal(err)
+	}
+	assertOrder(third.ID, first.ID, second.ID)
+	if err := store.moveProvider(third.ID, "up"); err != nil {
+		t.Fatal(err)
+	}
+	assertOrder(third.ID, first.ID, second.ID)
+	fourth := create("Fourth")
+	assertOrder(third.ID, first.ID, second.ID, fourth.ID)
+}
+
+func TestDetectionPersistsOllamaQuota(t *testing.T) {
+	store := testStore(t)
+	_, _, key := seedKey(t, store)
+	target := mustDetectionTarget(t, store, key.ID)
+	detection := detectionFromTarget(target, statusSuccess)
+	included := 72.5
+	allowance := 100.0
+	purchased := 25.0
+	quota := &QuotaSnapshot{
+		Kind: "ollama",
+		Ollama: &OllamaQuota{
+			IncludedBalanceUSD:  &included,
+			AllowanceUSD:        &allowance,
+			PurchasedBalanceUSD: &purchased,
+		},
+		FetchedAt: nowString(),
+	}
+	detection.Quota = quota
+	detection.QuotaFetchedAt = quota.FetchedAt
+	if _, err := store.saveDetection(detection); err != nil {
+		t.Fatal(err)
+	}
+	current, err := store.apiKeyByID(key.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Quota == nil || current.Quota.Kind != "ollama" ||
+		current.Quota.Ollama == nil || *current.Quota.Ollama.IncludedBalanceUSD != 72.5 {
+		t.Fatalf("persisted Ollama quota = %+v", current.Quota)
+	}
+}
+
+func TestDetectionPersistsDeepSeekBalance(t *testing.T) {
+	store := testStore(t)
+	_, _, key := seedKey(t, store)
+	target := mustDetectionTarget(t, store, key.ID)
+	detection := detectionFromTarget(target, statusSuccess)
+	quota := &QuotaSnapshot{
+		Kind: "deepseek",
+		DeepSeek: &DeepSeekQuota{
+			IsAvailable: true,
+			Balances: []DeepSeekBalanceInfo{{
+				Currency: "CNY", TotalBalance: "12.34",
+				GrantedBalance: "2.34", ToppedUpBalance: "10.00",
+			}},
+		},
+		FetchedAt: nowString(),
+	}
+	detection.Quota = quota
+	detection.QuotaFetchedAt = quota.FetchedAt
+	if _, err := store.saveDetection(detection); err != nil {
+		t.Fatal(err)
+	}
+	current, err := store.apiKeyByID(key.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.Quota == nil || current.Quota.Kind != "deepseek" ||
+		current.Quota.DeepSeek == nil || len(current.Quota.DeepSeek.Balances) != 1 ||
+		current.Quota.DeepSeek.Balances[0].TotalBalance != "12.34" {
+		t.Fatalf("persisted DeepSeek balance = %+v", current.Quota)
 	}
 }
 

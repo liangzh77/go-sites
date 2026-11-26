@@ -5,7 +5,7 @@
 ## 当前线上状态
 
 - 页面：`https://liangz77.cn/keys/`
-- 首次线上 release：`20261110-185644`
+- 当前线上 release：`20261124-083954`
 - 服务：`go-sites-keys.service`，监听 `127.0.0.1:9020`
 - 数据库：`/srv/apps/go-sites-keys/shared/data/keys.db`
 - 主密钥：`/srv/secrets/liangz77-keys/master.key`，与数据库目录分开保存
@@ -14,7 +14,7 @@
 ## 已实现范围
 
 - 一个 Provider 保存多把 Key；同一厂商可建立多个独立 Provider。
-- Provider、Key、模型配置的增删改查。
+- Provider、Key、模型配置的增删改查；Provider 可用上下箭头持久调整顺序，新 Provider 默认追加到末尾。
 - 搜索 Provider 名称、Key 别名、备注、模型，按 Provider、检测状态、即将到期、停用筛选。
 - 单个 Key、单个 Provider、全部启用 Key 的手动真实检测。
 - 检测状态、HTTP 状态、耗时、模型与历史记录；配置变化后旧结果标记为过期。
@@ -77,7 +77,47 @@ GET https://opencode.ai/console/api/go/status
 
 不会保存接口返回的账号 ID、支付方式、续费状态等无关字段。Key 需要具备 `Usage: Read` 权限；额度读取失败不会把已经成功的模型检测改成失败，而是保留上次成功额度并显示错误。
 
-在 OpenCode Go Key 名称上悬停或键盘聚焦，会显示三组额度的进度、距离重置的剩余时间及准确重置时间；卡片持续打开时每分钟刷新，移开或失焦后立即消失。
+OpenCode Go 的 5 小时、每周和每月额度会直接显示在 Key 下方紧凑的账户信息行中，不需要悬停。
+
+### Ollama Cloud 额度
+
+每次检测 Ollama Cloud Key 后，服务还会使用同一把 Key 调用：
+
+```text
+GET https://ollama.com/api/balance
+```
+
+支持 Ollama 当前月度套餐与旧版套餐两种响应：
+
+- 当前套餐：计划内可用余额、总额度、账期起止时间，以及未过期的购买余额。
+- 旧版套餐：会话额度、每周额度的剩余百分比和重置时间，以及购买余额。
+
+额度读取是只读操作，不会发起模型调用，也不会消耗推理额度。接口限流、认证失败或服务暂不可用时，只记录额度错误，不会把已经完成的模型检测改成失败。计划内余额、购买余额和重置时间会直接显示在 Key 下方。
+
+### DeepSeek 账户余额
+
+每次检测 DeepSeek 官方 Key 后，服务使用同一把 Key 调用：
+
+```text
+GET https://api.deepseek.com/user/balance
+```
+
+读取账户是否可用，以及官方返回的全部币种余额。每个币种会显示总余额、赠送余额和充值余额；目前官方支持 CNY 与 USD。余额查询不发起模型生成请求，也不会消耗余额。接口失败只记录额度错误，不影响已经完成的模型检测。
+
+### Kimi / Moonshot 余额
+
+每次检测 Moonshot / Kimi 官方 Key 后，服务根据 Provider 入口调用对应余额接口：
+
+```text
+国内站：GET https://api.moonshot.cn/v1/users/me/balance
+国际站：GET https://api.moonshot.ai/v1/users/me/balance
+```
+
+国内站余额单位为人民币，国际站为美元。页面会直接显示可用余额、代金券余额和现金余额。两个平台的 Key 不互通；使用错入口时额度读取会明确提示认证失败。
+
+### 火山方舟账户余额限制
+
+方舟模型 API Key 仅用于数据面模型调用。账户现金余额由火山引擎费用中心 `QueryBalanceAcct` 提供，需要火山引擎签名凭证；方舟 API Key 不能直接读取该余额。当前页面会明确标注这一限制，不把免费额度、套餐额度或账单金额冒充为账户现金余额。
 
 ### 导出配置文本
 
@@ -122,10 +162,11 @@ VOLCENGINE_API_KEY=ep-or-key
 | Google Gemini | `https://generativelanguage.googleapis.com/v1beta` | GenerateContent | 是 | 官方协议核对，自动协议测试通过，待真实联调 |
 | xAI | `https://api.x.ai/v1` | OpenAI Chat | 是 | 官方协议核对，自动协议测试通过，待真实联调 |
 | Mistral | `https://api.mistral.ai/v1` | OpenAI Chat | 是 | 官方协议核对，自动协议测试通过，待真实联调 |
-| DeepSeek | `https://api.deepseek.com` | OpenAI Chat / Responses | 是 | 官方协议核对，自动协议测试通过，待真实联调 |
+| Ollama Cloud | `https://ollama.com/v1` | OpenAI Chat | 是 | 官方 OpenAI 兼容接口与 Bearer 认证已核对；创建 Provider 后自动导入云端模型，检测后读取余额 |
+| DeepSeek | `https://api.deepseek.com` | OpenAI Chat / Responses | 是 | 官方协议核对；检测后读取账户余额，支持 CNY / USD 多币种 |
 | 阿里云百炼 | `https://dashscope.aliyuncs.com/compatible-mode/v1` | OpenAI Chat | 否 | 官方兼容协议核对，自动协议测试通过，待真实联调 |
-| 火山方舟 | `https://ark.cn-beijing.volces.com/api/v3` | OpenAI Chat | 是 | 官方模型接口已核对；自动导入 Chat 模型参数，同时允许填写 Endpoint ID |
-| Moonshot / Kimi | `https://api.moonshot.cn/v1` | OpenAI Chat | 是 | 官方地址核对，自动协议测试通过，待真实联调 |
+| 火山方舟 | `https://ark.cn-beijing.volces.com/api/v3` | OpenAI Chat | 是 | 官方模型接口已核对；模型 API Key 不具备费用中心现金余额读取权限 |
+| Moonshot / Kimi | `https://api.moonshot.cn/v1` | OpenAI Chat | 是 | 国内站 / 国际站官方余额接口已核对，检测后显示可用、代金券和现金余额 |
 | 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | OpenAI Chat | 是 | 官方地址核对，自动协议测试通过，待真实联调 |
 | MiniMax | `https://api.minimax.chat/v1/text` | ChatCompletion v2 | 否 | 专用协议适配，自动协议测试通过，待真实联调；接口变更需重新核对文档 |
 | 百度千帆 | `https://qianfan.baidubce.com/v2` | OpenAI Chat | 否 | 预设与通用协议测试通过，上线前需用当前账号文档再次核对认证与模型 ID |
@@ -144,6 +185,7 @@ VOLCENGINE_API_KEY=ep-or-key
 - [Gemini GenerateContent](https://ai.google.dev/api/generate-content)
 - [xAI REST API](https://docs.x.ai/developers/rest-api-reference)
 - [Mistral API](https://docs.mistral.ai/api/)
+- [Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)
 - [DeepSeek API](https://api-docs.deepseek.com/api/deepseek-api/)
 - [阿里云百炼 OpenAI 兼容](https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope)
 - [火山方舟推理 API](https://www.volcengine.com/docs/82379/1399008)
@@ -351,7 +393,7 @@ GET    /keys/api/keys/{id}/detections
 
 - 当前为单用户、单实例服务，不是多租户系统。
 - 会话是签名 cookie；退出会清除当前浏览器 cookie，但服务端没有会话列表。管理员密码哈希变化会使旧会话立即失效。
-- 目前没有自动轮询、余额查询、外部提醒和自动续费。
+- 目前没有自动轮询、外部提醒和自动续费；余额只在手动检测后刷新。
 - 没有真实测试 Key 时，不能把 Provider 状态改成“已实测”。
 - MiniMax、百度千帆等厂商若调整认证或端点，必须在真实联调前更新预设与协议测试。
 - 自定义 URL 的 DNS 公网判断依赖运行主机 DNS 和 TCP/IP 栈；安全回归测试覆盖常见内网、元数据与 IPv6 映射形式，但新增特殊云网络时仍需补充网络策略。

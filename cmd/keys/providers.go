@@ -30,6 +30,12 @@ var providerPresets = []ProviderPreset{
 		DiscoverModels: true, Documentation: "https://docs.mistral.ai/api/",
 	},
 	{
+		ID: "ollama", Name: "Ollama Cloud", Category: "国际官方",
+		Protocol: protocolOpenAIChat, BaseURL: "https://ollama.com/v1", AuthMode: authBearer,
+		DiscoverModels: true, AutoImportModels: true,
+		Documentation: "https://docs.ollama.com/api/openai-compatibility",
+	},
+	{
 		ID: "deepseek", Name: "DeepSeek", Category: "国内官方",
 		Protocol: protocolOpenAIChat, BaseURL: "https://api.deepseek.com", AuthMode: authBearer,
 		DiscoverModels: true, Documentation: "https://api-docs.deepseek.com/api/deepseek-api/",

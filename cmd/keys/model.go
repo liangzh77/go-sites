@@ -81,39 +81,74 @@ type Provider struct {
 }
 
 type APIKey struct {
-	ID                string           `json:"id"`
-	ProviderID        string           `json:"providerId"`
-	Alias             string           `json:"alias"`
-	MaskedKey         string           `json:"maskedKey"`
-	Enabled           bool             `json:"enabled"`
-	TestModel         string           `json:"testModel"`
-	PurchaseDate      string           `json:"purchaseDate,omitempty"`
-	ExpiresOn         string           `json:"expiresOn,omitempty"`
-	ReminderDays      int              `json:"reminderDays"`
-	Note              string           `json:"note"`
-	Status            string           `json:"status"`
-	StatusDetail      string           `json:"statusDetail,omitempty"`
-	TestedModel       string           `json:"testedModel,omitempty"`
-	TestedAt          string           `json:"testedAt,omitempty"`
-	DurationMS        int64            `json:"durationMs,omitempty"`
-	HTTPStatus        int              `json:"httpStatus,omitempty"`
-	StatusStale       bool             `json:"statusStale"`
-	Quota             *OpenCodeGoQuota `json:"quota,omitempty"`
-	QuotaFetchedAt    string           `json:"quotaFetchedAt,omitempty"`
-	QuotaError        string           `json:"quotaError,omitempty"`
-	StatusFingerprint string           `json:"-"`
-	StatusStartedAt   string           `json:"-"`
-	CreatedAt         string           `json:"createdAt"`
-	UpdatedAt         string           `json:"updatedAt"`
-	ConfigRev         int64            `json:"-"`
-	ExpiryDays        *int             `json:"expiryDays,omitempty"`
+	ID                string         `json:"id"`
+	ProviderID        string         `json:"providerId"`
+	Alias             string         `json:"alias"`
+	MaskedKey         string         `json:"maskedKey"`
+	Enabled           bool           `json:"enabled"`
+	TestModel         string         `json:"testModel"`
+	PurchaseDate      string         `json:"purchaseDate,omitempty"`
+	ExpiresOn         string         `json:"expiresOn,omitempty"`
+	ReminderDays      int            `json:"reminderDays"`
+	Note              string         `json:"note"`
+	Status            string         `json:"status"`
+	StatusDetail      string         `json:"statusDetail,omitempty"`
+	TestedModel       string         `json:"testedModel,omitempty"`
+	TestedAt          string         `json:"testedAt,omitempty"`
+	DurationMS        int64          `json:"durationMs,omitempty"`
+	HTTPStatus        int            `json:"httpStatus,omitempty"`
+	StatusStale       bool           `json:"statusStale"`
+	Quota             *QuotaSnapshot `json:"quota,omitempty"`
+	QuotaFetchedAt    string         `json:"quotaFetchedAt,omitempty"`
+	QuotaError        string         `json:"quotaError,omitempty"`
+	StatusFingerprint string         `json:"-"`
+	StatusStartedAt   string         `json:"-"`
+	CreatedAt         string         `json:"createdAt"`
+	UpdatedAt         string         `json:"updatedAt"`
+	ConfigRev         int64          `json:"-"`
+	ExpiryDays        *int           `json:"expiryDays,omitempty"`
 }
 
-type OpenCodeGoQuota struct {
-	Rolling   QuotaMeter `json:"rolling"`
-	Weekly    QuotaMeter `json:"weekly"`
-	Monthly   QuotaMeter `json:"monthly"`
-	FetchedAt string     `json:"fetchedAt"`
+type QuotaSnapshot struct {
+	Kind      string         `json:"kind,omitempty"`
+	Rolling   QuotaMeter     `json:"rolling"`
+	Weekly    QuotaMeter     `json:"weekly"`
+	Monthly   QuotaMeter     `json:"monthly"`
+	Ollama    *OllamaQuota   `json:"ollama,omitempty"`
+	DeepSeek  *DeepSeekQuota `json:"deepseek,omitempty"`
+	Kimi      *KimiQuota     `json:"kimi,omitempty"`
+	FetchedAt string         `json:"fetchedAt"`
+}
+
+type OllamaQuota struct {
+	IncludedBalanceUSD      *float64 `json:"includedBalanceUsd,omitempty"`
+	AllowanceUSD            *float64 `json:"allowanceUsd,omitempty"`
+	PeriodFrom              string   `json:"periodFrom,omitempty"`
+	PeriodUntil             string   `json:"periodUntil,omitempty"`
+	PurchasedBalanceUSD     *float64 `json:"purchasedBalanceUsd,omitempty"`
+	SessionRemainingPercent *float64 `json:"sessionRemainingPercent,omitempty"`
+	SessionResetsAt         string   `json:"sessionResetsAt,omitempty"`
+	WeeklyRemainingPercent  *float64 `json:"weeklyRemainingPercent,omitempty"`
+	WeeklyResetsAt          string   `json:"weeklyResetsAt,omitempty"`
+}
+
+type DeepSeekQuota struct {
+	IsAvailable bool                  `json:"isAvailable"`
+	Balances    []DeepSeekBalanceInfo `json:"balances"`
+}
+
+type DeepSeekBalanceInfo struct {
+	Currency        string `json:"currency"`
+	TotalBalance    string `json:"totalBalance"`
+	GrantedBalance  string `json:"grantedBalance"`
+	ToppedUpBalance string `json:"toppedUpBalance"`
+}
+
+type KimiQuota struct {
+	Currency         string  `json:"currency"`
+	AvailableBalance float64 `json:"availableBalance"`
+	VoucherBalance   float64 `json:"voucherBalance"`
+	CashBalance      float64 `json:"cashBalance"`
 }
 
 type QuotaMeter struct {
@@ -177,26 +212,26 @@ type ExportKey struct {
 }
 
 type Detection struct {
-	ID             string           `json:"id"`
-	KeyID          string           `json:"keyId"`
-	ProviderID     string           `json:"providerId"`
-	ProviderName   string           `json:"providerName"`
-	KeyAlias       string           `json:"keyAlias"`
-	ModelID        string           `json:"modelId"`
-	Protocol       string           `json:"protocol"`
-	BaseURL        string           `json:"baseUrl"`
-	Status         string           `json:"status"`
-	Detail         string           `json:"detail,omitempty"`
-	HTTPStatus     int              `json:"httpStatus,omitempty"`
-	DurationMS     int64            `json:"durationMs"`
-	Fingerprint    string           `json:"fingerprint"`
-	StartedAt      string           `json:"startedAt"`
-	FinishedAt     string           `json:"finishedAt"`
-	Stale          bool             `json:"stale"`
-	ConfigRev      int64            `json:"-"`
-	Quota          *OpenCodeGoQuota `json:"quota,omitempty"`
-	QuotaFetchedAt string           `json:"quotaFetchedAt,omitempty"`
-	QuotaError     string           `json:"quotaError,omitempty"`
+	ID             string         `json:"id"`
+	KeyID          string         `json:"keyId"`
+	ProviderID     string         `json:"providerId"`
+	ProviderName   string         `json:"providerName"`
+	KeyAlias       string         `json:"keyAlias"`
+	ModelID        string         `json:"modelId"`
+	Protocol       string         `json:"protocol"`
+	BaseURL        string         `json:"baseUrl"`
+	Status         string         `json:"status"`
+	Detail         string         `json:"detail,omitempty"`
+	HTTPStatus     int            `json:"httpStatus,omitempty"`
+	DurationMS     int64          `json:"durationMs"`
+	Fingerprint    string         `json:"fingerprint"`
+	StartedAt      string         `json:"startedAt"`
+	FinishedAt     string         `json:"finishedAt"`
+	Stale          bool           `json:"stale"`
+	ConfigRev      int64          `json:"-"`
+	Quota          *QuotaSnapshot `json:"quota,omitempty"`
+	QuotaFetchedAt string         `json:"quotaFetchedAt,omitempty"`
+	QuotaError     string         `json:"quotaError,omitempty"`
 }
 
 type DetectionTarget struct {

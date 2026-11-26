@@ -60,6 +60,7 @@ func (a *app) handler() http.Handler {
 	mux.HandleFunc("POST /keys/api/providers", a.withMutation(a.handleCreateProvider))
 	mux.HandleFunc("PUT /keys/api/providers/{id}", a.withMutation(a.handleUpdateProvider))
 	mux.HandleFunc("DELETE /keys/api/providers/{id}", a.withMutation(a.handleDeleteProvider))
+	mux.HandleFunc("POST /keys/api/providers/{id}/move", a.withMutation(a.handleMoveProvider))
 	mux.HandleFunc("POST /keys/api/providers/{id}/keys", a.withMutation(a.handleCreateKey))
 	mux.HandleFunc("PUT /keys/api/keys/{id}", a.withMutation(a.handleUpdateKey))
 	mux.HandleFunc("DELETE /keys/api/keys/{id}", a.withMutation(a.handleDeleteKey))
@@ -273,6 +274,26 @@ func (a *app) handleDeleteProvider(w http.ResponseWriter, r *http.Request, _ str
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+func (a *app) handleMoveProvider(w http.ResponseWriter, r *http.Request, _ string) {
+	var input struct {
+		Direction string `json:"direction"`
+	}
+	if err := decodeJSON(w, r, &input, 4<<10); err != nil {
+		writeError(w, http.StatusBadRequest, "INVALID_JSON", err.Error())
+		return
+	}
+	if err := a.store.moveProvider(r.PathValue("id"), input.Direction); err != nil {
+		writeStoreError(w, err)
+		return
+	}
+	providers, err := a.store.listProviders()
+	if err != nil {
+		writeServerError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"providers": providers})
 }
 
 func (a *app) handleCreateKey(w http.ResponseWriter, r *http.Request, _ string) {

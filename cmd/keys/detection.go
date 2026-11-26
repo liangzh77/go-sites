@@ -181,9 +181,43 @@ func (d *detector) testKey(keyID string, store *keyStore) Detection {
 		}
 	}
 	result := d.testTarget(context.Background(), target)
-	if isOpenCodeGoProvider(target.Provider) {
+	switch {
+	case isOpenCodeGoProvider(target.Provider):
 		quotaCtx, cancel := context.WithTimeout(context.Background(), detectionTimeout)
 		quota, quotaErr := d.fetchOpenCodeGoQuota(quotaCtx, target.Provider, target.Secret)
+		cancel()
+		if quotaErr != nil {
+			result.QuotaError = safeDetail(quotaErr.Error(), target.Secret)
+		} else {
+			result.Quota = quota
+			result.QuotaFetchedAt = quota.FetchedAt
+			result.QuotaError = ""
+		}
+	case isOllamaCloudProvider(target.Provider):
+		quotaCtx, cancel := context.WithTimeout(context.Background(), detectionTimeout)
+		quota, quotaErr := d.fetchOllamaQuota(quotaCtx, target.Provider, target.Secret)
+		cancel()
+		if quotaErr != nil {
+			result.QuotaError = safeDetail(quotaErr.Error(), target.Secret)
+		} else {
+			result.Quota = quota
+			result.QuotaFetchedAt = quota.FetchedAt
+			result.QuotaError = ""
+		}
+	case isDeepSeekProvider(target.Provider):
+		quotaCtx, cancel := context.WithTimeout(context.Background(), detectionTimeout)
+		quota, quotaErr := d.fetchDeepSeekQuota(quotaCtx, target.Provider, target.Secret)
+		cancel()
+		if quotaErr != nil {
+			result.QuotaError = safeDetail(quotaErr.Error(), target.Secret)
+		} else {
+			result.Quota = quota
+			result.QuotaFetchedAt = quota.FetchedAt
+			result.QuotaError = ""
+		}
+	case isKimiProvider(target.Provider):
+		quotaCtx, cancel := context.WithTimeout(context.Background(), detectionTimeout)
+		quota, quotaErr := d.fetchKimiQuota(quotaCtx, target.Provider, target.Secret)
 		cancel()
 		if quotaErr != nil {
 			result.QuotaError = safeDetail(quotaErr.Error(), target.Secret)
@@ -345,6 +379,9 @@ func buildDetectionRequest(target DetectionTarget) (string, []byte, error) {
 }
 
 func applyAuthHeaders(header http.Header, authMode, secret string) {
+	if secret == "" {
+		return
+	}
 	switch authMode {
 	case authBearer:
 		header.Set("Authorization", "Bearer "+secret)
@@ -383,7 +420,7 @@ func newOpenCodeSessionID() string {
 	return fmt.Sprintf("ses_%d", time.Now().UnixNano())
 }
 
-func (d *detector) fetchOpenCodeGoQuota(ctx context.Context, provider Provider, secret string) (*OpenCodeGoQuota, error) {
+func (d *detector) fetchOpenCodeGoQuota(ctx context.Context, provider Provider, secret string) (*QuotaSnapshot, error) {
 	if !isOpenCodeGoProvider(provider) {
 		return nil, errors.New("该 Provider 不是 OpenCode Go")
 	}
@@ -440,10 +477,241 @@ func (d *detector) fetchOpenCodeGoQuota(ctx context.Context, provider Provider, 
 	if !ok {
 		return nil, errors.New("OpenCode Go 额度缺少月窗口")
 	}
-	return &OpenCodeGoQuota{
-		Rolling: rolling, Weekly: weekly, Monthly: monthly,
+	return &QuotaSnapshot{
+		Kind: "opencode-go", Rolling: rolling, Weekly: weekly, Monthly: monthly,
 		FetchedAt: nowString(),
 	}, nil
+}
+
+func (d *detector) fetchOllamaQuota(ctx context.Context, provider Provider, secret string) (*QuotaSnapshot, error) {
+	if !isOllamaCloudProvider(provider) {
+		return nil, errors.New("该 Provider 不是 Ollama Cloud")
+	}
+	requestCtx, cancel := context.WithTimeout(ctx, detectionTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(
+		requestCtx,
+		http.MethodGet,
+		"https://ollama.com/api/balance",
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	applyAuthHeaders(req.Header, provider.AuthMode, secret)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "go-sites-keys/1.0")
+	response, err := d.client.Do(req)
+	if err != nil {
+		return nil, errors.New(classifyNetworkError(err))
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 64<<10))
+	if err != nil {
+		return nil, errors.New("读取 Ollama 额度失败")
+	}
+	switch response.StatusCode {
+	case http.StatusUnauthorized:
+		return nil, errors.New("Ollama Cloud 额度认证失败")
+	case http.StatusForbidden:
+		return nil, errors.New("Ollama Cloud 账号不可用或无权读取额度")
+	case http.StatusTooManyRequests:
+		return nil, errors.New("Ollama Cloud 额度查询已限流，请稍后重试")
+	case http.StatusServiceUnavailable:
+		return nil, errors.New("Ollama Cloud 额度服务暂时不可用")
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("Ollama Cloud 额度接口返回 HTTP %d", response.StatusCode)
+	}
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, errors.New("解析 Ollama Cloud 额度失败")
+	}
+	included := jsonObject(payload["included"])
+	if included == nil {
+		return nil, errors.New("Ollama Cloud 额度响应缺少 included")
+	}
+	purchased := jsonObject(payload["purchased"])
+	quota := &OllamaQuota{
+		IncludedBalanceUSD:  jsonFloat(included["balance_usd"]),
+		AllowanceUSD:        jsonFloat(included["allowance_usd"]),
+		PurchasedBalanceUSD: jsonFloat(purchased["balance_usd"]),
+	}
+	period := jsonObject(included["period"])
+	quota.PeriodFrom = jsonString(period["from"])
+	quota.PeriodUntil = jsonString(period["until"])
+	if session := jsonObject(included["session"]); session != nil {
+		quota.SessionRemainingPercent = clampedPercent(jsonFloat(session["remaining_percent"]))
+		quota.SessionResetsAt = jsonString(session["resets_at"])
+	}
+	if weekly := jsonObject(included["weekly"]); weekly != nil {
+		quota.WeeklyRemainingPercent = clampedPercent(jsonFloat(weekly["remaining_percent"]))
+		quota.WeeklyResetsAt = jsonString(weekly["resets_at"])
+	}
+	if quota.IncludedBalanceUSD == nil &&
+		quota.AllowanceUSD == nil &&
+		quota.SessionRemainingPercent == nil &&
+		quota.WeeklyRemainingPercent == nil {
+		return nil, errors.New("Ollama Cloud 额度响应缺少余额与套餐窗口")
+	}
+	return &QuotaSnapshot{Kind: "ollama", Ollama: quota, FetchedAt: nowString()}, nil
+}
+
+func (d *detector) fetchDeepSeekQuota(ctx context.Context, provider Provider, secret string) (*QuotaSnapshot, error) {
+	if !isDeepSeekProvider(provider) {
+		return nil, errors.New("该 Provider 不是 DeepSeek")
+	}
+	requestCtx, cancel := context.WithTimeout(ctx, detectionTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(
+		requestCtx,
+		http.MethodGet,
+		"https://api.deepseek.com/user/balance",
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	applyAuthHeaders(req.Header, provider.AuthMode, secret)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "go-sites-keys/1.0")
+	response, err := d.client.Do(req)
+	if err != nil {
+		return nil, errors.New(classifyNetworkError(err))
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 64<<10))
+	if err != nil {
+		return nil, errors.New("读取 DeepSeek 余额失败")
+	}
+	switch response.StatusCode {
+	case http.StatusUnauthorized:
+		return nil, errors.New("DeepSeek 余额认证失败")
+	case http.StatusForbidden:
+		return nil, errors.New("DeepSeek 账号不可用或无权读取余额")
+	case http.StatusTooManyRequests:
+		return nil, errors.New("DeepSeek 余额查询已限流，请稍后重试")
+	case http.StatusServiceUnavailable:
+		return nil, errors.New("DeepSeek 余额服务暂时不可用")
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("DeepSeek 余额接口返回 HTTP %d", response.StatusCode)
+	}
+	var payload struct {
+		IsAvailable bool `json:"is_available"`
+		Balances    []struct {
+			Currency        string `json:"currency"`
+			TotalBalance    string `json:"total_balance"`
+			GrantedBalance  string `json:"granted_balance"`
+			ToppedUpBalance string `json:"topped_up_balance"`
+		} `json:"balance_infos"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, errors.New("解析 DeepSeek 余额失败")
+	}
+	if len(payload.Balances) == 0 {
+		return nil, errors.New("DeepSeek 余额响应中没有币种余额")
+	}
+	quota := &DeepSeekQuota{
+		IsAvailable: payload.IsAvailable,
+		Balances:    make([]DeepSeekBalanceInfo, 0, len(payload.Balances)),
+	}
+	for _, balance := range payload.Balances {
+		quota.Balances = append(quota.Balances, DeepSeekBalanceInfo{
+			Currency:        strings.TrimSpace(balance.Currency),
+			TotalBalance:    strings.TrimSpace(balance.TotalBalance),
+			GrantedBalance:  strings.TrimSpace(balance.GrantedBalance),
+			ToppedUpBalance: strings.TrimSpace(balance.ToppedUpBalance),
+		})
+	}
+	return &QuotaSnapshot{Kind: "deepseek", DeepSeek: quota, FetchedAt: nowString()}, nil
+}
+
+func (d *detector) fetchKimiQuota(ctx context.Context, provider Provider, secret string) (*QuotaSnapshot, error) {
+	if !isKimiProvider(provider) {
+		return nil, errors.New("该 Provider 不是 Kimi / Moonshot")
+	}
+	parsed, _ := url.Parse(provider.BaseURL)
+	host := strings.ToLower(parsed.Hostname())
+	currency := "CNY"
+	if strings.EqualFold(host, "api.moonshot.ai") {
+		currency = "USD"
+	}
+	requestCtx, cancel := context.WithTimeout(ctx, detectionTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(
+		requestCtx,
+		http.MethodGet,
+		"https://"+host+"/v1/users/me/balance",
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	applyAuthHeaders(req.Header, provider.AuthMode, secret)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "go-sites-keys/1.0")
+	response, err := d.client.Do(req)
+	if err != nil {
+		return nil, errors.New(classifyNetworkError(err))
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 64<<10))
+	if err != nil {
+		return nil, errors.New("读取 Kimi 余额失败")
+	}
+	switch response.StatusCode {
+	case http.StatusUnauthorized:
+		return nil, errors.New("Kimi 余额认证失败，请确认 Key 与国内站/国际站入口一致")
+	case http.StatusForbidden:
+		return nil, errors.New("Kimi 账号无权读取余额")
+	case http.StatusTooManyRequests:
+		return nil, errors.New("Kimi 余额查询已限流，请稍后重试")
+	case http.StatusInternalServerError:
+		return nil, errors.New("Kimi 余额服务暂时不可用")
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, fmt.Errorf("Kimi 余额接口返回 HTTP %d", response.StatusCode)
+	}
+	var payload struct {
+		Code   int  `json:"code"`
+		Status bool `json:"status"`
+		Data   struct {
+			AvailableBalance float64 `json:"available_balance"`
+			VoucherBalance   float64 `json:"voucher_balance"`
+			CashBalance      float64 `json:"cash_balance"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, errors.New("解析 Kimi 余额失败")
+	}
+	if payload.Code != 0 || !payload.Status {
+		return nil, errors.New("Kimi 余额接口返回失败状态")
+	}
+	return &QuotaSnapshot{
+		Kind: "kimi",
+		Kimi: &KimiQuota{
+			Currency:         currency,
+			AvailableBalance: payload.Data.AvailableBalance,
+			VoucherBalance:   payload.Data.VoucherBalance,
+			CashBalance:      payload.Data.CashBalance,
+		},
+		FetchedAt: nowString(),
+	}, nil
+}
+
+func clampedPercent(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	percent := *value
+	if percent < 0 {
+		percent = 0
+	}
+	if percent > 100 {
+		percent = 100
+	}
+	return &percent
 }
 
 func parseQuotaMeter(raw json.RawMessage) (QuotaMeter, bool) {
@@ -701,6 +969,12 @@ func (d *detector) discoverModels(ctx context.Context, provider Provider, secret
 }
 
 func (d *detector) discoverProviderCatalog(ctx context.Context, provider Provider) (discoveryResult, error) {
+	if isOllamaCloudProvider(provider) {
+		// Ollama publishes its cloud model catalog without requiring a key.
+		// This lets a newly created provider import models before credentials
+		// are saved, so the first Key can select a test model immediately.
+		return d.discoverModels(ctx, provider, "")
+	}
 	if !isOpenCodeGoProvider(provider) {
 		return discoveryResult{}, errors.New("该 Provider 需要先添加启用的 Key 才能获取模型")
 	}
@@ -868,6 +1142,24 @@ func jsonInt64(raw json.RawMessage) *int64 {
 	return nil
 }
 
+func jsonFloat(raw json.RawMessage) *float64 {
+	if len(raw) == 0 || bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+		return nil
+	}
+	var value float64
+	if json.Unmarshal(raw, &value) == nil {
+		return &value
+	}
+	var text string
+	if json.Unmarshal(raw, &text) == nil {
+		parsed, err := strconv.ParseFloat(strings.TrimSpace(text), 64)
+		if err == nil {
+			return &parsed
+		}
+	}
+	return nil
+}
+
 func jsonStringList(raw json.RawMessage) string {
 	var value string
 	if json.Unmarshal(raw, &value) == nil {
@@ -917,6 +1209,34 @@ func isVolcengineProvider(provider Provider) bool {
 	}
 	parsed, err := url.Parse(provider.BaseURL)
 	return err == nil && strings.EqualFold(parsed.Hostname(), "ark.cn-beijing.volces.com")
+}
+
+func isOllamaCloudProvider(provider Provider) bool {
+	if provider.PresetID != "ollama" {
+		return false
+	}
+	parsed, err := url.Parse(provider.BaseURL)
+	return err == nil && strings.EqualFold(parsed.Hostname(), "ollama.com")
+}
+
+func isDeepSeekProvider(provider Provider) bool {
+	if provider.PresetID != "deepseek" {
+		return false
+	}
+	parsed, err := url.Parse(provider.BaseURL)
+	return err == nil && strings.EqualFold(parsed.Hostname(), "api.deepseek.com")
+}
+
+func isKimiProvider(provider Provider) bool {
+	if provider.PresetID != "moonshot" {
+		return false
+	}
+	parsed, err := url.Parse(provider.BaseURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return host == "api.moonshot.cn" || host == "api.moonshot.ai"
 }
 
 func parseVolcengineModels(data []byte) []DiscoveredModel {
