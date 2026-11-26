@@ -287,6 +287,10 @@
   DEMOS.push(
     { key: 'wogg', cat: 'tools', title: 'WOGG', url: 'https://www.wogg.cool', price: '每月 19 元' },
     { key: 'ikuuu', cat: 'tools', title: 'iKuuu', url: 'https://ikuuu.top', price: '每月 12 元' },
+    { key: 'codex-app', cat: 'tools', title: 'Codex App', url: 'https://developers.openai.com/codex/app/', kind: '编程助手', desc: '在桌面上使用 OpenAI 的编程助手。' },
+    { key: 'deepseek-harness', cat: 'tools', title: 'DeepSeek Harness', url: 'https://www.deepseek.com/harness/', kind: 'Agent 框架', desc: '用插件搭建和扩展自己的 DeepSeek 智能体。' },
+    { key: 'pi-agent', cat: 'tools', title: 'Pi Agent', url: 'https://pi.dev/', kind: '终端编程助手', desc: '在终端里读写代码，按需添加扩展。' },
+    { key: 'paseo', cat: 'tools', title: 'Paseo', url: 'https://paseo.sh/', kind: 'Agent 管理', desc: '从电脑或手机查看和管理多个编程助手。' },
   );
 
   // The cover art is decoration, not data: the form sketch mirrors the sample
@@ -301,9 +305,9 @@
   function demoCard(d, tpls) {
     if (d.cat === 'tools') return `
       <a class="demo" data-demo="${escapeHTML(d.key)}" data-cat="tools" href="${escapeHTML(d.url)}" target="_blank" rel="noopener noreferrer">
-        <div class="body"><div class="tags"><span class="tg">${escapeHTML(d.price)}</span></div>
-          <h3>${escapeHTML(d.title)}</h3><p>${escapeHTML(d.url)}</p>
-          <div class="foot"><span>价格以官网为准</span><span class="btn btn-b btn-sm">访问网站 ↗</span></div>
+        <div class="body"><div class="tags"><span class="tg">${escapeHTML(d.price || d.kind)}</span></div>
+          <h3>${escapeHTML(d.title)}</h3><p>${escapeHTML(d.desc || d.url)}</p>
+          <div class="foot"><span>${escapeHTML(d.price ? '价格以官网为准' : new URL(d.url).hostname)}</span><span class="btn btn-b btn-sm">访问网站 ↗</span></div>
         </div>
       </a>`;
     const tags = (d.tags ? d.tags(tpls) : []).map((raw) => {
