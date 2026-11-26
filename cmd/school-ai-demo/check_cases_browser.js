@@ -23,7 +23,9 @@ async () => {
     }
     let d=await open('');
     for(let n=0;n<60&&!d.querySelector('[data-demo]');n++) await new Promise(r=>setTimeout(r,100));
-    check('three categories',d.querySelectorAll('#demoFilters button').length===3);
+    check('tools follows production',Array.from(d.querySelectorAll('#demoFilters button'),b=>b.dataset.cat).join(',')==='school,trade,production,tools');
+    d.querySelector('#demoFilters [data-cat="tools"]').click();
+    check('tools links and prices',Array.from(d.querySelectorAll('[data-demo]:not([hidden])'),a=>a.getAttribute('href')+' '+a.querySelector('.tg').textContent).join('|')==='https://www.wogg.cool 每月 19 元|https://ikuuu.top 每月 12 元');
     d.querySelector('#demoFilters [data-cat="production"]').click();
     check('two production skills',d.querySelectorAll('[data-demo]:not([hidden])').length===2&&['pop-sticker-studio','ink-story-film'].every(k=>d.querySelector('[data-demo="'+k+'"]:not([hidden])')));
     check('four school cards',d.querySelectorAll('[data-demo][data-cat="school"]').length===4);

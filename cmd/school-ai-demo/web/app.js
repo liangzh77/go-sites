@@ -23,7 +23,7 @@
   // Card definitions live in this JS bundle. Only non-sensitive template
   // summaries and the selected category survive page navigation in this tab.
   const CATALOG_KEY = 'ai-demo:catalog:v1:' + BASE;
-  const isCategory = key => ['school', 'trade', 'production'].includes(key);
+  const isCategory = key => ['school', 'trade', 'production', 'tools'].includes(key);
   function templateSummaries(value) {
     if (!Array.isArray(value) || value.length > 100 || !value.every(t =>
       t && typeof t.slug === 'string' && /^[a-z0-9-]{1,80}$/.test(t.slug) &&
@@ -190,6 +190,7 @@
     { key: 'school', label: '学校' },
     { key: 'trade', label: '外贸' },
     { key: 'production', label: '制作' },
+    { key: 'tools', label: '工具' },
   ];
 
   const TRADE_CASES = [
@@ -283,6 +284,11 @@
     open: () => { window.location.href = BASE + '/ink-story-film/'; },
   });
 
+  DEMOS.push(
+    { key: 'wogg', cat: 'tools', title: 'WOGG', url: 'https://www.wogg.cool', price: '每月 19 元' },
+    { key: 'ikuuu', cat: 'tools', title: 'iKuuu', url: 'https://ikuuu.top', price: '每月 12 元' },
+  );
+
   // The cover art is decoration, not data: the form sketch mirrors the sample
   // the studio itself can load, and the slide is a real exported thumbnail.
   const COVER_FORM = `
@@ -293,6 +299,13 @@
     </table></div>`;
 
   function demoCard(d, tpls) {
+    if (d.cat === 'tools') return `
+      <a class="demo" data-demo="${escapeHTML(d.key)}" data-cat="tools" href="${escapeHTML(d.url)}" target="_blank" rel="noopener noreferrer">
+        <div class="body"><div class="tags"><span class="tg">${escapeHTML(d.price)}</span></div>
+          <h3>${escapeHTML(d.title)}</h3><p>${escapeHTML(d.url)}</p>
+          <div class="foot"><span>价格以官网为准</span><span class="btn btn-b btn-sm">访问网站 ↗</span></div>
+        </div>
+      </a>`;
     const tags = (d.tags ? d.tags(tpls) : []).map((raw) => {
       const t = typeof raw === 'string' ? { text: raw } : raw;
       return `<span class="tg${t.outline ? ' o' : ''}">${escapeHTML(t.text)}</span>`;
@@ -372,7 +385,7 @@
 
   function applyFilter() {
     saveCatalog();
-    $('categoryTitle').textContent = ({ school: '学校 · 日常教学小工具', trade: '外贸 · 把一笔生意往前推进', production: '制作 · 从素材到作品' })[state.filter];
+    $('categoryTitle').textContent = ({ school: '学校 · 日常教学小工具', trade: '外贸 · 把一笔生意往前推进', production: '制作 · 从素材到作品', tools: '工具 · 常用网址' })[state.filter];
     $('demoCards').querySelectorAll('[data-demo]').forEach((card) => {
       card.hidden = state.filter !== 'all' && card.dataset.cat !== state.filter;
     });
