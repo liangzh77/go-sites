@@ -103,16 +103,14 @@
     handle /ai-demo/* {
         @review_api path /ai-demo/api/essay-review /ai-demo/api/essay-review/* /ai-demo/api/math-review /ai-demo/api/math-review/*
         handle @review_api {
-            uri strip_prefix /ai-demo
-            rewrite * /school-ai-demo{uri}
+            uri replace /ai-demo/ /school-ai-demo/ 1
             reverse_proxy 127.0.0.1:9026 {
                 header_up X-Real-IP {remote_host}
             }
         }
         @form_api path /ai-demo/api/* /ai-demo/health
         handle @form_api {
-            uri strip_prefix /ai-demo
-            rewrite * /school-ai-demo{uri}
+            uri replace /ai-demo/ /school-ai-demo/ 1
             reverse_proxy 127.0.0.1:9025
         }
         handle {
