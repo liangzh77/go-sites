@@ -11,7 +11,7 @@ async () => {
     return frame.contentDocument;
   };
   try {
-    for (const width of [375,768,1440]) for (const path of ['', 'customer-email/', 'quotation/', 'order-validation/', 'lesson-plan.html','essay-review.html','math-review.html']) {
+    for (const width of [375,768,1440]) for (const path of ['', 'customer-email/', 'quotation/', 'order-validation/', 'lesson-plan.html','essay-review.html','math-review.html','guizang-ppt-skill/']) {
       const d=await open(path,width);
       check(width+' '+(path||'home')+' no horizontal overflow',d.documentElement.scrollWidth<=width+1);
       check(path+' no old URLs',![...d.querySelectorAll('[href],[src]')].some(el=>/\/school-ai-demo\//.test(el.getAttribute('href')||el.getAttribute('src')||'')));
@@ -27,7 +27,9 @@ async () => {
     d.querySelector('#demoFilters [data-cat="tools"]').click();
     check('tools links and prices',Array.from(d.querySelectorAll('[data-demo]:not([hidden])'),a=>a.getAttribute('href')+' '+a.querySelector('.tg').textContent).join('|')==='https://www.wogg.cool 每月 19 元|https://ikuuu.top 每月 12 元|https://developers.openai.com/codex/app/ 编程助手|https://www.deepseek.com/harness/ Agent 框架|https://pi.dev/ 终端编程助手|https://paseo.sh/ Agent 管理');
     d.querySelector('#demoFilters [data-cat="production"]').click();
-    check('two production skills',d.querySelectorAll('[data-demo]:not([hidden])').length===2&&['pop-sticker-studio','ink-story-film'].every(k=>d.querySelector('[data-demo="'+k+'"]:not([hidden])')));
+    check('three production skills',d.querySelectorAll('[data-demo]:not([hidden])').length===3&&['pop-sticker-studio','ink-story-film','guizang-ppt-skill'].every(k=>d.querySelector('[data-demo="'+k+'"]:not([hidden])')));
+    const ppt=d.querySelector('[data-demo="guizang-ppt-skill"]');
+    check('ppt card shows example note and poster',/《江雪》十页/.test(ppt.textContent)&&/guizang-ppt-skill\/jiangxue\/poster\.jpg/.test(ppt.querySelector('img').getAttribute('src')));
     check('four school cards',d.querySelectorAll('[data-demo][data-cat="school"]').length===4);
     d.querySelector('#demoFilters [data-cat="trade"]').click();
     check('three trade cards',d.querySelectorAll('[data-demo]:not([hidden])').length===3);

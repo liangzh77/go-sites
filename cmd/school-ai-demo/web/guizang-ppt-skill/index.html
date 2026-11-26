@@ -1,0 +1,41 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>网页 PPT · 制作 · AI Demo</title><meta name="description" content="把一篇内容做成能在浏览器里翻页的演示稿：单 HTML 文件，杂志风或瑞士风，带演讲者模式。看《江雪》十页成片，复制流程与提示词。">
+<link rel="canonical" href="https://liangz77.cn/ai-demo/guizang-ppt-skill/"><link rel="alternate" type="text/markdown" href="install.md" title="Agent 安装说明"><link rel="icon" href="../favicon.svg"><link rel="stylesheet" href="../app.css"><link rel="stylesheet" href="../case-nav.css"><link rel="stylesheet" href="../pop-sticker-studio/studio.css"><link rel="stylesheet" href="ppt.css"></head><body>
+<header class="nav case-nav"><a class="brand" href="../#production">AI Demo · 制作</a><a class="case-return" href="../#production">← 全部案例</a></header>
+<main class="maker"><section class="intro"><small>制作工具　/　<span lang="en" translate="no" class="notranslate">Agent Skill</span>　·　歸藏 <span lang="en" translate="no" class="notranslate">guizang-ppt-skill</span></small><h1>网页 PPT</h1><p>把一篇内容做成能在浏览器里翻页的演示稿：一个 HTML 文件，电子杂志风或瑞士国际主义风，自带演讲者视图、观众屏和备注。不用装 PowerPoint，双击就能讲。</p></section>
+<a class="example" href="jiangxue/"><img src="jiangxue/poster.jpg" alt="《江雪》演示稿封面：雪峰之上压着「江雪」两个字，下面一行「一首谁都背过的诗」" width="600" height="338"><div><small>唐诗　/　10 页 · 11.8 分钟</small><h2>江雪</h2><p>二十个字的诗，讲成十页。牛皮纸底、宋画做景、每页一条演讲备注。</p><strong>打开《江雪》，按 ← → 翻页 →</strong></div></a>
+<section class="card" id="install"><small>01　/　安装</small><h2>发给你的 Agent 安装</h2>
+<p>复制下面这段话，发给你的 Agent 即可安装。安装内容就是 GitHub 上那份技能，不经过我改写。</p>
+<div class="promptrow"><blockquote id="install-prompt">请帮我安装这个页面里的「网页 PPT」技能：https://liangz77.cn/ai-demo/guizang-ppt-skill/</blockquote><button id="copy" type="button" aria-label="复制安装指令">复制</button></div>
+<p id="notice" role="status"></p>
+<p>Agent 会读 <a href="install.md">install.md</a>：从 <a href="https://github.com/op7418/guizang-ppt-skill" target="_blank" rel="noopener">op7418/guizang-ppt-skill</a> 取指定提交，装进 Codex 或 Pi 的技能目录。作者<a href="https://github.com/op7418" target="_blank" rel="noopener">歸藏</a>，AGPL-3.0。只需要 Node，做卡片出图才另外需要 Playwright。</p></section>
+<section class="card" id="flow"><small>02　/　流程</small><h2>一份演示稿是怎么做出来的</h2>
+<p>六步。前三步定方向，后三步出成品。方向错了，后面全是返工——所以技能里最啰嗦的是第二步。</p>
+<ol class="flow">
+<li><h3>开工前先看有没有更新</h3><p>技能目录里跑一次 <code>git fetch</code>，落后上游就先问你要不要更新，再继续。这一步写进了技能，不靠人记得。</p></li>
+<li><h3>把七件事对齐</h3><p>风格（杂志风 / 瑞士风）、受众和场合、讲的时长、有没有原始素材、图片怎么处理、主题色、硬约束。只给一个主题也能开工：Agent 先问最要紧的 1–3 个，其余按默认走，并说明假设了什么。</p></li>
+<li><h3>定页数和明暗节奏</h3><p>15 分钟约 10 页，30 分钟约 20 页。写页面之前先排三张表：叙事弧（钩子→定调→主体→转折→收束）、每页放什么、每页是亮底还是暗底。连续三页同一个底色会被打回——看着累。</p></li>
+<li><h3>拷模板，只改内容</h3><p>两种风格各有一份成品模板，翻页、演讲者视图、动效、字体都已在里面。复制一份，改 <code>data-theme</code> 换配色，再往十种现成版式里填内容。不自己发明版式，也不在页面里写死颜色。</p></li>
+<li><h3>写演讲备注</h3><p>每页一个固定的页面 ID，备注按 ID 存，页面重排、你临时改的稿子都不会串页。备注明细里「讲多久」和「多久自动翻页」是两件事，前者是计划，后者是播放行为，默认关闭。</p></li>
+<li><h3>自检、逐页看、试讲一遍</h3><p>先跑校验脚本（页面 ID、备注错位、总时长超预算），再逐页截图看版式，最后按 <code>P</code> 进演讲者视图翻一遍：观众屏、计时、激光笔、黑屏、冻结。脚本只能证明结构对，好不好看还得眼睛看。</p></li>
+</ol></section>
+<section class="card" id="usage"><small>03　/　这样调用</small><h2>示例提示词</h2>
+<p>把 <code>$guizang-ppt-skill</code> 后面的要求写清楚就行。四个常用场景：</p>
+<h3>从零做一份</h3><div class="promptrow"><blockquote>用 $guizang-ppt-skill 把这个故事做成一份演示稿：风格 A 电子杂志风，牛皮纸主题，10 页，赏析向，带演讲备注。</blockquote><button type="button" aria-label="复制从零做一份的提示词">复制</button></div><p role="status"></p>
+<h3>规定场次和风格</h3><div class="promptrow"><blockquote>用 $guizang-ppt-skill 做 20 页、30 分钟的分享稿，瑞士国际主义风，克莱因蓝，内容是这半年的产品迭代。</blockquote><button type="button" aria-label="复制规定场次的提示词">复制</button></div><p role="status"></p>
+<h3>只改一页</h3><div class="promptrow"><blockquote>用 $guizang-ppt-skill 把第 5 页改成横向时间线，其余页不要动，改完重跑校验脚本。</blockquote><button type="button" aria-label="复制只改一页的提示词">复制</button></div><p role="status"></p>
+<h3>加配图</h3><div class="promptrow"><blockquote>用 $guizang-ppt-skill 给封面和第 7 页配宋画做底图，压暗到正文可读，图注写清作者和收藏机构。</blockquote><button type="button" aria-label="复制加配图的提示词">复制</button></div><p role="status"></p></section>
+<section class="card" id="facts"><small>04　/　这一份是怎么来的</small><h2>《江雪》的实际参数</h2>
+<dl class="facts"><div><dt>风格</dt><dd>A · 电子杂志风</dd></div><div><dt>主题色</dt><dd>牛皮纸 <code>kraft-paper</code></dd></div><div><dt>页数 / 时长</dt><dd>10 页 / 11.8 分钟</dd></div><div><dt>配图</dt><dd>3 张公版宋元古画做底图与图卡</dd></div><div><dt>校验</dt><dd><code>validate-presenter-mode</code>：0 error 0 warning</dd></div><div><dt>交付物</dt><dd>index.html + images/ + motion.min.js，共 1.6 MB</dd></div></dl>
+<p>图都来自公共领域：北宋范宽《雪景寒林图》、元黄公望《九峰雪霁图轴》、南宋马远《寒江独钓图》。底图压得很暗，只留山形和雪意，文字压在上面还读得清。</p>
+<p>两个真踩过的坑，复刻时可以直接跳过：<strong>流水线页的标题不要加 <code>data-anim</code></strong>，那个动效配方会把整页标记压到 15% 亮度，标题会一直灰着；<strong>底图压暗不能用 <code>z-index:-1</code> 的遮罩层</strong>，会掉到幻灯片背景下面完全不生效，要写成 section 的多层背景。</p>
+<p>从一句需求到能上台讲，大约半小时，其中一半时间在改版式。</p></section></main>
+<script>
+for(const row of document.querySelectorAll('.promptrow')){
+  const button=row.querySelector('button'), promptText=row.querySelector('blockquote'), notice=row.nextElementSibling;
+  button.onclick=async()=>{
+    try{await navigator.clipboard.writeText(promptText.textContent);notice.textContent='已复制，可以发给你的 Agent 了。'}
+    catch{const range=document.createRange();range.selectNodeContents(promptText);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);notice.textContent='已选中这段文字，请手动复制。'}
+  };
+}
+</script></body></html>

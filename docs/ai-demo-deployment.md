@@ -25,6 +25,14 @@ node --check cmd/school-ai-demo/web/cases.js
 
 素材位于 `cmd/school-ai-demo/cases/`。生成器和生成后的 HTML 一起提交；测试检查生成结果无漂移、金额和跨案例衔接、相对链接和旧路径清除。浏览器回归脚本为 `cmd/school-ai-demo/check_cases_browser.js`，在同源测试页执行（可通过 Chrome DevTools evaluate_script）。脚本仅在测试 iframe 操作，不发送邮件、不调模型，不修改系统剪贴板；375/768/1440 CSS 像素宽度覆盖不是实际手机触摸测试。
 
+## 「网页 PPT」技能页（2026-11-26）
+
+- 新增 `/ai-demo/guizang-ppt-skill/`，介绍 `guizang-ppt-skill`（作者歸藏，AGPL-3.0）的六步制作流程、四组示例提示词和安装说明；首页「制作」分类第三张卡片。
+- 示例为《江雪》十页演示稿，放在 `guizang-ppt-skill/jiangxue/`：`index.html` + `images/`（3 张公版古画）+ `assets/motion.min.js`，共 1.8MB。演示稿是 16:9 设计，窄屏加了一条可关闭的观看提示，不影响桌面演示。
+- 安装说明 `install.md` 指向 GitHub 上游并按提交钉版本，本站不托管技能 ZIP；技能由上游维护，更新只改 `install.md` 里的提交号。
+- 只发布静态资源：不改 Caddy、不重启 `school-ai-demo` / `school-essay-demo` 进程、不动数据库。
+- 回归：`check_cases_browser.js` 135 项（新增三张制作卡、PPT 卡片海报与示例文案、新页面三种宽度的横向溢出）、`check_catalog_browser.js` 34 项（卡片总数 16）通过；`go test ./...`、两处 Go 构建、`node --check` 通过。
+
 ## 首页前端缓存（2026-11-26 增量修复）
 
 - 案例定义本来就随 `app.js` 发布；首页改为同步渲染，不再等待 `/api/state`。首次打开、分类切换、详情返回、浏览器后退及填表返回都不为列表请求后端。

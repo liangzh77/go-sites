@@ -50,6 +50,13 @@ Templates are data, not code: drop another annotated HTML file into
 already discovered. The bundled two are the real 学生入学登记表 and 学生信息采集登记表,
 kept byte-for-byte in layout and print CSS.
 
+## 「网页 PPT」技能页（已上线）
+
+<https://liangz77.cn/ai-demo/guizang-ppt-skill/>，源码 `web/guizang-ppt-skill/`。
+页面讲 `guizang-ppt-skill` 的六步制作流程、示例提示词和安装说明；示例为《江雪》
+十页演示稿，静态文件在 `web/guizang-ppt-skill/jiangxue/`。安装说明指向 GitHub
+上游（AGPL-3.0），本站不托管技能压缩包。首页卡片在 `web/app.js` 的 `DEMOS`。
+
 ## 作文点评（已上线）
 
 新增页面源码为 `web/essay-review.html`，包含两组预置作文图片/点评及

@@ -1,0 +1,17 @@
+/* 「网页 PPT」页面的局部样式。基础排版来自 ../pop-sticker-studio/studio.css，
+   这里只补流程列表和参数表两处站点里还没有的组件。 */
+
+.flow{list-style:none;counter-reset:step;margin:18px 0 4px;padding:0;display:grid;gap:22px}
+.flow li{counter-increment:step;display:grid;grid-template-columns:44px 1fr;gap:0 14px;align-items:start;padding-top:18px;border-top:1px solid #ece5d8}
+.flow li:first-child{padding-top:0;border-top:0}
+.flow li::before{content:counter(step,decimal-leading-zero);grid-row:span 2;font:700 13px/1.9 ui-monospace,monospace;color:#813030;letter-spacing:.08em;padding-top:3px}
+.flow h3{margin:0 0 4px;font-size:17px}
+.flow p{margin:0;color:#4a3f36}
+
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;margin:20px 0 8px;padding:0}
+.facts div{border-top:1px solid #ece5d8;padding-top:10px}
+.facts dt{font:700 12px/1.6 ui-monospace,monospace;color:#8a7a68;letter-spacing:.06em}
+.facts dd{margin:2px 0 0;color:#34251c}
+
+#facts strong{font-weight:650}
+@media(max-width:600px){.facts{grid-template-columns:1fr}.flow li{grid-template-columns:32px 1fr}}

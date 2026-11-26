@@ -282,6 +282,13 @@
     tags: () => ['分镜插画', { text: '视频', outline: true }],
     note: () => '示例：《雪夜访戴》', cta: '介绍与安装',
     open: () => { window.location.href = BASE + '/ink-story-film/'; },
+  }, {
+    key: 'guizang-ppt-skill', cat: 'production', cover: 'ppt', title: '网页 PPT',
+    glyph: '演示', typeLabel: 'Agent Skill', keepTypeEnglish: true,
+    desc: '把一篇内容做成能在浏览器里翻页的演示稿。单 HTML 文件，杂志风或瑞士风，自带演讲者模式和备注。',
+    tags: () => ['单 HTML 文件', { text: '带演讲模式', outline: true }],
+    note: () => '示例：《江雪》十页', cta: '流程与安装',
+    open: () => { window.location.href = BASE + '/guizang-ppt-skill/'; },
   });
 
   DEMOS.push(
@@ -318,6 +325,8 @@
       ? '<img class="shot" src="ink-story-film/snow-night-visit/poster.jpg" alt="" width="190" height="107" loading="lazy">'
       : d.cover === 'stickers'
       ? '<img class="shot" src="pop-sticker-studio/style-board.jpg" alt="" width="190" height="107" loading="lazy">'
+      : d.cover === 'ppt'
+      ? '<img class="shot" src="guizang-ppt-skill/jiangxue/poster.jpg" alt="" width="190" height="107" loading="lazy">'
       : d.cover === 'trade'
       ? '<div class="shot" style="padding:22px;background:#fff;border-radius:12px;font-size:14px;line-height:2">原始材料 → 整理校验<br>人工确认 → 再往下走</div>'
       : d.cover === 'slide'
