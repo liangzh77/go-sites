@@ -1,15 +1,15 @@
 <!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>水墨视频 · 制作 · AI Demo</title><meta name="description" content="用静止插画、旁白、字幕和镜头运动制作叙事短片。观看《寒衣 · 孟姜女哭长城》，或复制安装指令给 Agent 安装完整技能。">
+<title>水墨视频 · 制作 · AI Demo</title><meta name="description" content="用静止插画、旁白、字幕和镜头运动制作叙事短片。观看《雪夜访戴》第三版，或复制安装指令给 Agent 安装完整技能。">
 <link rel="canonical" href="https://liangz77.cn/ai-demo/ink-story-film/"><link rel="alternate" type="text/markdown" href="install.md" title="Agent 安装说明"><link rel="icon" href="../favicon.svg"><link rel="stylesheet" href="../app.css"><link rel="stylesheet" href="../case-nav.css"><link rel="stylesheet" href="../pop-sticker-studio/studio.css"></head><body>
 <header class="nav case-nav"><a class="brand" href="../#production">AI Demo · 制作</a><a class="case-return" href="../#production">← 全部案例</a></header>
 <main class="maker"><section class="intro"><small>制作工具　/　<span lang="en" translate="no" class="notranslate">Agent Skill</span>　·　v1.0.0</small><h1>水墨视频</h1><p>画里的人不动，镜头带你去看。先把故事画成几幅插画，等你确认，再录旁白；声音定下后，按讲述的节奏运镜、配字幕，剪成短片。默认使用纸本水彩，也可以指定传统水墨画风。</p></section>
-<a class="example" href="meng-jiang-nv/"><img src="meng-jiang-nv/poster.jpg" alt="孟姜女提着布包，在长城脚下向老人打听丈夫的下落"><div><small>民间传说　/　约 51 秒</small><h2>寒衣 · 孟姜女哭长城</h2><p>天冷了。孟姜女提着给范喜良做的衣裳，来到长城脚下。</p><strong>观看《寒衣》 →</strong></div></a>
+<a class="example" href="snow-night-visit/"><img src="snow-night-visit/poster.jpg" alt="清晨的雪地里，王子猷拢袖立在戴家紧闭的木门前"><div><small>世说新语　/　30 秒</small><h2>雪夜访戴</h2><p>王子猷乘了一夜船，到了朋友门前，却没有敲门。</p><strong>观看《雪夜访戴》第三版 →</strong></div></a>
 <section class="card" id="install"><small>01　/　安装</small><h2>发给你的 Agent 安装</h2>
 <p>复制下面这段话，发给你的 Agent 即可安装。</p>
 <div class="promptrow"><blockquote id="install-prompt">请帮我安装这个页面里的「水墨视频」技能：https://liangz77.cn/ai-demo/ink-story-film/</blockquote><button id="copy" type="button" aria-label="复制安装指令" hidden>复制</button></div>
 <p id="notice" role="status"></p><p><a href="ink-story-film-1.0.0.zip" download>下载完整技能包（ZIP）</a></p></section>
 <section class="card" id="usage"><small>02　/　使用</small><h2>安装后，这样调用</h2>
-<h3>做一部短片</h3><blockquote>用 $ink-story-film 把下面的故事做成水墨视频，先给我看分镜插画。</blockquote>
+<h3>做一部短片</h3><p>按《雪夜访戴》第三版的分镜、配音和剪辑记录整理，可直接发给 Agent：</p><blockquote>用 $ink-story-film 把《世说新语·任诞》里的《雪夜访戴》做成一部 30 秒横屏短片。用暖纸上的细铅笔线、水彩晕染和少量水粉画四镜：王子猷雪夜推窗，饮酒想起戴安道；乘小舟连夜沿溪而行；清晨到了戴家门前，双手拢在袖中，没有敲门，微笑转身；归舟渐远，消失在淡青色的晨雾里。先画第三镜定下人物和笔触，再画其余三镜，按故事顺序给我确认。图定后用云希男声讲述，先给我试听。剪辑时只移动取景框：窗前微推、夜航横移、门前定镜、归舟缓缓拉远。水声放轻，不加配乐；结尾在归舟上方的留白中逐句写出“吾本乘兴而行，兴尽而返，何必见戴？”</blockquote><p><a href="snow-night-visit/gate-prompt.txt">查看「到门不叩」一镜的原始绘图提示词（英文）</a></p>
 <h3>调整一个镜头</h3><blockquote>用 $ink-story-film 把第三镜改成缓慢拉远，保留旁白、字幕和其他镜头，导出新版视频。</blockquote></section></main>
 <script>
 const button=document.getElementById('copy'), promptText=document.getElementById('install-prompt'), notice=document.getElementById('notice');
