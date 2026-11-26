@@ -1,10 +1,10 @@
 {
   "name": "pop-sticker-studio",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "page": "https://liangz77.cn/ai-demo/pop-sticker-studio/",
   "instructions": "https://liangz77.cn/ai-demo/pop-sticker-studio/install.md",
-  "archive": "https://liangz77.cn/ai-demo/pop-sticker-studio/pop-sticker-studio-1.0.1.zip",
-  "sha256": "12c57372e052d97eb3fbc1746af6a1197f9e1d9dfc1833f3e50c74f423510b24",
+  "archive": "https://liangz77.cn/ai-demo/pop-sticker-studio/pop-sticker-studio-1.0.2.zip",
+  "sha256": "037ae550d50d300cc3e8d84c69011025f33706726a87f05dc11d4ad8c463f087",
   "archive_root": "pop-sticker-studio",
   "entrypoint": "SKILL.md",
   "files": [
