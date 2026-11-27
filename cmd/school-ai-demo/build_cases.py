@@ -174,7 +174,7 @@ def vat():
         ['本期应缴', gbp(ex['payable_gbp']), gbp(ex['sales']['output_vat_gbp']) + ' − ' + gbp(ex['purchase']['input_vat_gbp']) + ' = ' + gbp(ex['payable_gbp'])],
     ])
 
-    diff = '<div class="vat-diff"><span class="vat-demo-tag">教学示例，不是真实客户数据</span><h3>如果申报表写的是 ' + gbp(ex['return_as_filed_gbp']) + '，这 ' + gbp(abs(ex['difference_gbp'])) + ' 从哪来？</h3><p>差的不是税金本身，而是三份材料没对上。先找凭证，再决定改哪一边；不能直接把申报表改成 ' + gbp(ex['payable_gbp']) + ' 了事。</p><div class="todos">' + ''.join(todo('查', ['少记了一张进项发票', '税率或科目选错', '把含税金额当成净额'][i], text) for i, text in enumerate(ex['investigate'])) + '</div></div>'
+    diff = '<div class="vat-diff"><h3>如果申报表写的是 ' + gbp(ex['return_as_filed_gbp']) + '，这 ' + gbp(abs(ex['difference_gbp'])) + ' 从哪来？</h3><p>差的不是税金本身，而是三份材料没对上。先找凭证，再决定改哪一边；不能直接把申报表改成 ' + gbp(ex['payable_gbp']) + ' 了事。</p><div class="todos">' + ''.join(todo('查', ['少记了一张进项发票', '税率或科目选错', '把含税金额当成净额'][i], text) for i, text in enumerate(ex['investigate'])) + '</div></div>'
 
     day_cards = ''.join(
         '<article class="case-card vat-day"><div class="vat-day-head"><span class="vat-day-num">DAY ' + str(day['day']) + '</span><span class="vat-day-who">' + esc(day['who']) + '</span></div><h3>' + esc(day['title']) + '</h3><p>' + esc(day['body']) + '</p><p class="vat-output">产出：' + esc(day['output']) + '</p></article>'
@@ -190,7 +190,6 @@ def vat():
 <p class="step-desc"><strong>算税</strong>是算这次该交多少：把销售收的税减掉进货时付过的税。<strong>对账</strong>是另一件事：把发票、账簿和申报表三份材料摊开，看它们说的是不是同一件事。算对了但没对上，申报表照样是错的。</p>
 <p class="step-desc">用一笔小生意说明（英国标准税率 <dfn class="vat-dfn">20%</dfn>）。金额都是整数，方便看：</p>
 ''' + example + '''
-<p class="case-note">教学示例，不是真实客户数据。这里的 1,200、600 和申报结果都是为了讲清概念编的。</p>
 ''' + diff + '''
 <div class="step-controls"><span></span><button type="button" class="btn btn-b" data-step="days">下一步：看四天做了什么 →</button></div></section>'''
 
@@ -211,8 +210,6 @@ def vat():
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fcfbf8"><title>AI 辅助增值税（VAT）对账 · AI Demo</title><meta name="description" content="用一笔小生意说明算税与对账的区别，再看英国一家 46 人事务所如何在四天里把 VAT 对账做成 AI 备稿、会计签字的流程。">{main_asset}</head>
 <body class="case-page"><header class="nav case-nav"><a class="brand" href="../#accounting"><img class="brandmark" src="../logo.svg" width="26" height="26" alt="">AI Demo</a><a class="case-return" href="../#accounting">← 全部案例</a></header>
 <main class="case-wrap"><nav class="case-siblings" aria-label="会计案例"><a href="../vat-reconciliation/" aria-current="page">01 AI 辅助增值税（VAT）对账</a></nav><header class="case-intro"><span class="case-label">会计 · AI 辅助增值税（VAT）对账</span><h1>VAT 申报前，先把三份材料对上</h1><p>算税只是第一步。发票、账簿和申报表对不上时，差的那几十镑要从凭证里找回来。这一页用一笔小生意讲清楚区别，再看英国一家 46 人事务所的四天试点。</p></header>
-<p class="case-note neutral">公开案例 + 教学示例。案例过程按创作者视频整理；金额示例为教学编造，不来自任何真实客户；本页未连接账务系统，也不代客户申报。</p>
-<p class="context">{d['firm']['country']} {esc(d['firm']['name'])}（{d['firm']['headcount']} 人） · {d['firm']['pilot_days']} 天试点 · 来源：{esc(source['author'])} 公开视频</p>
 <div class="case-workspace"><div class="case-steps" role="tablist" aria-label="案例步骤"><button type="button" role="tab" id="step-basics" aria-controls="basics" aria-selected="true">① 算税与对账</button><button type="button" role="tab" id="step-days" aria-controls="days" aria-selected="false" tabindex="-1">② 四天试点</button><button type="button" role="tab" id="step-division" aria-controls="division" aria-selected="false" tabindex="-1">③ 谁签字</button></div>
 {basics}
 {days}

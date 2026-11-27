@@ -102,7 +102,13 @@ const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Con
 
     // 4. Teaching example numbers are present and correct.
     const basicsText = await ev("document.querySelector('#basics').innerText");
-    for (const t of ['£1,200', '£200', '£600', '£100', '£120', '£20', '教学示例，不是真实客户数据']) assert(basicsText.includes(t), 'missing ' + t);
+    for (const t of ['£1,200', '£200', '£600', '£100', '£120', '£20']) assert(basicsText.includes(t), 'missing ' + t);
+    // Client removed four notices; their strings and the containers that only held them must be gone.
+    for (const t of ['公开案例 + 教学示例', '天试点 · 来源', '教学示例，不是真实客户数据', '都是为了讲清概念编的']) {
+      assert.equal(await ev(`document.body.innerText.includes(${JSON.stringify(t)})`), false, 'removed text still on page: ' + t);
+    }
+    assert.equal(await ev("document.querySelectorAll('.vat-demo-tag, .context').length"), 0);
+    assert.equal(await ev("[...document.querySelectorAll('.case-note')].filter(n=>n.textContent.trim()==='').length"), 0, 'empty notice box');
     assert.equal(await ev("document.querySelectorAll('#basics .vat-diff').length"), 1);
     assert.equal(await ev("document.querySelectorAll('#basics .vat-diff .todo').length"), 3);
 
@@ -152,7 +158,7 @@ const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Con
     const shot3 = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
     fs.writeFileSync(path.join(os.tmpdir(), 'vat-case-mobile.png'), Buffer.from(shot3.data, 'base64'));
     assert.deepEqual(errors, []);
-    console.log('PASS pills order (会计 right after 外贸), card category, deep link #accounting, 3 tabs click/keyboard/step buttons, teaching numbers, 4 day cards, boundaries, external source link, 1440/768/375 layout, no JS errors');
+    console.log('PASS removed notices (no empty boxes), pills order (会计 right after 外贸), card category, deep link #accounting, 3 tabs click/keyboard/step buttons, teaching numbers, 4 day cards, boundaries, external source link, 1440/768/375 layout, no JS errors');
   } finally {
     if (ws) ws.close();
     if (chrome.exitCode === null) { const exited = new Promise(r => chrome.once('exit', r)); chrome.kill('SIGTERM'); await exited; }

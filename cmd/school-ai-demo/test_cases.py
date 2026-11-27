@@ -80,8 +80,12 @@ class CasesTest(unittest.TestCase):
 
     def test_vat_page_content_and_links(self):
         page=(WEB/'vat-reconciliation'/'index.html').read_text()
-        for text in ['教学示例，不是真实客户数据','£200','£100','£120','£20','46 人','17 类','DAY 4','AI 备稿，会计签字','IXDYEF22CG8']:
+        for text in ['£200','£100','£120','£20','46 人','17 类','DAY 4','AI 备稿，会计签字','IXDYEF22CG8','vat-diff']:
             self.assertIn(text,page)
+        # Removed by client request: four notices and the note/tag that carried them.
+        for text in ['公开案例 + 教学示例','天试点 · 来源','教学示例，不是真实客户数据','都是为了讲清概念编的','class="context"','vat-demo-tag']:
+            self.assertNotIn(text,page)
+        self.assertNotIn('<p class="case-note"></p>',page)
         self.assertIn('href="../#accounting"',page)
         self.assertIn('rel="noopener noreferrer"',page)
         self.assertNotIn('/school-ai-demo/',page)
