@@ -76,3 +76,19 @@ func TestDescribeHasNoKeyAndReportsReadiness(t *testing.T) {
 		t.Fatalf("describe = %v", out)
 	}
 }
+
+func TestClockHonoursTheRehearsalOverride(t *testing.T) {
+	t.Setenv("AI_PROVIDER_NOW", "2026-11-29T09:30:00+08:00")
+	got := Clock()()
+	if got.Format(time.RFC3339) != "2026-11-29T09:30:00+08:00" {
+		t.Fatalf("clock = %s", got.Format(time.RFC3339))
+	}
+	t.Setenv("AI_PROVIDER_NOW", "not a timestamp")
+	if at := Clock()(); time.Since(at) > time.Minute {
+		t.Fatal("a malformed override must fall back to the real clock")
+	}
+	t.Setenv("AI_PROVIDER_NOW", "")
+	if at := Clock()(); time.Since(at) > time.Minute {
+		t.Fatal("an empty override must fall back to the real clock")
+	}
+}

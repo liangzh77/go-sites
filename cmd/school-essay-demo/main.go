@@ -389,7 +389,7 @@ func main() {
 		log.Fatal("invalid daily limit")
 	}
 	client := &http.Client{Timeout: 110 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
-	s := &service{db: db, client: client, providers: aiprovider.FromEnv(), daily: daily, slots: make(chan struct{}, 2), visits: map[string][]time.Time{}, now: time.Now}
+	s := &service{db: db, client: client, providers: aiprovider.FromEnv(), daily: daily, slots: make(chan struct{}, 2), visits: map[string][]time.Time{}, now: aiprovider.Clock()}
 	if usageDir := os.Getenv("SCHOOL_AI_DEMO_DATA_DIR"); usageDir != "" {
 		if usage, err := modelusage.Open(usageDir, time.Now()); err != nil {
 			log.Printf("model usage unavailable: %v", err)
@@ -413,7 +413,10 @@ func main() {
 		defer cancel()
 		_ = server.Shutdown(shutdown)
 	}()
-	active := s.providers.Active(time.Now())
+	if pinned, ok := os.LookupEnv("AI_PROVIDER_NOW"); ok && strings.TrimSpace(pinned) != "" {
+		log.Printf("warning: AI_PROVIDER_NOW=%s pins the provider clock for rehearsal; unset it", pinned)
+	}
+	active := s.providers.Active(s.now())
 	log.Print("school review API listening on ", server.Addr, "; active provider=", active.Name, " model=", active.Model, "; ", aiprovider.Window)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(fmt.Sprintf("listen failed: %v", err))

@@ -73,6 +73,7 @@ func (c *aiClient) active() aiprovider.Provider {
 func newAIClientFromEnv() *aiClient {
 	return &aiClient{
 		providers: aiprovider.FromEnv(),
+		now:       aiprovider.Clock(),
 		http:      &http.Client{Timeout: aiTimeout},
 	}
 }

@@ -91,6 +91,19 @@ func (s Set) Active(now time.Time) Provider {
 	return s.Cloud
 }
 
+// Clock is the wall clock the schedule reads. AI_PROVIDER_NOW pins it to one
+// RFC3339 instant, which exists so a deployment can rehearse the other
+// window (start a spare binary with it, check, then leave it unset); it is
+// never needed in normal running.
+func Clock() func() time.Time {
+	if pinned := strings.TrimSpace(os.Getenv("AI_PROVIDER_NOW")); pinned != "" {
+		if at, err := time.Parse(time.RFC3339, pinned); err == nil {
+			return func() time.Time { return at }
+		}
+	}
+	return time.Now
+}
+
 // Describe is the non-secret status summary: who will serve the next request.
 func (s Set) Describe(now time.Time) map[string]any {
 	active := s.Active(now)
