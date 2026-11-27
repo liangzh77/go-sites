@@ -66,7 +66,6 @@
         </div>
         <div class="hero-actions">
           <button class="secondary-button" id="batchTestButton" type="button">检测全部启用 Key</button>
-          <button class="secondary-button" id="grantButton" type="button">模型调用授权</button>
           <button class="secondary-button" id="exportButton" type="button">导出配置</button>
           <button class="primary-button" id="addProviderButton" type="button">＋ 新增 Provider</button>
         </div>
@@ -372,15 +371,6 @@
     </div>
   </dialog>
 
-  <dialog id="grantDialog" class="modal"><form id="grantForm" class="modal-card">
-    <h2>模型调用授权</h2><p>允许本机由部署管理员接入的应用（包括写作教练）调用以下模型，可能产生费用。应用不能读取密钥。按北京时间自动切换，可在此撤销。</p>
-    <p id="grantStatus" role="status"></p><label>02:00–20:00 · Ollama Cloud <select id="grantDay"></select></label>
-    <label>20:00–次日 02:00 · DeepSeek 官方 <select id="grantNight"></select></label>
-    <label>管理密码 <input id="grantPassword" type="password" autocomplete="current-password" required></label>
-    <div class="modal-actions"><button class="secondary-button close-dialog" type="button">关闭</button>
-    <button type="submit" value="enable" class="primary-button">验证并启用</button>
-    <button type="submit" value="revoke" class="secondary-button">撤销授权</button></div>
-  </form></dialog>
   <dialog id="exportDialog" class="modal">
     <form id="exportForm" class="modal-card wide-modal">
       <div class="modal-head">

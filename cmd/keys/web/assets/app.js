@@ -1521,36 +1521,6 @@
     $("addProviderButton").addEventListener("click", () => openProviderDialog());
     $("batchTestButton").addEventListener("click", () => batchTest());
     $("exportButton").addEventListener("click", openExportDialog);
-    $("grantButton").onclick = async () => {
-      try {
-        const g = await api('inference-grant');
-        for (const [id, preset, route] of [['grantDay','ollama',g.routes.day],['grantNight','deepseek',g.routes.night]]) {
-          const select=$(id); select.replaceChildren();
-          for (const p of state.providers.filter(p=>p.enabled && p.presetId===preset)) {
-            for (const k of p.keys.filter(k=>k.enabled)) {
-              for (const model of new Set([k.testModel,...p.models.map(m=>m.modelId)].filter(m=>m && /deepseek/i.test(m)))) {
-                const choice={key:k.id,model}; const opt=new Option(`${p.name} / ${k.alias} / ${model}`,JSON.stringify(choice)); select.add(opt);
-                if(route.key===k.id && route.model===model)opt.selected=true;
-              }
-            }
-          }
-          if(!select.options.length)select.add(new Option('请先为此 Provider 添加并启用 Key、配置 DeepSeek 模型',''));
-        }
-        $('grantStatus').textContent=g.enabled?'已启用。更换选择需再次验证。':'尚未授权。启用前会向两家各发送一次测试请求。';
-        openDialog($('grantDialog'));
-      } catch(e){showToast(errorMessage(e),'error')}
-    };
-    $('grantDialog').addEventListener('close',()=>{$('grantPassword').value=''});
-    $('grantForm').onsubmit=async event=>{
-      event.preventDefault();const action=event.submitter?.value||'enable';const buttons=[...$('grantForm').querySelectorAll('button[type=submit]')];
-      if(action==='enable' && (!$('grantDay').value || !$('grantNight').value)){ $('grantStatus').textContent='需要先配置两个来源。';return; }
-      if(action==='revoke' && !confirm('停止所有已接入应用的后续模型调用？'))return;
-      buttons.forEach(b=>b.disabled=true);$('grantStatus').textContent=action==='enable'?'正在验证两条模型线路…':'正在撤销…';
-      try {const routes=action==='enable'?{day:JSON.parse($('grantDay').value),night:JSON.parse($('grantNight').value)}:{};
-        const result=await api('inference-grant',{method:'POST',body:{action,routes,password:$('grantPassword').value}});
-        $('grantStatus').textContent=result.enabled?'已启用。写作教练及后续由部署服务接入的应用无需复制密钥。':'已撤销。';
-      } catch(e){$('grantStatus').textContent=errorMessage(e)} finally {$('grantPassword').value='';buttons.forEach(b=>b.disabled=false)}
-    };
     $("exportForm").addEventListener("submit", submitExport);
     $("copyExportButton").addEventListener("click", copyExportText);
     $("exportSelectAllButton").addEventListener("click", () => {
