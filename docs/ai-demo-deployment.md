@@ -55,6 +55,12 @@ node --check cmd/school-ai-demo/web/cases.js
 
 `check_return_browser.js` 覆盖 8 种入口 × 375/768/1440 CSS 像素宽度：按钮唯一、右上同排、无横向溢出、正确分类及缓存返回，共 122 项本地检查通过。原有 126 项页面及 34 项缓存检查仍通过；Go 全量测试、构建和 5 项 Python 素材/链接测试通过。仍只发布前端，不改变后台和路由。
 
+## 管理员调用统计
+
+首页页脚「管理后台」链接指向 `/ai-demo/admin/`，登录只填密码（服务端 `AI_DEMO_ADMIN_PASSWORD`，未配置时禁用）。会话使用限于后台路径的 Secure、HttpOnly Cookie，服务重启后重新登录。只展示汇总数字，未登录不能访问，连续错密会触发短期限速。设计参考 Kimi K3 的无外链、服务端 SVG 折线图与每日表格方案。
+
+填表、作文、数学的模型客户端在收到可用结果后记录一次成功。失败、超时、被截断或无法解析的结果不计；主密钥失败后备用请求成功只记一次。统计用北京时间，展示最近 30 天，开始采集前不补录。两个服务共用 `SCHOOL_AI_DEMO_DATA_DIR` 中的 `model-usage.db`，不包含个人数据。功能发布需要更新两项后台二进制、服务端密码配置和 Caddy 的精确路由；不用替换静态前端或业务数据库。
+
 ## 最小部署
 
 - 前端：`/srv/apps/ai-demo/releases/<时间>-<commit>/`；`current` 原子软链；`REVISION` 为实际源码提交。
@@ -90,3 +96,18 @@ bash cmd/school-ai-demo/deploy_ai_demo.sh <当前线上Caddyfile和data.js对应
 - 5 项新工程素材/生成/链接测试通过；来源工程原有 6 项素材测试通过。
 - 最终三步布局 Chrome 本地 126 项检查通过（7 页 × 3 宽度；三个案例各步骤单独检查；无旧链接、分类、来源切换/跳转、键盘步骤切换、复制成功/失败、3.70/3.93 及非法价格、重复单与新修订）。查看了邮件结果页实际截图。
 - Caddy 候选配置校验通过。首次上线校验发现 `rewrite` 与 `uri` 的默认排序导致学校 API 路径错误，脚本已自动回滚并核验原站恢复；改为单个 `uri replace` 避免顺序问题。随后在服务器独立 loopback 18767 Caddy（admin 关闭）验证首页、三个案例、模板、作文/数学状态接口全部 200，旧路径及查询参数 308 保留、未知页面 404。部署后另核验 HTTPS、下载、学校接口、导航和真实页面交互；不调用真实模型以避免消耗用户额度。
+
+## 模型账号改为按北京时间分时（2026-11-28）
+
+- 旧的 OpenCode Go 订阅和两把 `SCHOOL_AI_DEEPSEEK_*` 密钥已从服务器环境文件删除，替换成两组账号：
+  - `DEEPSEEK_*`：DeepSeek 官方 `https://api.deepseek.com`，`deepseek-flash`，**北京时间 20:00–02:00** 使用；
+  - `OLLAMA_*`：Ollama Cloud `https://ollama.com/v1`，`deepseek-v4.1-flash`，**其余时段**使用。
+- 两个账号都在 `/srv/apps/school-ai-demo/shared/school-ai-demo.env`（600，root:root），由 `school-ai-demo` 与 `school-essay-demo` 共用；密钥只存在服务器，不写入仓库、日志、状态接口或页面。
+- 每次请求按北京时钟选账号（`internal/aiprovider`）。窗口是 `[20:00, 02:00)`，20:00 整切到官方、02:00 整切回 Ollama；UTC 时钟按固定 +08:00 换算，不受服务器时区影响。
+- **取消了原来的主/备 key 重试**：账号不是彼此的备份，选中的账号失败就如实报错（401/403 报“密钥不可用”，429/402 报“额度不足或繁忙”），不会静默换模型。
+- 状态接口（`/api/state`、`/api/essay-review/status`、`/api/math-review/status`）返回 `configured`、`provider`、`model`、`window`，不含密钥；页面显示当前账号名。
+- 两个账号都实测过：DeepSeek 官方与 Ollama Cloud 均支持纯文本、图片输入（vision）和 `response_format: json_object`；模型名分别是 `deepseek-flash` 与 `deepseek-v4.1-flash`。
+- `AI_PROVIDER_NOW=<RFC3339>` 可临时钉住时钟，用于在备用端口预演另一时段；生产环境不设置。设置时启动日志会警告。
+- 测试：分时边界（19:59 / 20:00 / 01:59 / 02:00 / 12:00 以及 UTC 等价时刻）、单账号失败不串号、状态不含密钥、base URL 拼接、rehearsal 时钟回退。
+- 上线核对：00:1x（窗口内）线上 `/api/state` 与作文/数学状态显示 `DeepSeek / deepseek-flash`，真实作文点评 67 字、数学图片判卷 11 项、填表 3 个字段均由官方账号返回；随后用 `AI_PROVIDER_NOW` 在 19027 端口预演 09:00 时段，显示 `Ollama Cloud / deepseek-v4.1-flash` 并成功返回 49 字点评，预演进程与临时目录已清理。
+- 回滚：二进制 release `20261128-keys-1b3cba8`（后续 `20261128-keys-b291c97`、`20261128-formlog` 只加日志）之前是 `20261127-034259-admin-logout` / `20261127-032255-usage-admin`；旧环境文件备份在 `/srv/apps/school-ai-demo/deploy-backups/20261128-keys-1b3cba8/school-ai-demo.env`。回滚时把 `current` 指回旧 release、恢复该 env 并重启两个服务。
