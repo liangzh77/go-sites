@@ -120,12 +120,12 @@ const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Con
     for (const t of ['17 类', '46 人', 'Thomas & Co.', '账务系统', '历史', '吻合']) assert(daysText.includes(t), 'days missing ' + t);
     await openStep('#step-division', '#division');
     const divisionText = await ev("document.querySelector('#division').innerText");
-    for (const t of ['AI 备稿，会计签字', '不是把整家事务所自动化', '50 倍', '第三方审计']) assert(divisionText.includes(t), 'division missing ' + t);
-    const sourceLink = await ev("(() => { const a=document.querySelector('#division a[target=\"_blank\"]'); return a ? {href:a.href, rel:a.rel, text:a.textContent.trim()} : null; })()");
-    assert(sourceLink, 'source link missing');
-    assert.equal(sourceLink.href, 'https://www.youtube.com/watch?v=IXDYEF22CG8');
-    assert.equal(sourceLink.rel, 'noopener noreferrer');
-    assert(sourceLink.text.includes('Liam Ottley') || sourceLink.text.includes('46-Person'), 'source link text: ' + sourceLink.text);
+    for (const t of ['AI 备稿，会计签字', '把发票、账簿、申报表摊开']) assert(divisionText.includes(t), 'division missing ' + t);
+    // The boundaries block and its source link were removed together.
+    assert.equal(await ev("document.querySelectorAll('#division a[target=\"_blank\"]').length"), 0);
+    for (const t of ['三条边界', '不是把整家事务所自动化', '50 倍', '第三方审计', 'IXDYEF22CG8']) {
+      assert.equal(await ev(`document.body.innerText.includes(${JSON.stringify(t)})`), false, 'removed text still on page: ' + t);
+    }
     await ev("[...document.querySelectorAll('#division [data-step]')].find(b=>b.dataset.step==='days').click()");
     await wait("!document.querySelector('#days').hidden");
     assert.equal(await ev("document.querySelector('#days').hidden"), false);
@@ -158,7 +158,7 @@ const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Con
     const shot3 = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
     fs.writeFileSync(path.join(os.tmpdir(), 'vat-case-mobile.png'), Buffer.from(shot3.data, 'base64'));
     assert.deepEqual(errors, []);
-    console.log('PASS removed notices (no empty boxes), pills order (会计 right after 外贸), card category, deep link #accounting, 3 tabs click/keyboard/step buttons, teaching numbers, 4 day cards, boundaries, external source link, 1440/768/375 layout, no JS errors');
+    console.log('PASS removed notices (no empty boxes), pills order (会计 right after 外贸), card category, deep link #accounting, 3 tabs click/keyboard/step buttons, teaching numbers, 4 day cards, boundaries, boundaries block and source link removed, 1440/768/375 layout, no JS errors');
   } finally {
     if (ws) ws.close();
     if (chrome.exitCode === null) { const exited = new Promise(r => chrome.once('exit', r)); chrome.kill('SIGTERM'); await exited; }

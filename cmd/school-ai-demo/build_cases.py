@@ -182,9 +182,7 @@ def vat():
 
     division = '<div class="case-table" tabindex="0" role="region" aria-label="可横向滚动的职责表"><table><caption class="sr-only">AI 与会计的分工</caption><thead><tr><th scope="col">AI 做</th><th scope="col">会计做</th></tr></thead><tbody>' + ''.join('<tr><td>' + esc(ai) + '</td><td>' + esc(person) + '</td></tr>' for ai, person in d['division']) + '</tbody></table></div>'
 
-    boundaries = ''.join('<p class="case-note vat-boundary">' + esc(text) + '</p>' for text in d['boundaries'])
 
-    source_link = '<p class="case-note neutral">来源：<a href="' + esc(source['url']) + '" target="_blank" rel="noopener noreferrer">' + esc(source['title']) + ' ↗</a>（YouTube，' + esc(source['author']) + '）。' + esc(source['limits']) + '</p>'
 
     basics = '''<section class="step-body" id="basics" role="tabpanel" aria-labelledby="step-basics" tabindex="0"><h2>先分清两件事：算税，和对账</h2>
 <p class="step-desc"><strong>算税</strong>是算这次该交多少：把销售收的税减掉进货时付过的税。<strong>对账</strong>是另一件事：把发票、账簿和申报表三份材料摊开，看它们说的是不是同一件事。算对了但没对上，申报表照样是错的。</p>
@@ -202,8 +200,6 @@ def vat():
     div_step = '''<section class="step-body" id="division" role="tabpanel" aria-labelledby="step-division" tabindex="0" hidden><h2>AI 备稿，会计签字</h2>
 <p class="step-desc">这条线划得很清楚：AI 把材料和差异摆到桌面上，判断和签字仍在人这边。</p>
 ''' + division + '''
-<h3 class="vat-sub">三条边界，别被标题带跑</h3>
-''' + boundaries + source_link + '''
 <div class="step-controls"><button type="button" class="btn btn-o" data-step="days">← 上一步</button><span></span></div></section>'''
 
     content = f'''<!doctype html>

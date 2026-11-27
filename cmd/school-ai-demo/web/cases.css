@@ -18,8 +18,6 @@
 .case-page .vat-day h3{margin:0;font-size:17px;line-height:1.5}
 .case-page .vat-day p{font-size:14px;line-height:1.8;margin:0}
 .case-page .vat-day .vat-output{margin-top:auto;color:var(--warn);font-size:13px}
-.case-page .vat-sub{font-size:16px;margin:24px 0 8px}
-.case-page .vat-boundary{background:var(--soft);border-left:3px solid var(--line);color:var(--ink)}
 @media(min-width:1100px){.case-page .vat-days{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:760px){.case-page .vat-days{grid-template-columns:1fr}.case-page .vat-diff{padding:14px 16px}}
 @media print{.case-page .vat-diff{border:1px solid var(--line)}}
