@@ -57,6 +57,18 @@ const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Con
       return r.result.value;
     };
     const wait = async expr => { for (let i = 0; i < 100; i++) { if (await ev(expr)) return; await new Promise(r => setTimeout(r, 100)); } throw Error('timeout: ' + expr); };
+    // cases.js attaches listeners after DOMContentLoaded; retry the click instead of assuming.
+    const openStep = async (tabSel, panelSel) => {
+      for (let i = 0; i < 30; i++) {
+        if (await ev(`!document.querySelector('${panelSel}').hidden`)) return;
+        await ev(`document.querySelector('${tabSel}').click()`);
+        for (let k = 0; k < 10; k++) {
+          if (await ev(`!document.querySelector('${panelSel}').hidden`)) return;
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+      throw Error('could not open ' + panelSel);
+    };
     const key = async k => { await call('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code: k, windowsVirtualKeyCode: k === 'ArrowRight' ? 39 : 37 }); await call('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code: k, windowsVirtualKeyCode: k === 'ArrowRight' ? 39 : 37 }); };
 
     await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
@@ -83,6 +95,7 @@ const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Con
     // 3. Open it from the card.
     await ev("document.querySelector('[data-demo=\"vat-reconciliation\"] button').click()");
     await wait("location.pathname.endsWith('/vat-reconciliation/') && !!document.querySelector('#step-basics')");
+    await wait("document.querySelector('#step-days').tabIndex === -1");
     assert.equal(await ev("document.querySelectorAll('.case-steps [role=tab]').length"), 3);
     assert.equal(await ev("document.querySelector('#step-basics').getAttribute('aria-selected')"), 'true');
     assert.equal(await ev("document.querySelector('#days').hidden"), true);
@@ -94,13 +107,12 @@ const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Con
     assert.equal(await ev("document.querySelectorAll('#basics .vat-diff .todo').length"), 3);
 
     // 5. Tab switching by click, by keyboard and by the step buttons.
-    await ev("document.querySelector('#step-days').click()");
-    assert.equal(await ev("document.querySelector('#days').hidden"), false);
+    await openStep('#step-days', '#days');
     assert.equal(await ev("document.querySelectorAll('#days .vat-day').length"), 4);
     assert.equal(await ev("[...document.querySelectorAll('#days .vat-day-num')].map(n=>n.textContent.trim()).join(',')"), 'DAY 1,DAY 2,DAY 3,DAY 4');
     const daysText = await ev("document.querySelector('#days').innerText");
     for (const t of ['17 类', '46 人', 'Thomas & Co.', '账务系统', '历史', '吻合']) assert(daysText.includes(t), 'days missing ' + t);
-    await ev("document.querySelector('#step-division').click()");
+    await openStep('#step-division', '#division');
     const divisionText = await ev("document.querySelector('#division').innerText");
     for (const t of ['AI 备稿，会计签字', '不是把整家事务所自动化', '50 倍', '第三方审计']) assert(divisionText.includes(t), 'division missing ' + t);
     const sourceLink = await ev("(() => { const a=document.querySelector('#division a[target=\"_blank\"]'); return a ? {href:a.href, rel:a.rel, text:a.textContent.trim()} : null; })()");
@@ -109,6 +121,7 @@ const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Con
     assert.equal(sourceLink.rel, 'noopener noreferrer');
     assert(sourceLink.text.includes('Liam Ottley') || sourceLink.text.includes('46-Person'), 'source link text: ' + sourceLink.text);
     await ev("[...document.querySelectorAll('#division [data-step]')].find(b=>b.dataset.step==='days').click()");
+    await wait("!document.querySelector('#days').hidden");
     assert.equal(await ev("document.querySelector('#days').hidden"), false);
     await ev("document.querySelector('#step-basics').focus()");
     await key('ArrowRight');
@@ -120,7 +133,7 @@ const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Con
     // 6. Responsive: no page-level horizontal overflow; day cards stack/grid by width.
     const columns = async () => ev("getComputedStyle(document.querySelector('.vat-days')).gridTemplateColumns.split(' ').length");
     for (const [w, expected] of [[1440, 4], [768, 2], [375, 1]]) {
-      await ev(`document.querySelector('#step-days').click()`);
+      await openStep('#step-days', '#days');
       await call('Emulation.setDeviceMetricsOverride', { width: w, height: 900, deviceScaleFactor: 1, mobile: w < 500 });
       await new Promise(r => setTimeout(r, 150));
       assert.equal(await ev('document.documentElement.scrollWidth <= window.innerWidth'), true, 'horizontal overflow at ' + w);

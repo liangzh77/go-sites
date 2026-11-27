@@ -10,3 +10,11 @@
 - 素材 `cases/vat-reconciliation-demo.json`（`is_synthetic: true`、权限全 false）与生成页一起提交；`build_cases.py` 生成四页。测试新增：示例金额自洽（1,200−200=1,000、600−100=500、200−100=100、120−100=20）、四天结构、46/17/4 与边界措辞、页面必备文案与外链属性、生成结果无漂移。
 - 回归：`check_vat_browser.cjs` 在本地静态服务 + 无头 Chrome 覆盖分类药丸顺序（学校/外贸/会计/制作/工具）、卡片归属与 `#accounting` 深链、三步 Tab 的鼠标/键盘/步骤按钮、示例金额、四张日程卡、边界文案、外链 `rel`、1440/768/375 无横向溢出与日程卡列数、无 JS 报错；`go test ./...`、`go build ./cmd/school-ai-demo`、`node --check web/app.js` 通过。
 - 本次发布只换前端静态 release（`/srv/apps/ai-demo/releases/<时间>-<commit>`），不动 Caddy、不动 `data.js`、不重启 `school-ai-demo` / `school-essay-demo`。工作区当时另有未提交的管理后台改动，因此没有走要求 clean tree 的 `deploy_ai_demo.sh`；改动单独提交后从 `HEAD` 打包 `cmd/school-ai-demo/web`，并先核对线上 release 与 `HEAD` 的其余文件逐字节一致。
+
+## 线上发布与验收（2026-11-27）
+
+- 直达：<https://liangz77.cn/ai-demo/vat-reconciliation/>；首页分类栏为「学校 / 外贸 / 会计 / 制作 / 工具」，「会计」紧挨「外贸」右侧，卡片归属 `accounting`。
+- 静态 release：`/srv/apps/ai-demo/releases/20261127-vat-3d42a89/`，`REVISION` = `3d42a899a49ae0dff8ee0cddae6386ce02f087b3`。备份（旧指向与前一日志）：`/srv/apps/ai-demo/backups/20261127-vat-3d42a89/`。
+- 本次只新增 `vat-reconciliation/` 并替换 `app.js`、`cases.css`；发布脚本在服务器上逐字节比对，确认其余 110 个文件未变。`index.html` / `lesson-plan.html` 保持线上原样（仓库 HEAD 版本与线上不同，且有人正在改），不改 Caddy、不改 `data.js`、不重启 `school-ai-demo` / `school-essay-demo`。
+- 线上浏览器验收（无头 Chrome 访问真实域名）：分类顺序、卡片归属、`#accounting` 深链、三步 Tab 的点击/键盘/步骤按钮、示例金额与两处「教学示例」标注、四张日程卡、三条边界、外链 `target`/`rel`、1440/768/375 无横向溢出、无 JS 报错；`/ai-demo/`、三个外贸页、学校静态页与三个 API 均 200，未知路径 404，旧 `/school-ai-demo/` 仍 308。
+- 已知遗留：仓库里 `web/index.html` 与 `web/lesson-plan.html` 存在他人未提交改动（页脚「管理后台」链接），线上已是该版本；`deploy_ai_demo.sh` 要求工作区干净，因此本次未用它，改用等价的「从 HEAD 打包 + 只覆盖本次文件 + 原子切链」流程。
