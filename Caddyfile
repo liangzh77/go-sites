@@ -158,6 +158,10 @@ http://liangz77.cn, http://www.liangz77.cn {
 }
 
 https://liangz77.cn {
+    redir /writing-coach /writing-coach/ 308
+    handle_path /writing-coach/* {
+        reverse_proxy 127.0.0.1:9018
+    }
     # Paseo 0.17.4 fixes the WebSocket path at /ws; separate from /relay/.
     @paseo_relay_ws {
         path /ws
