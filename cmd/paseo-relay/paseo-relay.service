@@ -1,0 +1,26 @@
+[Unit]
+Description=Paseo WebSocket relay
+After=network.target
+
+[Service]
+Type=simple
+User=paseo-relay
+Group=paseo-relay
+WorkingDirectory=/srv/apps/paseo-relay/current/app
+Environment=HOME=/tmp
+Environment=PASEO_RELAY_HOST=127.0.0.1
+Environment=PASEO_RELAY_PORT=9040
+Environment=PASEO_RELAY_DRAIN=false
+Environment=RELEASE_DISTRIBUTION=none
+Environment=ERL_AFLAGS=+S2:2
+ExecStart=/srv/apps/paseo-relay/current/app/bin/paseo_relay start
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
