@@ -55,6 +55,8 @@ func (a *app) handler() http.Handler {
 	mux.HandleFunc("POST /keys/api/session", a.handleLogin)
 	mux.HandleFunc("POST /keys/api/logout", a.withMutation(a.handleLogout))
 
+	mux.HandleFunc("GET /keys/api/inference-grant", a.withSession(a.grantStatus))
+	mux.HandleFunc("POST /keys/api/inference-grant", a.withMutation(a.updateGrant))
 	mux.HandleFunc("GET /keys/api/bootstrap", a.withSession(a.handleBootstrap))
 	mux.HandleFunc("GET /keys/api/providers", a.withSession(a.handleListProviders))
 	mux.HandleFunc("POST /keys/api/providers", a.withMutation(a.handleCreateProvider))

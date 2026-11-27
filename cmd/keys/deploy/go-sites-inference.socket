@@ -1,0 +1,9 @@
+[Unit]
+Description=Private DeepSeek inference socket for permitted application services
+[Socket]
+ListenStream=/run/go-sites-inference.sock
+SocketUser=root
+SocketGroup=go-model-clients
+SocketMode=0660
+Service=go-sites-keys.service
+RemoveOnStop=yes

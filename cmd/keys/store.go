@@ -18,6 +18,11 @@ import (
 )
 
 const keySchemaSQL = `
+CREATE TABLE IF NOT EXISTS inference_grant (
+ singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+ day_key TEXT NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE, day_model TEXT NOT NULL,
+ night_key TEXT NOT NULL REFERENCES api_keys(id) ON DELETE CASCADE, night_model TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS providers (
 	id             TEXT PRIMARY KEY,
 	name           TEXT NOT NULL,

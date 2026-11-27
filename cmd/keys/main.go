@@ -110,6 +110,10 @@ func main() {
 		MaxHeaderBytes:    32 << 10,
 	}
 
+	if err := application.startLocalInference(); err != nil {
+		log.Fatal(err)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go func() {
