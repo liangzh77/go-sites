@@ -65,8 +65,8 @@ def page(slug, title, intro, sections, data):
     before, after = before_after[slug]
     compare = '<section class="case-card compare-section"><h2>同一件工作，两种做法</h2><div class="compare"><div><h3>原来的做法</h3><p>'+before+'</p></div><div><h3>这个流程想改变的</h3><p>'+after+'</p></div></div><p class="draft-note">这是模拟工作方式，不是已经测得的客户成效。</p></section>'
     content = f'''<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fcfbf8"><title>{title} · AI Demo</title><meta name="description" content="{esc(intro)}"><link rel="icon" href="../favicon.svg"><link rel="stylesheet" href="../app.css"><link rel="stylesheet" href="../cases.css"><link rel="stylesheet" href="../case-nav.css"></head>
-<body class="case-page"><header class="nav case-nav"><a class="brand" href="../#trade"><span class="case-logo" aria-hidden="true">AI</span>AI Demo</a><a class="case-return" href="../#trade">← 全部案例</a></header>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fcfbf8"><title>{title} · AI Demo</title><meta name="description" content="{esc(intro)}"><link rel="icon" href="../favicon.svg?v=mark-1"><link rel="stylesheet" href="../app.css"><link rel="stylesheet" href="../cases.css"><link rel="stylesheet" href="../case-nav.css"></head>
+<body class="case-page"><header class="nav case-nav"><a class="brand" href="../#trade"><img class="brandmark" src="../logo.svg" width="26" height="26" alt="">AI Demo</a><a class="case-return" href="../#trade">← 全部案例</a></header>
 <main class="case-wrap"><nav class="case-siblings" aria-label="外贸案例">{nav}</nav><header class="case-intro"><span class="case-label">外贸 · {title}</span><h1>{headlines[slug]}</h1><p>{esc(intro)}</p></header>
 {note('业务模拟，非真实客户成果。公司、客户和单据均为虚构；输入与展示结果由人工编写预置，未运行真实模型、未连接邮箱或 ERP。','neutral')}
 <p class="context">宁波澄禾礼品贸易（虚构，12 人） · 德国客户 Harbor Sample Trading / Alex Demo · 2027 年 8 月</p>
@@ -157,6 +157,71 @@ Zhou Ning'''
     sections = section('materials','客户采购单与原约定，放在一起看','<p class="step-desc">默认打开有冲突的 Rev0。左侧切换原报价、客户邮件与修订版；都是本案预置单据。</p>'+source_browser(sources))+section('result','金额算对了，但这四件事还没对上',result)+section('handoff','修订对齐以后，各自还要确认什么',handoff)
     page('order-validation','订单核对与录入','采购单的金额没算错，却比报价多了 200 个，还换了贸易与付款条款。先找差异，再建草稿。',sections,d)
 
+
+def gbp(value):
+    return '£' + format(int(value), ',')
+
+
+def vat():
+    d = load('vat-reconciliation')
+    ex = d['teaching_example']
+    source = d['source']
+    main_asset = '<link rel="icon" href="../favicon.svg?v=mark-1"><link rel="stylesheet" href="../app.css"><link rel="stylesheet" href="../cases.css"><link rel="stylesheet" href="../case-nav.css">'
+
+    example = table(['事项', '金额', '这里的税'], [
+        ['销售收款', gbp(ex['sales']['gross_gbp']) + '（净额 ' + gbp(ex['sales']['net_gbp']) + '）', '销项税 ' + gbp(ex['sales']['output_vat_gbp'])],
+        ['进货支出', gbp(ex['purchase']['gross_gbp']) + '（净额 ' + gbp(ex['purchase']['net_gbp']) + '）', '可抵扣的进项税 ' + gbp(ex['purchase']['input_vat_gbp'])],
+        ['本期应缴', gbp(ex['payable_gbp']), gbp(ex['sales']['output_vat_gbp']) + ' − ' + gbp(ex['purchase']['input_vat_gbp']) + ' = ' + gbp(ex['payable_gbp'])],
+    ])
+
+    diff = '<div class="vat-diff"><span class="vat-demo-tag">教学示例，不是真实客户数据</span><h3>如果申报表写的是 ' + gbp(ex['return_as_filed_gbp']) + '，这 ' + gbp(abs(ex['difference_gbp'])) + ' 从哪来？</h3><p>差的不是税金本身，而是三份材料没对上。先找凭证，再决定改哪一边；不能直接把申报表改成 ' + gbp(ex['payable_gbp']) + ' 了事。</p><div class="todos">' + ''.join(todo('查', ['少记了一张进项发票', '税率或科目选错', '把含税金额当成净额'][i], text) for i, text in enumerate(ex['investigate'])) + '</div></div>'
+
+    day_cards = ''.join(
+        '<article class="case-card vat-day"><div class="vat-day-head"><span class="vat-day-num">DAY ' + str(day['day']) + '</span><span class="vat-day-who">' + esc(day['who']) + '</span></div><h3>' + esc(day['title']) + '</h3><p>' + esc(day['body']) + '</p><p class="vat-output">产出：' + esc(day['output']) + '</p></article>'
+        for day in d['days'])
+
+    division = '<div class="case-table" tabindex="0" role="region" aria-label="可横向滚动的职责表"><table><caption class="sr-only">AI 与会计的分工</caption><thead><tr><th scope="col">AI 做</th><th scope="col">会计做</th></tr></thead><tbody>' + ''.join('<tr><td>' + esc(ai) + '</td><td>' + esc(person) + '</td></tr>' for ai, person in d['division']) + '</tbody></table></div>'
+
+    boundaries = ''.join('<p class="case-note vat-boundary">' + esc(text) + '</p>' for text in d['boundaries'])
+
+    source_link = '<p class="case-note neutral">来源：<a href="' + esc(source['url']) + '" target="_blank" rel="noopener noreferrer">' + esc(source['title']) + ' ↗</a>（YouTube，' + esc(source['author']) + '）。' + esc(source['limits']) + '</p>'
+
+    basics = '''<section class="step-body" id="basics" role="tabpanel" aria-labelledby="step-basics" tabindex="0"><h2>先分清两件事：算税，和对账</h2>
+<p class="step-desc"><strong>算税</strong>是算这次该交多少：把销售收的税减掉进货时付过的税。<strong>对账</strong>是另一件事：把发票、账簿和申报表三份材料摊开，看它们说的是不是同一件事。算对了但没对上，申报表照样是错的。</p>
+<p class="step-desc">用一笔小生意说明（英国标准税率 <dfn class="vat-dfn">20%</dfn>）。金额都是整数，方便看：</p>
+''' + example + '''
+<p class="case-note">教学示例，不是真实客户数据。这里的 1,200、600 和申报结果都是为了讲清概念编的。</p>
+''' + diff + '''
+<div class="step-controls"><span></span><button type="button" class="btn btn-b" data-step="days">下一步：看四天做了什么 →</button></div></section>'''
+
+    days = '''<section class="step-body" id="days" role="tabpanel" aria-labelledby="step-days" tabindex="0" hidden><h2>英国一家 46 人的事务所，用四天做了一个试点</h2>
+<p class="step-desc">这家所叫 Thomas &amp; Co.，在英国的 <span class="vat-dfn">VAT</span> 申报季里，每份底稿都要人对。试点只挑了这一件事做，四天排期如下：</p>
+<div class="vat-days">''' + day_cards + '''</div>
+<p class="case-note neutral">第一天盘出的 17 类底稿里，选 VAT 的理由是：做得频繁、每次耗时不短、错了要返工。换一家事务所，排序可能完全不同。</p>
+<div class="step-controls"><button type="button" class="btn btn-o" data-step="basics">← 上一步</button><button type="button" class="btn btn-b" data-step="division">下一步：谁签字 →</button></div></section>'''
+
+    div_step = '''<section class="step-body" id="division" role="tabpanel" aria-labelledby="step-division" tabindex="0" hidden><h2>AI 备稿，会计签字</h2>
+<p class="step-desc">这条线划得很清楚：AI 把材料和差异摆到桌面上，判断和签字仍在人这边。</p>
+''' + division + '''
+<h3 class="vat-sub">三条边界，别被标题带跑</h3>
+''' + boundaries + source_link + '''
+<div class="step-controls"><button type="button" class="btn btn-o" data-step="days">← 上一步</button><span></span></div></section>'''
+
+    content = f'''<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#fcfbf8"><title>AI 辅助增值税（VAT）对账 · AI Demo</title><meta name="description" content="用一笔小生意说明算税与对账的区别，再看英国一家 46 人事务所如何在四天里把 VAT 对账做成 AI 备稿、会计签字的流程。">{main_asset}</head>
+<body class="case-page"><header class="nav case-nav"><a class="brand" href="../#accounting"><img class="brandmark" src="../logo.svg" width="26" height="26" alt="">AI Demo</a><a class="case-return" href="../#accounting">← 全部案例</a></header>
+<main class="case-wrap"><nav class="case-siblings" aria-label="会计案例"><a href="../vat-reconciliation/" aria-current="page">01 AI 辅助增值税（VAT）对账</a></nav><header class="case-intro"><span class="case-label">会计 · AI 辅助增值税（VAT）对账</span><h1>VAT 申报前，先把三份材料对上</h1><p>算税只是第一步。发票、账簿和申报表对不上时，差的那几十镑要从凭证里找回来。这一页用一笔小生意讲清楚区别，再看英国一家 46 人事务所的四天试点。</p></header>
+<p class="case-note neutral">公开案例 + 教学示例。案例过程按创作者视频整理；金额示例为教学编造，不来自任何真实客户；本页未连接账务系统，也不代客户申报。</p>
+<p class="context">{d['firm']['country']} {esc(d['firm']['name'])}（{d['firm']['headcount']} 人） · {d['firm']['pilot_days']} 天试点 · 来源：{esc(source['author'])} 公开视频</p>
+<div class="case-workspace"><div class="case-steps" role="tablist" aria-label="案例步骤"><button type="button" role="tab" id="step-basics" aria-controls="basics" aria-selected="true">① 算税与对账</button><button type="button" role="tab" id="step-days" aria-controls="days" aria-selected="false" tabindex="-1">② 四天试点</button><button type="button" role="tab" id="step-division" aria-controls="division" aria-selected="false" tabindex="-1">③ 谁签字</button></div>
+{basics}
+{days}
+{div_step}</div>
+<p class="case-end"><a href="#basics">回到第一步 ↑</a></p></main><footer>AI Demo · 学校 / 外贸 / 会计 · <a href="https://liangz77.cn/">liangz77.cn</a></footer><p id="copy-status" class="case-toast" role="status" aria-live="polite"></p><script src="../cases.js"></script></body></html>'''
+    path = WEB / 'vat-reconciliation' / 'index.html'
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(content)
+
 if __name__ == '__main__':
-    email(); quotation(); order()
-    print('Built 3 synthetic case pages')
+    email(); quotation(); order(); vat()
+    print('Built 3 synthetic trade case pages and 1 accounting case page')

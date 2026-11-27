@@ -8,8 +8,10 @@ Live at <https://liangz77.cn/ai-demo/>.
 
 ## AI Demo 统一入口（2026-11-26）
 
-首页恢复原学校站视觉，分类为「学校」「外贸」。外贸三页：
-`/ai-demo/customer-email/`、`/ai-demo/quotation/`、`/ai-demo/order-validation/`。
+首页恢复原学校站视觉，分类为「学校」「外贸」「会计」。外贸三页：
+`/ai-demo/customer-email/`、`/ai-demo/quotation/`、`/ai-demo/order-validation/`；
+会计一个案例：`/ai-demo/vat-reconciliation/`（教学示例 + Thomas & Co. 四天试点，见
+[案例记录](../docs/ai-demo-vat-case.md)）。
 全部是人工编写的业务模拟，不是已交付客户成果，不接业务系统。
 
 发布静态资源为 `web/`；案例素材在 `cases/`，修改后运行

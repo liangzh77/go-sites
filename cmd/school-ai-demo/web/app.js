@@ -23,7 +23,7 @@
   // Card definitions live in this JS bundle. Only non-sensitive template
   // summaries and the selected category survive page navigation in this tab.
   const CATALOG_KEY = 'ai-demo:catalog:v1:' + BASE;
-  const isCategory = key => ['school', 'trade', 'production', 'tools'].includes(key);
+  const isCategory = key => ['school', 'trade', 'accounting', 'production', 'tools'].includes(key);
   function templateSummaries(value) {
     if (!Array.isArray(value) || value.length > 100 || !value.every(t =>
       t && typeof t.slug === 'string' && /^[a-z0-9-]{1,80}$/.test(t.slug) &&
@@ -189,6 +189,7 @@
   const DEMO_CATS = [
     { key: 'school', label: '学校' },
     { key: 'trade', label: '外贸' },
+    { key: 'accounting', label: '会计' },
     { key: 'production', label: '制作' },
     { key: 'tools', label: '工具' },
   ];
@@ -202,6 +203,18 @@
     typeLabel: '业务模拟 · 预置演示',
     tags: () => ['原始单据', {text: '人工审批', outline: true}],
     note: () => '未连接真实业务系统', cta: '查看案例',
+    open: () => { window.location.href = BASE + '/' + key + '/'; },
+  }));
+
+  // One public accounting case, kept in the same card shape as the trade ones.
+  // Numbers on its page are teaching values, not client data.
+  const ACCOUNTING_CASES = [
+    ['vat-reconciliation', 'AI 辅助增值税（VAT）对账', '对账', '销售和进货的税算完，还要和发票、账簿、申报表一张张对上。差 20 镑就该停下来查。'],
+  ].map(([key, title, glyph, desc]) => ({
+    key, title, glyph, desc, cat: 'accounting', cover: 'trade',
+    typeLabel: '公开案例 · 四天试点',
+    tags: () => ['46 人所 / 4 天', {text: '会计签字', outline: true}],
+    note: () => 'Liam Ottley 公开视频', cta: '查看案例',
     open: () => { window.location.href = BASE + '/' + key + '/'; },
   }));
 
@@ -269,7 +282,7 @@
     },
   ];
 
-  DEMOS.push(...TRADE_CASES, {
+  DEMOS.push(...TRADE_CASES, ...ACCOUNTING_CASES, {
     key: 'pop-sticker-studio', cat: 'production', cover: 'stickers', title: '波普贴纸工作室',
     glyph: '贴纸', typeLabel: 'Agent Skill', keepTypeEnglish: true, desc: '先画贴纸，再用代码编排动作。同一套素材可以做成滚动互动网页，也可以导出 MP4。',
     tags: () => ['互动网页', { text: '视频', outline: true }],
@@ -398,7 +411,7 @@
 
   function applyFilter() {
     saveCatalog();
-    $('categoryTitle').textContent = ({ school: '学校 · 日常教学小工具', trade: '外贸 · 把一笔生意往前推进', production: '制作 · 从素材到作品', tools: '工具 · 常用网址' })[state.filter];
+    $('categoryTitle').textContent = ({ school: '学校 · 日常教学小工具', trade: '外贸 · 把一笔生意往前推进', accounting: '会计 · 把每月的税对平', production: '制作 · 从素材到作品', tools: '工具 · 常用网址' })[state.filter];
     $('demoCards').querySelectorAll('[data-demo]').forEach((card) => {
       card.hidden = state.filter !== 'all' && card.dataset.cat !== state.filter;
     });

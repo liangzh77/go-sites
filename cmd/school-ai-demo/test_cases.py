@@ -58,12 +58,41 @@ class CasesTest(unittest.TestCase):
         for path in WEB.rglob('*.js'):
             self.assertNotIn('/school-ai-demo/api/',path.read_text())
 
+    def test_vat_teaching_example_and_boundaries(self):
+        d=fixture('vat-reconciliation')
+        self.assertTrue(d['is_synthetic'])
+        self.assertFalse(any(d['permissions'].values()))
+        ex=d['teaching_example']
+        self.assertEqual(ex['sales']['gross_gbp']-ex['sales']['output_vat_gbp'],ex['sales']['net_gbp'])
+        self.assertEqual(ex['purchase']['gross_gbp']-ex['purchase']['input_vat_gbp'],ex['purchase']['net_gbp'])
+        self.assertEqual(ex['sales']['output_vat_gbp']-ex['purchase']['input_vat_gbp'],ex['payable_gbp'])
+        self.assertEqual(ex['return_as_filed_gbp']-ex['payable_gbp'],-ex['difference_gbp'])
+        self.assertIn('不是真实客户数据',ex['note'])
+        self.assertEqual(len(d['days']),4)
+        self.assertEqual([x['day'] for x in d['days']],[1,2,3,4])
+        self.assertEqual(d['firm']['headcount'],46)
+        self.assertEqual(d['firm']['pilot_days'],4)
+        self.assertIn('17',d['days'][0]['body'])
+        self.assertIn('youtube.com/watch?v=IXDYEF22CG8',d['source']['url'])
+        joined=' '.join(d['boundaries'])
+        for phrase in ['不是把整家事务所自动化','50 倍','第三方审计']:
+            self.assertIn(phrase,joined)
+
+    def test_vat_page_content_and_links(self):
+        page=(WEB/'vat-reconciliation'/'index.html').read_text()
+        for text in ['教学示例，不是真实客户数据','£200','£100','£120','£20','46 人','17 类','DAY 4','AI 备稿，会计签字','IXDYEF22CG8']:
+            self.assertIn(text,page)
+        self.assertIn('href="../#accounting"',page)
+        self.assertIn('rel="noopener noreferrer"',page)
+        self.assertNotIn('/school-ai-demo/',page)
+
     def test_generated_pages_current(self):
-        pages=[WEB/s/'index.html' for s in ['customer-email','quotation','order-validation']]
+        pages=[WEB/s/'index.html' for s in ['customer-email','quotation','order-validation','vat-reconciliation']]
         before=[p.read_bytes() for p in pages]
         subprocess.run(['python3','-B',str(ROOT/'build_cases.py')],check=True,capture_output=True)
         self.assertEqual(before,[p.read_bytes() for p in pages])
         for p in pages:
-            self.assertIn('人工编写预置',p.read_text())
+            if p.parent.name != 'vat-reconciliation':
+                self.assertIn('人工编写预置',p.read_text())
 
 if __name__ == '__main__': unittest.main()
