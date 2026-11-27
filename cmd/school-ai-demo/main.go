@@ -115,8 +115,9 @@ func main() {
 	if svc.dailyLimit > 0 {
 		limitText = strconv.Itoa(svc.dailyLimit) + "/day"
 	}
-	log.Printf("school-ai-demo listening on %s (base path %s, model %s, key configured %t, ai fills %s)",
-		addr, basePath, svc.ai.model, svc.ai.configured(), limitText)
+	active := svc.ai.active()
+	log.Printf("school-ai-demo listening on %s (base path %s, active provider %s, model %s, key configured %t, ai fills %s; %s)",
+		addr, basePath, active.Name, active.Model, active.Configured(), limitText, aiprovider.Window)
 	log.Fatal(srv.ListenAndServe())
 }
 
