@@ -29,3 +29,6 @@
 4. 差异卡里的「教学示例，不是真实客户数据」胶囊标签（`.vat-demo-tag`，样式一并删除）。
 
 其余内容不动：示例金额、四天流程、职责表、三条边界、原片链接仍在。生成器、页面、CSS 与测试同步修改；测试新增「四处文案不得出现」「`.vat-demo-tag` / `.context` 计数为 0」「不存在空 `.case-note`」的断言。
+
+- 本次发布：release `/srv/apps/ai-demo/releases/20261127-vat-copy-d5627cf/`（`REVISION` = `d5627cf9d2aa7c0363559ee6499a458a72c3ea8b`），备份 `/srv/apps/ai-demo/backups/20261127-vat-copy-d5627cf/`；只替换 `cases.css` 与案例页，其余文件逐字节未变，未动 Caddy / `data.js`、未重启服务。
+- 线上复验：真实域名下四处文案已消失、无空提示条（`.case-note` 无空节点、`.vat-demo-tag`/`.context` 计数 0），金额、四天流程、职责表、边界与原片链接仍在；首页与三个外贸页、学校页、API 均 200，未知路径 404，旧 `/school-ai-demo/` 仍 308。
