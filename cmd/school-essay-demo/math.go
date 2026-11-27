@@ -84,7 +84,7 @@ func (s *service) registerMathRoutes(mux *http.ServeMux) {
 			respondError(w, err)
 			return
 		}
-		respond(w, 200, map[string]any{"configured": s.key != "", "model": s.model, "prompt": mathPrompt, "promptEditable": true, "imageSupported": true, "limit": s.daily, "remaining": max(0, s.daily-used), "quotaScope": "essay-and-math"})
+		respond(w, 200, mergeQuota(s.activeAt(s.now()), map[string]any{"prompt": mathPrompt, "promptEditable": true, "imageSupported": true, "limit": s.daily, "remaining": max(0, s.daily-used), "quotaScope": "essay-and-math"}))
 	})
 	mux.HandleFunc("POST "+mathPrefix, s.reviewMath)
 }
@@ -94,8 +94,8 @@ func (s *service) reviewMath(w http.ResponseWriter, r *http.Request) {
 		respondError(w, fail(403, "ORIGIN", "请从本站页面提交试卷。"))
 		return
 	}
-	if s.key == "" {
-		respondError(w, fail(503, "NOT_CONFIGURED", "模型尚未配置，请稍后再试。"))
+	if !s.activeAt(s.now()).Configured() {
+		respondError(w, fail(503, "NOT_CONFIGURED", "当前时段的模型尚未配置，请稍后再试。"))
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 6<<20)
@@ -186,5 +186,5 @@ func (s *service) reviewMath(w http.ResponseWriter, r *http.Request) {
 	}
 	success = true
 	used, _ := s.used()
-	respond(w, 200, map[string]any{"result": result, "model": s.model, "remaining": max(0, s.daily-used), "quotaScope": "essay-and-math"})
+	respond(w, 200, map[string]any{"result": result, "model": s.activeAt(s.now()).Model, "remaining": max(0, s.daily-used), "quotaScope": "essay-and-math"})
 }

@@ -17,6 +17,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/liangzh77/go-sites/internal/aiprovider"
 )
 
 func setup(t *testing.T, fn http.HandlerFunc) *service {
@@ -28,7 +30,8 @@ func setup(t *testing.T, fn http.HandlerFunc) *service {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	return &service{db: db, client: up.Client(), endpoint: up.URL, key: "test-primary", model: "deepseek-v4.1-flash", daily: 50, slots: make(chan struct{}, 2), visits: map[string][]time.Time{}, now: time.Now}
+	// A fixed endpoint stands in for whichever account the hour would pick.
+	return &service{db: db, client: up.Client(), fixedEndpoint: up.URL, daily: 50, slots: make(chan struct{}, 2), visits: map[string][]time.Time{}, now: time.Now}
 }
 func completion(w http.ResponseWriter, text string) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]string{"content": text}, "finish_reason": "stop"}}})
@@ -56,12 +59,12 @@ func request(t *testing.T, s *service, mode, text string, img []byte, consent bo
 }
 func TestTextReviewAndNoContentPersistence(t *testing.T) {
 	s := setup(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer test-primary" || r.Header.Get("x-opencode-session") == "" {
+		if r.Header.Get("Authorization") != "Bearer test-key" {
 			t.Error("missing auth or session")
 		}
 		var body map[string]any
 		_ = json.NewDecoder(r.Body).Decode(&body)
-		if body["model"] != "deepseek-v4.1-flash" {
+		if body["model"] != "test-model" {
 			t.Error("wrong model")
 		}
 		raw, _ := json.Marshal(body)
@@ -143,24 +146,101 @@ func TestUpstreamFailuresRefundAndRedact(t *testing.T) {
 		t.Fatal(n)
 	}
 }
-func TestBackupUsesSameModelAndSession(t *testing.T) {
-	var ids []string
-	s := setup(t, func(w http.ResponseWriter, r *http.Request) {
-		ids = append(ids, r.Header.Get("x-opencode-session"))
-		if r.Header.Get("Authorization") == "Bearer test-primary" {
+func TestSchedulePicksOneAccountPerRequest(t *testing.T) {
+	set := aiprovider.Set{
+		Official: aiprovider.Provider{Name: "DeepSeek", BaseURL: "https://api.deepseek.com", Model: "deepseek-flash", APIKey: "official"},
+		Cloud:    aiprovider.Provider{Name: "Ollama Cloud", BaseURL: "https://ollama.com/v1", Model: "deepseek-v4.1-flash", APIKey: "cloud"},
+	}
+	var got []string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.Header.Get("Authorization"))
+		var body struct {
+			Model string `json:"model"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		got = append(got, body.Model, r.URL.Path)
+		completion(w, "你写得清楚。建议补一个动作。")
+	}))
+	defer up.Close()
+	set.Official.BaseURL, set.Cloud.BaseURL = up.URL, up.URL
+	db, err := openDB(filepath.Join(t.TempDir(), "quota.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	cases := []struct {
+		beijing  string
+		provider string
+		model    string
+		path     string
+	}{
+		{"2026-11-28T20:00:00+08:00", "Bearer official", "deepseek-flash", "/chat/completions"},
+		{"2026-11-29T01:59:00+08:00", "Bearer official", "deepseek-flash", "/chat/completions"},
+		{"2026-11-29T02:00:00+08:00", "Bearer cloud", "deepseek-v4.1-flash", "/chat/completions"},
+		{"2026-11-29T12:00:00+08:00", "Bearer cloud", "deepseek-v4.1-flash", "/chat/completions"},
+		{"2026-11-29T19:59:00+08:00", "Bearer cloud", "deepseek-v4.1-flash", "/chat/completions"},
+	}
+	for _, tc := range cases {
+		clock, err := time.Parse(time.RFC3339, tc.beijing)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := &service{db: db, client: up.Client(), providers: set, daily: 50, slots: make(chan struct{}, 2), visits: map[string][]time.Time{}, now: func() time.Time { return clock }}
+		got = nil
+		if w := request(t, s, "text", "作文", nil, true); w.Code != 200 {
+			t.Fatalf("%s: %d %s", tc.beijing, w.Code, w.Body.String())
+		}
+		if len(got) != 3 || got[0] != tc.provider || got[1] != tc.model || got[2] != tc.path {
+			t.Fatalf("%s: %v", tc.beijing, got)
+		}
+	}
+	// One account per request: a 429 from the chosen one is reported, not
+	// retried against the other model.
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "Bearer official" {
 			w.WriteHeader(429)
 			return
 		}
-		completion(w, "你观察得很细。建议补充一个动作。")
-	})
-	s.backup = "test-backup"
-	if w := request(t, s, "text", "作文", nil, true); w.Code != 200 {
-		t.Fatal(w.Code, w.Body.String())
-	}
-	if len(ids) != 2 || ids[0] != ids[1] {
-		t.Fatal(ids)
+		t.Error("the schedule must not fall back to the other account")
+	}))
+	defer failing.Close()
+	set.Official.BaseURL, set.Cloud.BaseURL = failing.URL, failing.URL
+	clock, _ := time.Parse(time.RFC3339, "2026-11-28T21:00:00+08:00")
+	s := &service{db: db, client: failing.Client(), providers: set, daily: 50, slots: make(chan struct{}, 2), visits: map[string][]time.Time{}, now: func() time.Time { return clock }}
+	if w := request(t, s, "text", "作文", nil, true); w.Code != 503 {
+		t.Fatalf("want 503 for the chosen account's quota, got %d %s", w.Code, w.Body.String())
 	}
 }
+
+func TestStatusReportsActiveAccountWithoutKeys(t *testing.T) {
+	set := aiprovider.Set{
+		Official: aiprovider.Provider{Name: "DeepSeek", BaseURL: "https://api.deepseek.com", Model: "deepseek-flash", APIKey: "official-secret"},
+		Cloud:    aiprovider.Provider{Name: "Ollama Cloud", BaseURL: "https://ollama.com/v1", Model: "deepseek-v4.1-flash", APIKey: "cloud-secret"},
+	}
+	db, err := openDB(filepath.Join(t.TempDir(), "quota.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	clock, _ := time.Parse(time.RFC3339, "2026-11-29T09:00:00+08:00")
+	s := &service{db: db, client: http.DefaultClient, providers: set, daily: 50, slots: make(chan struct{}, 2), visits: map[string][]time.Time{}, now: func() time.Time { return clock }}
+	for _, path := range []string{prefix + "/status", mathPrefix + "/status"} {
+		w := httptest.NewRecorder()
+		s.routes().ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Code != 200 {
+			t.Fatalf("%s: %d", path, w.Code)
+		}
+		body := w.Body.String()
+		if !strings.Contains(body, `"provider":"Ollama Cloud"`) || !strings.Contains(body, `"model":"deepseek-v4.1-flash"`) || !strings.Contains(body, `"configured":true`) {
+			t.Fatalf("%s: %s", path, body)
+		}
+		if strings.Contains(body, "secret") {
+			t.Fatalf("%s leaked a key: %s", path, body)
+		}
+	}
+}
+
 func TestLongAnswerRewrittenNotTruncated(t *testing.T) {
 	calls := 0
 	s := setup(t, func(w http.ResponseWriter, r *http.Request) {

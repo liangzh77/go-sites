@@ -52,7 +52,7 @@ function zoom(src){if(!src)return;$('dialogImage').src=src;$('imageDialog').show
 document.querySelectorAll('[data-image]').forEach(button=>button.onclick=()=>zoom(button.dataset.image));
 $('previewZoom').onclick=()=>zoom(previewURL);$('closeDialog').onclick=()=>$('imageDialog').close();$('imageDialog').onclick=e=>{if(e.target===$('imageDialog'))$('imageDialog').close();};$('imageDialog').addEventListener('close',()=>$('dialogImage').removeAttribute('src'));
 async function status(){
- try{const r=await fetch(API+'/status',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error();const s=await r.json();available=!!s.configured;remaining=s.remaining;model=s.model;imageSupported=s.imageSupported!==false;$('modelStatus').textContent=`模型：${model} · 今日上限 ${s.limit} 次（作文 / 数学共用） · ${available?'支持文字和图片点评':'服务暂未就绪'}`;if(!available)error('模型暂未就绪，两个预置示例仍可查看。');}
+ try{const r=await fetch(API+'/status',{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!r.ok)throw new Error();const s=await r.json();available=!!s.configured;remaining=s.remaining;model=s.model;imageSupported=s.imageSupported!==false;$('modelStatus').textContent=`模型：${s.provider?s.provider+' · ':''}${model} · 今日上限 ${s.limit} 次（作文 / 数学共用） · ${available?'支持文字和图片点评':'服务暂未就绪'}`;if(!available)error('模型暂未就绪，两个预置示例仍可查看。');}
  catch(_){available=false;$('modelStatus').textContent='模型服务暂时连接不上，示例仍可查看。';error('请稍后刷新页面重试。');}refresh();
 }
 $('reviewForm').onsubmit=async e=>{

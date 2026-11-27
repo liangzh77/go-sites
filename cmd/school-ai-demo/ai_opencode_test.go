@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/liangzh77/go-sites/internal/aiprovider"
 )
 
 // --- the gateway contract ---------------------------------------------------
@@ -27,7 +29,7 @@ func TestOpencodeRequestCarriesItsHeaders(t *testing.T) {
 	// The base is a base; the client must append the completions path.
 	c := &aiClient{
 		apiKey:       "primary-key",
-		endpoint:     completionsURL(srv.URL + "/inference/go/openai/v1"),
+		endpoint:     srv.URL + "/inference/go/openai/v1/chat/completions",
 		model:        "deepseek-v4.1-flash",
 		http:         http.DefaultClient,
 		needsSession: true,
@@ -70,90 +72,47 @@ func TestSessionHeaderIsStableWithinOneFill(t *testing.T) {
 	}
 }
 
-func TestBackupKeyIsUsedWhenThePrimaryIsRejected(t *testing.T) {
-	var calls atomic.Int32
-	var auths []string
+// The hour decides the account, and one failure is reported rather than
+// retried against the other model: the two accounts are not backups.
+func TestFillUsesOnlyTheScheduledAccount(t *testing.T) {
+	var models []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls.Add(1)
-		auth := r.Header.Get("Authorization")
-		auths = append(auths, auth)
-		if strings.Contains(auth, "primary") {
-			w.WriteHeader(http.StatusUnauthorized)
-			_, _ = w.Write([]byte(`{"error":{"message":"invalid api key"}}`))
-			return
+		var body struct {
+			Model string `json:"model"`
 		}
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"fields\":{\"f04\":\"张伟\"}}"}}]}`))
-	}))
-	defer srv.Close()
-
-	c := &aiClient{apiKey: "primary", backupKey: "backup-key", endpoint: srv.URL, model: "m", http: http.DefaultClient}
-	res, err := c.fill(context.Background(), testTemplate(t), "姓名：张伟")
-	if err != nil {
-		t.Fatalf("fill should have fallen back to the backup key: %v", err)
-	}
-	if res.Values["f04"] != "张伟" {
-		t.Fatalf("values = %v", res.Values)
-	}
-	if calls.Load() != 2 {
-		t.Fatalf("made %d calls, want 2 (primary then backup)", calls.Load())
-	}
-	if len(auths) != 2 || !strings.Contains(auths[1], "backup") {
-		t.Fatalf("second call did not use the backup key: %v", auths)
-	}
-}
-
-func TestARateLimitedPrimaryFallsBackToo(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.Header.Get("Authorization"), "primary") {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		models = append(models, body.Model+" "+r.Header.Get("Authorization"))
+		if body.Model == "deepseek-flash" {
 			w.WriteHeader(http.StatusTooManyRequests)
 			return
 		}
 		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"fields\":{\"f04\":\"张伟\"}}"}}]}`))
 	}))
 	defer srv.Close()
-	c := &aiClient{apiKey: "primary", backupKey: "backup", endpoint: srv.URL, model: "m", http: http.DefaultClient}
-	if _, err := c.fill(context.Background(), testTemplate(t), "姓名：张伟"); err != nil {
-		t.Fatalf("429 on the primary should fall back: %v", err)
+	set := aiprovider.Set{
+		Official: aiprovider.Provider{Name: "DeepSeek", BaseURL: srv.URL, Model: "deepseek-flash", APIKey: "official"},
+		Cloud:    aiprovider.Provider{Name: "Ollama Cloud", BaseURL: srv.URL, Model: "deepseek-v4.1-flash", APIKey: "cloud"},
 	}
-}
-
-// A server-side error is not a key problem, so the backup must not be spent.
-func TestA500DoesNotTryTheBackup(t *testing.T) {
-	var calls atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls.Add(1)
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer srv.Close()
-	c := &aiClient{apiKey: "primary", backupKey: "backup", endpoint: srv.URL, model: "m", http: http.DefaultClient}
+	night, _ := time.Parse(time.RFC3339, "2026-11-28T21:00:00+08:00")
+	c := &aiClient{providers: set, now: func() time.Time { return night }, http: http.DefaultClient}
 	if _, err := c.fill(context.Background(), testTemplate(t), "姓名：张伟"); err == nil {
-		t.Fatal("a 500 should surface as an error")
+		t.Fatal("a 429 on the scheduled account must surface")
 	}
-	if calls.Load() != 1 {
-		t.Fatalf("made %d calls, want 1", calls.Load())
+
+	day, _ := time.Parse(time.RFC3339, "2026-11-29T09:00:00+08:00")
+	c.now = func() time.Time { return day }
+	res, err := c.fill(context.Background(), testTemplate(t), "姓名：张伟")
+	if err != nil {
+		t.Fatalf("daytime fill: %v", err)
+	}
+	if res.Values["f04"] != "张伟" || res.Model != "deepseek-v4.1-flash" {
+		t.Fatalf("values = %v, model = %q", res.Values, res.Model)
+	}
+	want := []string{"deepseek-flash Bearer official", "deepseek-v4.1-flash Bearer cloud"}
+	if len(models) != len(want) || models[0] != want[0] || models[1] != want[1] {
+		t.Fatalf("calls = %v, want %v", models, want)
 	}
 }
-
-func TestNoBackupMeansNoRetry(t *testing.T) {
-	var calls atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls.Add(1)
-		w.WriteHeader(http.StatusUnauthorized)
-	}))
-	defer srv.Close()
-	c := &aiClient{apiKey: "only", endpoint: srv.URL, model: "m", http: http.DefaultClient}
-	if _, err := c.fill(context.Background(), testTemplate(t), "姓名：张伟"); err == nil {
-		t.Fatal("expected an error")
-	}
-	if calls.Load() != 1 {
-		t.Fatalf("made %d calls, want 1", calls.Load())
-	}
-}
-
-// --- reasoning-model output -------------------------------------------------
-
-// The model sometimes emits a stray brace inside a key. That must be repaired,
-// not reported as a failure, because the values themselves are fine.
 func TestMalformedJSONFromTheModelIsRepaired(t *testing.T) {
 	cases := []struct {
 		name    string

@@ -27,6 +27,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/liangzh77/go-sites/internal/aiprovider"
+	"github.com/liangzh77/go-sites/internal/modelusage"
 	_ "modernc.org/sqlite"
 )
 
@@ -35,14 +37,18 @@ const prefix = "/school-ai-demo/api/essay-review"
 const maxImage = 5 << 20
 
 type service struct {
-	db                           *sql.DB
-	client                       *http.Client
-	endpoint, key, backup, model string
-	daily                        int
-	slots                        chan struct{}
-	mu                           sync.Mutex
-	visits                       map[string][]time.Time
-	now                          func() time.Time
+	recordSuccess func()
+	db            *sql.DB
+	client        *http.Client
+	// providers holds the two time-shared upstreams; fixedEndpoint fixes a
+	// single one instead (tests, and a deployment that does not split by hour).
+	providers     aiprovider.Set
+	fixedEndpoint string
+	daily         int
+	slots         chan struct{}
+	mu            sync.Mutex
+	visits        map[string][]time.Time
+	now           func() time.Time
 }
 type failure struct {
 	status        int
@@ -159,7 +165,7 @@ func (s *service) routes() http.Handler {
 			respondError(w, err)
 			return
 		}
-		respond(w, 200, map[string]any{"configured": s.key != "", "model": s.model, "prompt": prompt, "imageSupported": true, "limit": s.daily, "remaining": max(0, s.daily-used), "quotaScope": "essay-and-math"})
+		respond(w, 200, mergeQuota(s.activeAt(s.now()), map[string]any{"prompt": prompt, "imageSupported": true, "limit": s.daily, "remaining": max(0, s.daily-used), "quotaScope": "essay-and-math"}))
 	})
 	mux.HandleFunc("POST "+prefix, s.review)
 	s.registerMathRoutes(mux)
@@ -175,8 +181,9 @@ func (s *service) review(w http.ResponseWriter, r *http.Request) {
 		respondError(w, fail(403, "ORIGIN", "请从本站页面提交作文。"))
 		return
 	}
-	if s.key == "" {
-		respondError(w, fail(503, "NOT_CONFIGURED", "模型尚未配置，请稍后再试。"))
+	provider := s.activeAt(s.now())
+	if !provider.Configured() {
+		respondError(w, fail(503, "NOT_CONFIGURED", "当前时段的模型尚未配置，请稍后再试。"))
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 6<<20)
@@ -272,72 +279,101 @@ func (s *service) review(w http.ResponseWriter, r *http.Request) {
 	}
 	success = true
 	used, _ := s.used()
-	respond(w, 200, map[string]any{"review": result, "model": s.model, "characters": utf8.RuneCountInString(result), "remaining": max(0, s.daily-used)})
+	respond(w, 200, map[string]any{"review": result, "model": provider.Model, "provider": provider.Name, "characters": utf8.RuneCountInString(result), "remaining": max(0, s.daily-used)})
 }
 func (s *service) complete(ctx context.Context, messages []map[string]any, session string) (string, error) {
 	return s.completeWithLimit(ctx, messages, session, 4096)
 }
 func (s *service) completeWithLimit(ctx context.Context, messages []map[string]any, session string, maxTokens int) (string, error) {
-	keys := []string{s.key}
-	if s.backup != "" {
-		keys = append(keys, s.backup)
+	// The hour decides the account; nothing falls back to the other model.
+	provider := s.activeAt(s.now())
+	if !provider.Configured() {
+		return "", fail(503, "NOT_CONFIGURED", "当前时段的模型尚未配置，请稍后再试。")
 	}
-	for i, key := range keys {
-		payload, _ := json.Marshal(map[string]any{"model": s.model, "messages": messages, "stream": false, "max_tokens": maxTokens})
-		req, err := http.NewRequestWithContext(ctx, "POST", s.endpoint, bytes.NewReader(payload))
-		if err != nil {
-			return "", err
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+key)
-		req.Header.Set("User-Agent", "school-ai-demo/1.0")
+	payload, _ := json.Marshal(map[string]any{"model": provider.Model, "messages": messages, "stream": false, "max_tokens": maxTokens})
+	req, err := http.NewRequestWithContext(ctx, "POST", provider.Endpoint(), bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+provider.APIKey)
+	req.Header.Set("User-Agent", "school-ai-demo/1.0")
+	if strings.Contains(strings.ToLower(provider.BaseURL), "opencode") {
+		// The old gateway rejects requests without this; the two current
+		// upstreams ignore it, so it is only sent where it is required.
 		req.Header.Set("x-opencode-session", session)
-		resp, err := s.client.Do(req)
-		if err != nil {
-			if ctx.Err() != nil {
-				return "", fail(504, "TIMEOUT", "分析超时，请稍后重试。")
-			}
-			return "", fail(502, "UPSTREAM", "模型服务暂时连接不上，请稍后再试。")
-		}
-		data, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		_ = resp.Body.Close()
-		if resp.StatusCode != 200 {
-			if (resp.StatusCode == 401 || resp.StatusCode == 402 || resp.StatusCode == 429) && i+1 < len(keys) {
-				continue
-			}
-			if resp.StatusCode == 429 || resp.StatusCode == 402 {
-				return "", fail(503, "MODEL_QUOTA", "模型服务额度不足或繁忙，请稍后再试。")
-			}
-			if resp.StatusCode == 400 && (bytes.Contains(bytes.ToLower(data), []byte("image")) || bytes.Contains(bytes.ToLower(data), []byte("vision"))) {
-				return "", fail(422, "IMAGE_UNSUPPORTED", "模型服务暂时无法分析图片，请改用文字输入。")
-			}
-			return "", fail(502, "UPSTREAM", "模型暂时无法完成点评，请稍后再试。")
-		}
-		if readErr != nil {
-			return "", fail(502, "UPSTREAM", "模型响应读取失败，请重试。")
-		}
-		var out struct {
-			Choices []struct {
-				Message struct {
-					Content string `json:"content"`
-				} `json:"message"`
-				Finish string `json:"finish_reason"`
-			} `json:"choices"`
-		}
-		if json.Unmarshal(data, &out) != nil || len(out.Choices) == 0 {
-			return "", fail(502, "UPSTREAM", "模型响应异常，请重试。")
-		}
-		answer := strings.TrimSpace(out.Choices[0].Message.Content)
-		if out.Choices[0].Finish == "length" {
-			return "", fail(502, "TOKEN_LIMIT", "模型分析达到长度上限，请缩小本次输入后重试。")
-		}
-		if answer == "" || out.Choices[0].Finish != "stop" {
-			return "", fail(502, "INCOMPLETE", "模型未返回完整评语，请重试。")
-		}
-		return answer, nil
 	}
-	return "", fail(502, "UPSTREAM", "模型服务暂时不可用。")
+	resp, err := s.client.Do(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return "", fail(504, "TIMEOUT", "分析超时，请稍后重试。")
+		}
+		return "", fail(502, "UPSTREAM", "模型服务暂时连接不上，请稍后再试。")
+	}
+	data, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	_ = resp.Body.Close()
+	if resp.StatusCode != 200 {
+		if resp.StatusCode == 429 || resp.StatusCode == 402 {
+			return "", fail(503, "MODEL_QUOTA", "当前时段模型额度不足或繁忙，请稍后再试。")
+		}
+		if resp.StatusCode == 401 || resp.StatusCode == 403 {
+			return "", fail(503, "MODEL_AUTH", "当前时段模型的密钥不可用，请稍后再试。")
+		}
+		if resp.StatusCode == 400 && (bytes.Contains(bytes.ToLower(data), []byte("image")) || bytes.Contains(bytes.ToLower(data), []byte("vision"))) {
+			return "", fail(422, "IMAGE_UNSUPPORTED", "当前时段的模型暂时无法分析图片，请改用文字输入。")
+		}
+		return "", fail(502, "UPSTREAM", "模型暂时无法完成点评，请稍后再试。")
+	}
+	if readErr != nil {
+		return "", fail(502, "UPSTREAM", "模型响应读取失败，请重试。")
+	}
+	var out struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+			Finish string `json:"finish_reason"`
+		} `json:"choices"`
+	}
+	if json.Unmarshal(data, &out) != nil || len(out.Choices) == 0 {
+		return "", fail(502, "UPSTREAM", "模型响应异常，请重试。")
+	}
+	answer := strings.TrimSpace(out.Choices[0].Message.Content)
+	if out.Choices[0].Finish == "length" {
+		return "", fail(502, "TOKEN_LIMIT", "模型分析达到长度上限，请缩小本次输入后重试。")
+	}
+	if answer == "" || out.Choices[0].Finish != "stop" {
+		return "", fail(502, "INCOMPLETE", "模型未返回完整评语，请重试。")
+	}
+	if s.recordSuccess != nil {
+		s.recordSuccess()
+	}
+	return answer, nil
 }
+
+// activeAt resolves the upstream for one request. A fixed endpoint wins when
+// tests (or a single-account deployment) set one.
+func (s *service) activeAt(now time.Time) aiprovider.Provider {
+	if s.fixedEndpoint != "" {
+		return aiprovider.Provider{Name: "test", BaseURL: s.fixedEndpoint, Model: "test-model", APIKey: "test-key"}
+	}
+	return s.providers.Active(now)
+}
+
+// mergeQuota adds the schedule summary to a status payload without leaking keys.
+func mergeQuota(provider aiprovider.Provider, extra map[string]any) map[string]any {
+	out := map[string]any{
+		"configured": provider.Configured(),
+		"provider":   provider.Name,
+		"model":      provider.Model,
+		"window":     aiprovider.Window,
+	}
+	for k, v := range extra {
+		out[k] = v
+	}
+	return out
+}
+
 func main() {
 	dbPath := env("ESSAY_DB_PATH", "school-essay-quota.db")
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0700); err != nil {
@@ -352,9 +388,20 @@ func main() {
 	if err != nil || daily < 1 {
 		log.Fatal("invalid daily limit")
 	}
-	base := strings.TrimSuffix(strings.TrimRight(env("SCHOOL_AI_DEEPSEEK_BASE_URL", "https://opencode.ai/inference/go/openai/v1"), "/"), "/chat/completions")
 	client := &http.Client{Timeout: 110 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
-	s := &service{db: db, client: client, endpoint: base + "/chat/completions", key: os.Getenv("SCHOOL_AI_DEEPSEEK_API_KEY"), backup: os.Getenv("SCHOOL_AI_DEEPSEEK_API_KEY_BACKUP"), model: env("SCHOOL_AI_DEEPSEEK_MODEL", "deepseek-v4.1-flash"), daily: daily, slots: make(chan struct{}, 2), visits: map[string][]time.Time{}, now: time.Now}
+	s := &service{db: db, client: client, providers: aiprovider.FromEnv(), daily: daily, slots: make(chan struct{}, 2), visits: map[string][]time.Time{}, now: time.Now}
+	if usageDir := os.Getenv("SCHOOL_AI_DEMO_DATA_DIR"); usageDir != "" {
+		if usage, err := modelusage.Open(usageDir, time.Now()); err != nil {
+			log.Printf("model usage unavailable: %v", err)
+		} else {
+			defer usage.Close()
+			s.recordSuccess = func() {
+				if err := modelusage.Record(usage, time.Now()); err != nil {
+					log.Printf("model usage record failed: %v", err)
+				}
+			}
+		}
+	}
 	server := &http.Server{Addr: env("ESSAY_ADDR", "127.0.0.1:9026"), Handler: s.routes(), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 120 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16 << 10}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
@@ -366,7 +413,8 @@ func main() {
 		defer cancel()
 		_ = server.Shutdown(shutdown)
 	}()
-	log.Print("school review API listening on ", server.Addr, "; model=", s.model)
+	active := s.providers.Active(time.Now())
+	log.Print("school review API listening on ", server.Addr, "; active provider=", active.Name, " model=", active.Model, "; ", aiprovider.Window)
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(fmt.Sprintf("listen failed: %v", err))
 	}

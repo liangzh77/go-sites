@@ -42,7 +42,7 @@
   const cachedCatalog = readCatalog();
   const state = {
     templates: cachedCatalog.templates,
-    ai: { configured: false, model: '', keyEnv: '' },
+    ai: { configured: false, provider: '', model: '', window: '' },
     current: null,        // { slug, name, fields, html }
     sessionId: '',
     values: {},           // fieldId -> string
@@ -137,8 +137,10 @@
     const off = !state.ai.configured;
     $('aiNotice').hidden = !off;
     if (off) {
+      // The hour decides which account answers, so name it: an empty window
+      // is a configuration gap, not a broken page.
       $('aiNoticeText').textContent =
-        `服务器上没有配置模型 API Key（${state.ai.keyEnv}），提交会返回提示。` +
+        `当前时段（${state.ai.window || '按北京时间分时'}）的模型还没配好密钥，提交会返回提示。` +
         '表格本身仍可以手动填写、打印和导出。';
     }
     state.aiOff = off;
@@ -971,9 +973,8 @@
       }
       setStatus(
         'err',
-        'AI 填写还没开通：服务器上缺少模型 API Key（' +
-          state.ai.keyEnv +
-          '）。请把 key 交给管理员配置后重试；你现在也可以直接在右侧表格里手动填写。'
+        'AI 填写还没开通：当前时段的模型密钥没有配置。' +
+        '请把密钥交给管理员配置后重试；你现在也可以直接在右侧表格里手动填写。'
       );
       return;
     }

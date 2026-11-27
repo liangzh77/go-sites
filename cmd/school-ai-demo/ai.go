@@ -7,12 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"os"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/liangzh77/go-sites/internal/aiprovider"
 )
 
 // The form's field names are deliberately loose: the same material says
@@ -21,15 +21,13 @@ import (
 // is a model call whose only job is to copy values out of the material.
 
 const (
-	deepseekKeyEnv       = "SCHOOL_AI_DEEPSEEK_API_KEY"
-	deepseekBackupKeyEnv = "SCHOOL_AI_DEEPSEEK_API_KEY_BACKUP"
-	deepseekBaseEnv      = "SCHOOL_AI_DEEPSEEK_BASE_URL"
-	deepseekModelEnv     = "SCHOOL_AI_DEEPSEEK_MODEL"
-	defaultDeepseekBase  = "https://api.deepseek.com/v1"
-	defaultModel         = "deepseek-chat"
-	aiTimeout            = 90 * time.Second
-	maxMaterialRunes     = 24000
-	maxValueRunes        = 1200
+	// The two upstreams and their schedule live in aiprovider; these names are
+	// kept for the tests that exercise base-URL joining and session headers.
+	defaultDeepseekBase = "https://api.deepseek.com/v1"
+	defaultModel        = "deepseek-chat"
+	aiTimeout           = 90 * time.Second
+	maxMaterialRunes    = 24000
+	maxValueRunes       = 1200
 	// The model spends tokens on reasoning before it writes the answer, so a
 	// small cap yields an empty content string. A full 51-field form needs
 	// 836-1897 tokens of content, and reasoning can outgrow that; 8192 is
@@ -44,54 +42,61 @@ const (
 	maxJSONCutAttempts = 32
 )
 
-// aiClient talks to an OpenAI-compatible chat completions endpoint. The base
-// URL is a base, not a full URL: "/chat/completions" is appended, so the same
-// env works for api.deepseek.com and for a subscription gateway that does not
-// share DeepSeek's path.
+// aiClient talks to one OpenAI-compatible chat completions upstream at a time.
+// production resolves that upstream per request from the Beijing clock
+// (providers); tests set endpoint directly to pin a single fake server.
 type aiClient struct {
-	apiKey       string
-	backupKey    string
-	endpoint     string // full URL, already joined with /chat/completions
-	model        string
-	http         *http.Client
-	needsSession bool // the OpenCode gateway rejects requests without one
+	providers     aiprovider.Set
+	now           func() time.Time
+	endpoint      string // fixed upstream (tests); empty means "use providers"
+	apiKey        string
+	model         string
+	http          *http.Client
+	recordSuccess func()
+	needsSession  bool // the OpenCode gateway rejects requests without one
 }
 
-// completionsURL joins the configured base with the chat completions path,
-// tolerating a base that already ends in it or in a trailing slash.
-func completionsURL(base string) string {
-	base = strings.TrimRight(strings.TrimSpace(base), "/")
-	if base == "" {
-		base = defaultDeepseekBase
+// active is the upstream that serves the request happening now. The hour
+// decides; there is no cross-provider fallback, so a failure surfaces instead
+// of quietly switching to a different model.
+func (c *aiClient) active() aiprovider.Provider {
+	if c.endpoint != "" {
+		return aiprovider.Provider{Name: "fixed", BaseURL: c.endpoint, Model: c.model, APIKey: c.apiKey}
 	}
-	base = strings.TrimSuffix(base, "/chat/completions")
-	return base + "/chat/completions"
+	now := time.Now
+	if c.now != nil {
+		now = c.now
+	}
+	return c.providers.Active(now())
 }
 
 func newAIClientFromEnv() *aiClient {
-	model := strings.TrimSpace(os.Getenv(deepseekModelEnv))
-	if model == "" {
-		model = defaultModel
-	}
-	base := strings.TrimSpace(os.Getenv(deepseekBaseEnv))
 	return &aiClient{
-		apiKey:       strings.TrimSpace(os.Getenv(deepseekKeyEnv)),
-		backupKey:    strings.TrimSpace(os.Getenv(deepseekBackupKeyEnv)),
-		endpoint:     completionsURL(base),
-		model:        model,
-		http:         &http.Client{Timeout: aiTimeout},
-		needsSession: strings.Contains(strings.ToLower(base), "opencode"),
+		providers: aiprovider.FromEnv(),
+		http:      &http.Client{Timeout: aiTimeout},
 	}
 }
 
-// configured reports whether the service can call the model at all. The UI
-// uses this to explain the state up front instead of failing at upload time.
-func (c *aiClient) configured() bool { return c.apiKey != "" }
+// status is the non-secret summary the page shows: which account serves the
+// next request, its model, and the schedule. Keys never leave the server.
+func (c *aiClient) status() map[string]any {
+	provider := c.active()
+	out := map[string]any{
+		"configured": provider.Configured(),
+		"provider":   provider.Name,
+		"model":      provider.Model,
+	}
+	if c.endpoint == "" {
+		out["window"] = aiprovider.Window
+	}
+	return out
+}
 
-// hasBackup reports whether a second key is available for a retry.
-func (c *aiClient) hasBackup() bool { return c.backupKey != "" }
+// configured reports whether the upstream for the current hour can be called.
+// The UI uses this to explain the state up front instead of failing at upload.
+func (c *aiClient) configured() bool { return c.active().Configured() }
 
-var errNoAPIKey = errors.New("尚未配置 DeepSeek API Key")
+var errNoAPIKey = errors.New("当前时段的模型尚未配置")
 
 // errEmptyContent is what the model returns when it never got past reasoning;
 // it is worth a retry, unlike a malformed answer.
@@ -106,17 +111,6 @@ var errTruncated = errors.New("模型输出被长度限制截断，请把资料�
 // errNoUsableFields is a reply that parsed but named no field this template
 // has, which is a model problem worth retrying rather than an empty form.
 var errNoUsableFields = errors.New("模型没有返回任何可用的字段，请重试")
-
-// retryableStatus marks the upstream answers that mean "this key is not
-// usable right now": auth, payment, and rate limiting. Those are the ones where
-// the backup key is worth trying.
-func retryableStatus(code int) bool {
-	switch code {
-	case http.StatusUnauthorized, http.StatusPaymentRequired, http.StatusTooManyRequests:
-		return true
-	}
-	return false
-}
 
 // fillResult is what the model produced, already filtered to real fields.
 type fillResult struct {
@@ -133,38 +127,28 @@ type fillResult struct {
 // backup key is configured, the same request is retried once with it: a spent
 // subscription is not something the user filling in a form can fix.
 func (c *aiClient) fill(ctx context.Context, tpl templateRecord, material string) (fillResult, error) {
-	if c.apiKey == "" {
+	provider := c.active()
+	if !provider.Configured() {
 		return fillResult{}, errNoAPIKey
 	}
 	material = truncateRunes(strings.TrimSpace(material), maxMaterialRunes)
 	if material == "" {
-		return fillResult{Values: map[string]string{}, Model: c.model}, nil
+		return fillResult{Values: map[string]string{}, Model: provider.Model}, nil
 	}
 
 	// One session id per fill, reused by the retry: the gateway groups a
 	// conversation by it, and a retry is the same conversation.
 	sessionID := newUUID()
 
-	res, status, err := c.attempt(ctx, tpl, material, c.apiKey, sessionID)
-	if err == nil {
-		return res, nil
-	}
-	if c.hasBackup() && retryableStatus(status) {
-		log.Printf("fill: primary key returned %d, retrying with the backup key", status)
-		if res2, status2, err2 := c.attempt(ctx, tpl, material, c.backupKey, sessionID); err2 == nil {
-			return res2, nil
-		} else {
-			log.Printf("fill: backup key also failed (status %d): %v", status2, err2)
-		}
-	}
-	return fillResult{}, err
+	res, _, err := c.attempt(ctx, tpl, material, provider, sessionID)
+	return res, err
 }
 
 // attempt is one request to the model. The status is returned alongside the
 // error so the caller can decide whether another key is worth trying.
-func (c *aiClient) attempt(ctx context.Context, tpl templateRecord, material, apiKey, sessionID string) (fillResult, int, error) {
+func (c *aiClient) attempt(ctx context.Context, tpl templateRecord, material string, provider aiprovider.Provider, sessionID string) (fillResult, int, error) {
 	body := map[string]any{
-		"model": c.model,
+		"model": provider.Model,
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt(tpl, material)},
@@ -179,14 +163,14 @@ func (c *aiClient) attempt(ctx context.Context, tpl templateRecord, material, ap
 		return fillResult{}, 0, err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint, bytes.NewReader(raw))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, provider.Endpoint(), bytes.NewReader(raw))
 	if err != nil {
 		return fillResult{}, 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Authorization", "Bearer "+provider.APIKey)
 	req.Header.Set("User-Agent", userAgent)
-	if c.needsSession {
+	if c.needsSession || strings.Contains(strings.ToLower(provider.BaseURL), "opencode") {
 		// The OpenCode gateway answers 400 MissingSessionID without this.
 		req.Header.Set("x-opencode-session", sessionID)
 	}
@@ -237,7 +221,10 @@ func (c *aiClient) attempt(ctx context.Context, tpl templateRecord, material, ap
 		// of reporting an empty but successful fill.
 		return fillResult{}, resp.StatusCode, errEmptyContent
 	}
-	res, err := parseFillJSON(tpl, choice.Message.Content, c.model)
+	res, err := parseFillJSON(tpl, choice.Message.Content, provider.Model)
+	if err == nil && c.recordSuccess != nil {
+		c.recordSuccess()
+	}
 	return res, resp.StatusCode, err
 }
 

@@ -65,13 +65,13 @@ func TestMathReviewUsesExistingModelAndSharedQuota(t *testing.T) {
 		if err := json.Unmarshal(raw, &payload); err != nil {
 			t.Fatal(err)
 		}
-		if payload.Model != "deepseek-v4.1-flash" || payload.MaxTokens != 16384 {
+		if payload.Model != "test-model" || payload.MaxTokens != 16384 {
 			t.Error(payload.Model, payload.MaxTokens)
 		}
 		if !bytes.Contains(raw, []byte(mathPrompt)) || !bytes.Contains(raw, []byte("data:image/png;base64,")) || bytes.Contains(raw, []byte("小学语文")) {
 			t.Error("math prompt or image not isolated")
 		}
-		if r.Header.Get("Authorization") != "Bearer test-primary" || r.Header.Get("x-opencode-session") == "" {
+		if r.Header.Get("Authorization") != "Bearer test-key" {
 			t.Error("missing auth/session")
 		}
 		completion(w, validMathJSON)

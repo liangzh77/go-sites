@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func testTemplate(t *testing.T) templateRecord {
@@ -207,68 +208,110 @@ func TestFillSurfacesANonJSONAnswer(t *testing.T) {
 	}
 }
 
-func TestNewAIClientFromEnvDefaults(t *testing.T) {
-	t.Setenv(deepseekKeyEnv, "  ")
-	t.Setenv(deepseekBaseEnv, "")
-	t.Setenv(deepseekModelEnv, "")
-	c := newAIClientFromEnv()
-	if c.configured() {
-		t.Fatal("a whitespace key should not count as configured")
-	}
-	if c.endpoint != defaultDeepseekBase+"/chat/completions" || c.model != defaultModel {
-		t.Fatalf("endpoint = %q, model = %q", c.endpoint, c.model)
-	}
-}
-
-func TestNewAIClientFromEnvOverrides(t *testing.T) {
-	t.Setenv(deepseekKeyEnv, "k")
-	t.Setenv(deepseekBaseEnv, "https://example.test/v1")
-	t.Setenv(deepseekModelEnv, "deepseek-reasoner")
-	c := newAIClientFromEnv()
-	if !c.configured() {
-		t.Fatal("should be configured")
-	}
-	// A base is a base: the path is appended, so the same env value works for
-	// providers that do not share DeepSeek's URL.
-	if c.endpoint != "https://example.test/v1/chat/completions" || c.model != "deepseek-reasoner" {
-		t.Fatalf("endpoint = %q, model = %q", c.endpoint, c.model)
-	}
-}
-
-func TestCompletionsURLJoinsWithoutDuplicating(t *testing.T) {
+func TestActiveProviderFollowsTheBeijingClock(t *testing.T) {
+	t.Setenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+	t.Setenv("DEEPSEEK_MODEL", "deepseek-flash")
+	t.Setenv("DEEPSEEK_API_KEY", "official-key")
+	t.Setenv("OLLAMA_BASE_URL", "https://ollama.com/v1")
+	t.Setenv("OLLAMA_MODEL", "deepseek-v4.1-flash")
+	t.Setenv("OLLAMA_API_KEY", "cloud-key")
 	cases := map[string]string{
-		"https://api.deepseek.com":                   "https://api.deepseek.com/chat/completions",
-		"https://api.deepseek.com/":                  "https://api.deepseek.com/chat/completions",
-		"https://api.deepseek.com/v1":                "https://api.deepseek.com/v1/chat/completions",
-		"https://opencode.ai/inference/go/openai/v1": "https://opencode.ai/inference/go/openai/v1/chat/completions",
-		// A full URL pasted into the base slot must not double the path.
-		"https://api.deepseek.com/chat/completions": "https://api.deepseek.com/chat/completions",
-		"": defaultDeepseekBase + "/chat/completions",
+		"2026-11-28T20:00:00+08:00": "deepseek-flash",
+		"2026-11-29T01:30:00+08:00": "deepseek-flash",
+		"2026-11-29T02:00:00+08:00": "deepseek-v4.1-flash",
+		"2026-11-29T10:00:00+08:00": "deepseek-v4.1-flash",
+		"2026-11-29T19:59:00+08:00": "deepseek-v4.1-flash",
 	}
-	for in, want := range cases {
-		if got := completionsURL(in); got != want {
-			t.Errorf("completionsURL(%q) = %q, want %q", in, got, want)
+	for stamp, want := range cases {
+		clock, err := time.Parse(time.RFC3339, stamp)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c := newAIClientFromEnv()
+		c.now = func() time.Time { return clock }
+		if got := c.active().Model; got != want {
+			t.Errorf("%s: model = %q, want %q", stamp, got, want)
+		}
+		if !c.configured() {
+			t.Errorf("%s: both accounts have keys, so this must be configured", stamp)
 		}
 	}
 }
 
-func TestOpencodeBaseNeedsASessionHeader(t *testing.T) {
-	t.Setenv(deepseekKeyEnv, "k")
-	t.Setenv(deepseekBaseEnv, "https://opencode.ai/inference/go/openai/v1")
-	if !newAIClientFromEnv().needsSession {
-		t.Fatal("an OpenCode base must send x-opencode-session")
+func TestMissingKeyForTheCurrentHourIsReported(t *testing.T) {
+	t.Setenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+	t.Setenv("DEEPSEEK_API_KEY", "")
+	t.Setenv("OLLAMA_BASE_URL", "https://ollama.com/v1")
+	t.Setenv("OLLAMA_API_KEY", "cloud-key")
+	night, _ := time.Parse(time.RFC3339, "2026-11-28T22:00:00+08:00")
+	c := newAIClientFromEnv()
+	c.now = func() time.Time { return night }
+	if c.configured() {
+		t.Fatal("the DeepSeek window has no key, so it must not report configured")
 	}
-	t.Setenv(deepseekBaseEnv, "https://api.deepseek.com/v1")
-	if newAIClientFromEnv().needsSession {
-		t.Fatal("the official API does not want that header")
+	if _, err := c.fill(context.Background(), testTemplate(t), "姓名：张三"); err != errNoAPIKey {
+		t.Fatalf("err = %v, want errNoAPIKey", err)
+	}
+	day, _ := time.Parse(time.RFC3339, "2026-11-29T10:00:00+08:00")
+	c.now = func() time.Time { return day }
+	if !c.configured() {
+		t.Fatal("the Ollama window does have a key")
 	}
 }
 
-func TestTruncateRunes(t *testing.T) {
-	if got := truncateRunes("张三李四", 2); got != "张三…" {
-		t.Fatalf("got %q", got)
+func TestStatusDoesNotLeakKeys(t *testing.T) {
+	t.Setenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+	t.Setenv("DEEPSEEK_MODEL", "deepseek-flash")
+	t.Setenv("DEEPSEEK_API_KEY", "official-secret")
+	t.Setenv("OLLAMA_BASE_URL", "https://ollama.com/v1")
+	t.Setenv("OLLAMA_MODEL", "deepseek-v4.1-flash")
+	t.Setenv("OLLAMA_API_KEY", "cloud-secret")
+	c := newAIClientFromEnv()
+	raw, err := json.Marshal(c.status())
+	if err != nil {
+		t.Fatal(err)
 	}
-	if got := truncateRunes("张三", 5); got != "张三" {
-		t.Fatalf("got %q", got)
+	body := string(raw)
+	if strings.Contains(body, "secret") {
+		t.Fatalf("status leaked a key: %s", body)
+	}
+	for _, want := range []string{`"configured":true`, `"provider":"DeepSeek"`, `"model":"deepseek-flash"`, `"window"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("status = %s, missing %s", body, want)
+		}
+	}
+}
+
+func TestOpencodeBaseStillNeedsASessionHeader(t *testing.T) {
+	t.Setenv("DEEPSEEK_BASE_URL", "https://opencode.ai/inference/go/openai/v1")
+	t.Setenv("DEEPSEEK_API_KEY", "k")
+	t.Setenv("OLLAMA_BASE_URL", "https://api.deepseek.com/v1")
+	t.Setenv("OLLAMA_API_KEY", "k")
+	night, _ := time.Parse(time.RFC3339, "2026-11-28T21:00:00+08:00")
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("x-opencode-session")
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+	c := newAIClientFromEnv()
+	c.now = func() time.Time { return night }
+	// A path that names the gateway: the header is chosen from the base URL.
+	c.providers.Official.BaseURL = srv.URL + "/opencode/inference/go/openai/v1"
+	_, _ = c.fill(context.Background(), testTemplate(t), "姓名：张伟")
+	if got == "" {
+		t.Fatal("an OpenCode base must send x-opencode-session")
+	}
+	// The official API takes the same request without that header.
+	plain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("x-opencode-session")
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer plain.Close()
+	c.providers.Official.BaseURL = plain.URL + "/v1"
+	got = "unset"
+	_, _ = c.fill(context.Background(), testTemplate(t), "姓名：张伟")
+	if got != "" {
+		t.Fatalf("the official API does not want that header, sent %q", got)
 	}
 }

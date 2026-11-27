@@ -36,6 +36,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/liangzh77/go-sites/internal/aiprovider"
+	"github.com/liangzh77/go-sites/internal/modelusage"
 )
 
 const (
@@ -61,6 +64,7 @@ type service struct {
 	// dailyLimit caps paid model calls per Shanghai calendar day; 0 means
 	// unlimited. It is a field so tests can set it without the environment.
 	dailyLimit int
+	usageAdmin http.Handler
 }
 
 func main() {
@@ -83,11 +87,18 @@ func main() {
 		now:        time.Now,
 		dailyLimit: dailyLimitFromEnv(),
 	}
+	if usage, err := modelusage.Open(dataDir, time.Now()); err != nil {
+		log.Printf("model usage unavailable: %v", err)
+	} else {
+		defer usage.Close()
+		svc.ai.recordSuccess = func() { recordModelSuccess(usage) }
+		svc.usageAdmin = newUsageAdmin(usage, os.Getenv("AI_DEMO_ADMIN_PASSWORD"))
+	}
 	if err := svc.loadTemplates(); err != nil {
 		log.Fatalf("cannot load templates: %v", err)
 	}
 	if !svc.ai.configured() {
-		log.Printf("warning: %s is not set, fills will return a clear error until it is", deepseekKeyEnv)
+		log.Printf("warning: no model key for the current hour (%s); fills will return a clear error until it is set", aiprovider.Window)
 	}
 
 	addr := envOr("SCHOOL_AI_DEMO_ADDR", defaultAddr)
@@ -179,6 +190,15 @@ func (s *service) routes() http.Handler {
 			"quota":    q,
 		})
 	})
+	admin := func(w http.ResponseWriter, r *http.Request) {
+		if s.usageAdmin == nil {
+			http.NotFound(w, r)
+			return
+		}
+		s.usageAdmin.ServeHTTP(w, r)
+	}
+	mux.HandleFunc("GET "+p+"/admin/{$}", admin)
+	mux.HandleFunc("POST "+p+"/admin/{$}", admin)
 	mux.HandleFunc("GET "+p+"/api/state", s.handleState)
 	mux.HandleFunc("GET "+p+"/api/templates/{slug}", s.handleTemplate)
 	mux.HandleFunc("POST "+p+"/api/fill", s.handleFill)
@@ -274,11 +294,7 @@ func (s *service) handleState(w http.ResponseWriter, r *http.Request) {
 		"templates": summaries,
 		"recent":    recent,
 		"quota":     quota,
-		"ai": map[string]any{
-			"configured": s.ai.configured(),
-			"model":      s.ai.model,
-			"keyEnv":     deepseekKeyEnv,
-		},
+		"ai":        s.ai.status(),
 	})
 }
 
@@ -311,7 +327,7 @@ func (s *service) handleFill(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]any{
 			"ok":    false,
 			"code":  "no_key",
-			"error": "AI 填写还没开通：服务器上缺少 DeepSeek API Key（环境变量 " + deepseekKeyEnv + "）。请把 key 交给管理员配置后重试；你也可以先手动填写下方表格。",
+			"error": "AI 填写还没开通：当前时段的模型密钥没有配置。请把密钥交给管理员配置后重试；你也可以先手动填写下方表格。",
 		})
 		return
 	}

@@ -97,8 +97,9 @@ func TestStateListsBothTemplates(t *testing.T) {
 	if ai["configured"] != false {
 		t.Fatalf("ai = %v, want configured false without a key", ai)
 	}
-	if ai["keyEnv"] != deepseekKeyEnv {
-		t.Fatalf("keyEnv = %v", ai["keyEnv"])
+	// The page shows which account serves the next request, never a key.
+	if ai["provider"] == nil || ai["window"] == nil {
+		t.Fatalf("ai = %v, want the active provider and the schedule", ai)
 	}
 }
 
@@ -145,11 +146,11 @@ func TestFillWithoutKeyIsAClear503NotACrash(t *testing.T) {
 		t.Fatalf("code = %v", out["code"])
 	}
 	msg, _ := out["error"].(string)
-	if !strings.Contains(msg, deepseekKeyEnv) {
-		t.Fatalf("the message should name the env var: %q", msg)
+	if !strings.Contains(msg, "密钥") {
+		t.Fatalf("the message should name what is missing: %q", msg)
 	}
-	if !strings.Contains(msg, "API Key") {
-		t.Fatalf("the message should be in the user's words: %q", msg)
+	if !strings.Contains(msg, "手动填写") {
+		t.Fatalf("the message should offer the manual path: %q", msg)
 	}
 }
 
