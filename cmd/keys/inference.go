@@ -93,7 +93,25 @@ func (a *app) updateGrant(w http.ResponseWriter, r *http.Request, _ string) {
 
 // Full-essay feedback is one request, with a bounded larger answer budget. Other
 // callers keep their short budgets. Never let the caller choose a model, host or key.
-const fullReviewTokens = 12288
+const fullReviewTokens = 65_536
+
+func inferencePayload(preset, model string, msg []chatMessage, maxTokens int) map[string]any {
+	body := map[string]any{"model": model, "messages": msg, "max_tokens": maxTokens}
+	if preset == "deepseek" {
+		body["thinking"] = map[string]string{"type": "disabled"}
+	} else if preset == "ollama" && maxTokens == fullReviewTokens {
+		body["reasoning_effort"] = "low"
+	}
+	return body
+}
+
+// Report provider counts, not estimates. Some upstreams omit the reasoning split.
+func usageCount(n *int) string {
+	if n == nil {
+		return "unreported"
+	}
+	return strconv.Itoa(*n)
+}
 
 type inferenceResult struct {
 	Content      string
@@ -123,11 +141,7 @@ func (a *app) infer(ctx context.Context, preset string, s selection, msg []chatM
 	if !(preset == "ollama" && base == "https://ollama.com/v1" || preset == "deepseek" && (base == "https://api.deepseek.com" || base == "https://api.deepseek.com/v1")) {
 		return inferenceResult{}, errors.New("入口不匹配")
 	}
-	body := map[string]any{"model": s.Model, "messages": msg, "max_tokens": maxTokens}
-	if preset == "deepseek" {
-		body["thinking"] = map[string]string{"type": "disabled"}
-	}
-	raw, _ := json.Marshal(body)
+	raw, _ := json.Marshal(inferencePayload(preset, s.Model, msg, maxTokens))
 	req, err := http.NewRequestWithContext(ctx, "POST", base+"/chat/completions", bytes.NewReader(raw))
 	if err != nil {
 		return inferenceResult{}, errors.New("入口无效")
@@ -147,6 +161,12 @@ func (a *app) infer(ctx context.Context, preset string, s selection, msg []chatM
 		return inferenceResult{}, fmt.Errorf("供应商 HTTP %d", resp.StatusCode)
 	}
 	var result struct {
+		Usage struct {
+			Completion *int `json:"completion_tokens"`
+			Details    struct {
+				Reasoning *int `json:"reasoning_tokens"`
+			} `json:"completion_tokens_details"`
+		} `json:"usage"`
 		Choices []struct {
 			Message      struct{ Content string }
 			FinishReason string `json:"finish_reason"`
@@ -157,6 +177,9 @@ func (a *app) infer(ctx context.Context, preset string, s selection, msg []chatM
 			return inferenceResult{}, errors.New("供应商超时")
 		}
 		return inferenceResult{}, errors.New("供应商未返回有效内容")
+	}
+	if maxTokens == fullReviewTokens {
+		log.Printf("writing_review_usage limit=%d completion_tokens=%s reasoning_tokens=%s", maxTokens, usageCount(result.Usage.Completion), usageCount(result.Usage.Details.Reasoning))
 	}
 	if len(result.Choices) > 0 && result.Choices[0].FinishReason == "length" && strings.TrimSpace(result.Choices[0].Message.Content) == "" {
 		return inferenceResult{}, errors.New("生成达到长度上限但没有返回正文")

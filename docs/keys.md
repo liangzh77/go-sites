@@ -36,6 +36,8 @@
 
 应用以独立服务用户运行，部署管理员仅为需要模型的 systemd 单元添加 `SupplementaryGroups=go-model-clients`。该组只能连接本机 Unix socket `/run/go-sites-inference.sock`（root:go-model-clients, 0660），不能读取管理数据库、解密材料或调用导出接口。**不要给应用授予密钥柜运行用户、数据库组或共享登录账户。** 在 socket 上向 `POST /v1/chat/completions` 提交 `{"messages":[{"role":"user","content":"…"}]}`，由柜内选择模型和凭据。主站不转发这个 socket。428 表示未授权，429 表示繁忙，失败不切换供应商。此权限面向信任的主机内应用，非逐租户计费；厂商侧应设置额度。单应用撤销：去掉该服务的模型组配置后重启。服务重启及 Key 轮换无需再次复制 Key。安装单元见 `cmd/keys/deploy/`。
 
+写作教练全文复盘使用私有 socket 的 `X-Inference-Profile: writing-review`：单次请求 `max_tokens=65536`，白天 Ollama 请求 `reasoning_effort=low`，夜间 DeepSeek 官方保持非思考模式。上限不是实际用量或服务商承诺；全文请求仍受 120 秒上游超时保护。日志仅记服务商返回的输出/推理 token 数，未报告的字段不推算；不记作文、推理文本或模型回答。普通便签调用不使用此 profile。
+
 ## 安全边界
 
 ### 会话与密码

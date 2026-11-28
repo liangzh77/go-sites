@@ -120,4 +120,31 @@ func TestMachineGrantLifecycle(t *testing.T) {
 	}
 }
 
+func TestReviewOutputAndEffort(t *testing.T) {
+	for _, tc := range []struct {
+		preset                string
+		limit                 int
+		wantLow, wantDisabled bool
+	}{
+		{"ollama", 65536, true, false}, {"ollama", 2048, false, false}, {"ollama", 256, false, false},
+		{"deepseek", 65536, false, true}, {"deepseek", 2048, false, true},
+	} {
+		b := inferencePayload(tc.preset, "synthetic", nil, tc.limit)
+		if b["max_tokens"] != tc.limit || (b["reasoning_effort"] == "low") != tc.wantLow {
+			t.Fatal(tc)
+		}
+		if _, ok := b["reasoning_effort"]; ok != tc.wantLow {
+			t.Fatal(tc)
+		}
+		thinking, ok := b["thinking"].(map[string]string)
+		if ok != tc.wantDisabled || ok && thinking["type"] != "disabled" {
+			t.Fatal(tc)
+		}
+	}
+	zero := 0
+	if fullReviewTokens != 65536 || usageCount(nil) != "unreported" || usageCount(&zero) != "0" {
+		t.Fatal("limit or missing usage handling changed")
+	}
+}
+
 const vForTest = "synthetic-key"
