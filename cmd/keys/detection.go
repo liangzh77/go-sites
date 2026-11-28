@@ -26,9 +26,10 @@ type hostResolver interface {
 }
 
 type detector struct {
-	client   *http.Client
-	resolver hostResolver
-	sem      chan struct{}
+	client       *http.Client
+	reviewClient *http.Client
+	resolver     hostResolver
+	sem          chan struct{}
 }
 
 var rawSecretPattern = regexp.MustCompile(`[A-Za-z0-9_\-]{24,}`)
@@ -55,10 +56,16 @@ func newDetector() *detector {
 			return errors.New("provider redirects are blocked to protect credentials")
 		},
 	}
+	// Use the same restricted dialer, TLS and redirect policy, without imposing
+	// the credential-probe header deadline on an entire essay.
+	reviewTransport := transport.Clone()
+	reviewTransport.ResponseHeaderTimeout = 115 * time.Second
+	reviewClient := &http.Client{Transport: reviewTransport, Timeout: 120 * time.Second, CheckRedirect: client.CheckRedirect}
 	return &detector{
-		client:   client,
-		resolver: resolver,
-		sem:      make(chan struct{}, 4),
+		reviewClient: reviewClient,
+		client:       client,
+		resolver:     resolver,
+		sem:          make(chan struct{}, 4),
 	}
 }
 

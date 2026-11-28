@@ -84,6 +84,33 @@ func TestMachineGrantLifecycle(t *testing.T) {
 	if call(sess.CSRFToken) != 200 || count != 2 || local() != 200 {
 		t.Fatalf("grant or broker failed: probes=%d", count)
 	}
+	if a.detector.reviewClient.Timeout.Seconds() != 120 || a.detector.reviewClient.CheckRedirect == nil || a.detector.reviewClient.Transport.(*http.Transport).ResponseHeaderTimeout.Seconds() != 115 {
+		t.Fatal("unexpected review transport policy")
+	}
+	var testContent string
+	a.detector.reviewClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		var body struct {
+			Max int `json:"max_tokens"`
+		}
+		if json.NewDecoder(r.Body).Decode(&body) != nil || body.Max != fullReviewTokens || r.Header.Get("Authorization") != "Bearer synthetic-key" {
+			t.Fatal("profile or auth mismatch")
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(testContent))}, nil
+	})}
+	for _, tc := range []struct {
+		body     string
+		status   int
+		contains string
+	}{{`{"choices":[{"finish_reason":"stop","message":{"content":"ready"}}]}`, 200, `"finish_reason":"stop"`}, {`{"choices":[{"finish_reason":"length","message":{"content":""}}]}`, 502, "生成达到长度上限"}, {`{"choices":[]}`, 502, "未返回有效内容"}} {
+		testContent = tc.body
+		r := httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(`{"messages":[{"role":"user","content":"Synthetic review"}]}`))
+		r.Header.Set("X-Inference-Profile", "writing-review")
+		w := httptest.NewRecorder()
+		a.localChat(w, r)
+		if w.Code != tc.status || !strings.Contains(w.Body.String(), tc.contains) {
+			t.Fatal("review response", w.Code, w.Body)
+		}
+	}
 	if requestJSON(t, client, "POST", srv.URL+"/v1/chat/completions", map[string]any{}, "").status != 404 {
 		t.Fatal("public inference route")
 	}

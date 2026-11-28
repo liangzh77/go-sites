@@ -90,22 +90,38 @@ func (a *app) updateGrant(w http.ResponseWriter, r *http.Request, _ string) {
 	}
 	writeJSON(w, 200, map[string]bool{"enabled": in.Action == "enable"})
 }
-func (a *app) infer(ctx context.Context, preset string, s selection, msg []chatMessage, maxTokens int) (string, error) {
+
+// Full-essay feedback is one request, with a bounded larger answer budget. Other
+// callers keep their short budgets. Never let the caller choose a model, host or key.
+const fullReviewTokens = 12288
+
+type inferenceResult struct {
+	Content      string
+	FinishReason string
+}
+
+func inferTransportError(err error) error {
+	if os.IsTimeout(err) || errors.Is(err, context.DeadlineExceeded) {
+		return errors.New("供应商超时")
+	}
+	return errors.New("供应商连接失败")
+}
+func (a *app) infer(ctx context.Context, preset string, s selection, msg []chatMessage, maxTokens int) (inferenceResult, error) {
 	if !strings.Contains(strings.ToLower(s.Model), "deepseek") || len(s.Model) > 200 || s.Key == "" {
-		return "", errors.New("请选择已配置的 DeepSeek 模型")
+		return inferenceResult{}, errors.New("请选择已配置的 DeepSeek 模型")
 	}
 	var allowed bool
 	err := a.store.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM api_keys k JOIN providers p ON p.id=k.provider_id WHERE k.id=? AND k.enabled=1 AND p.enabled=1 AND p.preset_id=? AND (k.test_model=? OR EXISTS(SELECT 1 FROM models WHERE provider_id=p.id AND model_id=?)))`, s.Key, preset, s.Model, s.Model).Scan(&allowed)
 	if err != nil || !allowed {
-		return "", errors.New("Key 或模型当前不可用")
+		return inferenceResult{}, errors.New("Key 或模型当前不可用")
 	}
 	p, key, err := a.store.providerCredential(s.Key)
 	if err != nil || p.PresetID != preset || p.AuthMode != authBearer {
-		return "", errors.New("凭据不可用")
+		return inferenceResult{}, errors.New("凭据不可用")
 	}
 	base := strings.TrimRight(p.BaseURL, "/")
 	if !(preset == "ollama" && base == "https://ollama.com/v1" || preset == "deepseek" && (base == "https://api.deepseek.com" || base == "https://api.deepseek.com/v1")) {
-		return "", errors.New("入口不匹配")
+		return inferenceResult{}, errors.New("入口不匹配")
 	}
 	body := map[string]any{"model": s.Model, "messages": msg, "max_tokens": maxTokens}
 	if preset == "deepseek" {
@@ -114,25 +130,41 @@ func (a *app) infer(ctx context.Context, preset string, s selection, msg []chatM
 	raw, _ := json.Marshal(body)
 	req, err := http.NewRequestWithContext(ctx, "POST", base+"/chat/completions", bytes.NewReader(raw))
 	if err != nil {
-		return "", errors.New("入口无效")
+		return inferenceResult{}, errors.New("入口无效")
 	}
 	req.Header.Set("Authorization", "Bearer "+key)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := a.detector.client.Do(req)
+	client := a.detector.client
+	if maxTokens == fullReviewTokens {
+		client = a.detector.reviewClient
+	}
+	resp, err := client.Do(req)
 	if err != nil {
-		return "", errors.New("供应商超时或连接失败")
+		return inferenceResult{}, inferTransportError(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("供应商 HTTP %d", resp.StatusCode)
+		return inferenceResult{}, fmt.Errorf("供应商 HTTP %d", resp.StatusCode)
 	}
 	var result struct {
-		Choices []struct{ Message struct{ Content string } }
+		Choices []struct {
+			Message      struct{ Content string }
+			FinishReason string `json:"finish_reason"`
+		}
 	}
-	if json.NewDecoder(io.LimitReader(resp.Body, 256<<10)).Decode(&result) != nil || len(result.Choices) == 0 || strings.TrimSpace(result.Choices[0].Message.Content) == "" {
-		return "", errors.New("供应商未返回有效内容")
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&result); err != nil {
+		if os.IsTimeout(err) {
+			return inferenceResult{}, errors.New("供应商超时")
+		}
+		return inferenceResult{}, errors.New("供应商未返回有效内容")
 	}
-	return result.Choices[0].Message.Content, nil
+	if len(result.Choices) > 0 && result.Choices[0].FinishReason == "length" && strings.TrimSpace(result.Choices[0].Message.Content) == "" {
+		return inferenceResult{}, errors.New("生成达到长度上限但没有返回正文")
+	}
+	if len(result.Choices) == 0 || strings.TrimSpace(result.Choices[0].Message.Content) == "" {
+		return inferenceResult{}, errors.New("供应商未返回有效内容")
+	}
+	return inferenceResult{Content: result.Choices[0].Message.Content, FinishReason: result.Choices[0].FinishReason}, nil
 }
 func (a *app) localChat(w http.ResponseWriter, r *http.Request) {
 	g, e := a.store.grant()
@@ -147,7 +179,11 @@ func (a *app) localChat(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Messages []chatMessage `json:"messages"`
 	}
-	if decodeJSON(w, r, &in, 96<<10) != nil || len(in.Messages) == 0 || len(in.Messages) > 16 {
+	tokens, bodyLimit := 2048, int64(96<<10)
+	if r.Header.Get("X-Inference-Profile") == "writing-review" {
+		tokens, bodyLimit = fullReviewTokens, 1<<20
+	}
+	if decodeJSON(w, r, &in, bodyLimit) != nil || len(in.Messages) == 0 || len(in.Messages) > 16 {
 		http.Error(w, "invalid messages", 400)
 		return
 	}
@@ -169,12 +205,12 @@ func (a *app) localChat(w http.ResponseWriter, r *http.Request) {
 	if h < 2 || h >= 20 {
 		preset, s = "deepseek", g.Night
 	}
-	content, e := a.infer(r.Context(), preset, s, in.Messages, 2048)
+	content, e := a.infer(r.Context(), preset, s, in.Messages, tokens)
 	if e != nil {
 		http.Error(w, e.Error(), 502)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"choices": []any{map[string]any{"message": chatMessage{"assistant", content}}}})
+	writeJSON(w, 200, map[string]any{"choices": []any{map[string]any{"message": chatMessage{"assistant", content.Content}, "finish_reason": content.FinishReason}}})
 }
 
 // Only systemd supplies this Unix socket. Its group controls which service units may connect.
@@ -201,7 +237,7 @@ func (a *app) startLocalInference() error {
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /v1/chat/completions", a.localChat)
-	srv := http.Server{Handler: mux, ReadTimeout: 8 * time.Second, WriteTimeout: 35 * time.Second, IdleTimeout: 10 * time.Second, MaxHeaderBytes: 8192}
+	srv := http.Server{Handler: mux, ReadTimeout: 8 * time.Second, WriteTimeout: 125 * time.Second, IdleTimeout: 10 * time.Second, MaxHeaderBytes: 8192}
 	go func() {
 		if err := srv.Serve(l); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal("local inference listener failed")
