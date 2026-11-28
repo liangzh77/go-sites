@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>管理后台 · AI Demo</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f8f7f3;color:#201d19;font:16px/1.6 system-ui,sans-serif;padding:48px 16px}
+main{max-width:420px;margin:auto;padding:clamp(20px,6vw,32px);border:1px solid #e9e5de;border-radius:14px;background:#fff}
+h1{font-size:26px;margin:0 0 18px}label{display:block;margin-bottom:6px}input,button{width:100%;padding:10px 12px;border-radius:8px;font:inherit}
+input{border:1px solid #8c8580}button{margin-top:14px;border:0;background:#5242a1;color:#fff;cursor:pointer}a{color:#5242a1}.error{color:#9c2626}
+</style>
+</head>
+<body><main>
+<h1>管理后台</h1>
+<form method="post">
+<label for="password">密码</label>
+<input id="password" name="password" type="password" autocomplete="current-password" required>
+{{if .}}<p class="error" role="alert">{{.}}</p>{{end}}
+<button type="submit">登录</button>
+</form>
+<p><a href="../">← 返回 AI Demo</a></p>
+</main></body></html>

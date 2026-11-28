@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>模型调用统计 · AI Demo</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f8f7f3;color:#201d19;font:16px/1.6 system-ui,sans-serif}main{max-width:800px;margin:auto;padding:32px 16px 48px}header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 20px}h1{margin:.2em 0;font-size:clamp(25px,5vw,36px)}a{color:#5242a1}p{color:#5f5a53}h2{font-size:1.1rem;margin:0 0 12px}.summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:20px 0}.card{background:#fff;border:1px solid #e9e5de;border-radius:14px;padding:clamp(12px,3vw,24px);margin-bottom:16px}.summary .card{margin:0}.summary strong{display:block;font-size:30px;font-variant-numeric:tabular-nums}.chart{display:block;width:100%;height:auto}.grid{stroke:#e4e1da}.axis{fill:#56514a;font:14px system-ui,sans-serif}.trend{fill:none;stroke:#6550b6;stroke-width:3;stroke-linejoin:round}.dot{fill:#6550b6}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:.55em 0;border-bottom:1px solid #ece9e3}th:last-child,td:last-child{text-align:right}tfoot th,tfoot td{border-bottom:0}
+.admin-actions{display:flex;align-items:center;gap:14px}.admin-actions button{font:inherit;cursor:pointer;color:#5242a1;background:#fff;border:1px solid #d9d1ea;border-radius:8px;padding:4px 12px}
+</style>
+</head>
+<body><main>
+<header><h1>模型调用统计</h1><div class="admin-actions"><a href="../">← 返回 AI Demo</a><form method="post"><button type="submit" name="action" value="logout">登出</button></form></div></header>
+<p>北京时间 · 只记录成功返回可用结果的模型请求，失败不计入。上线前未采集。</p>
+<div class="summary"><div class="card">今日成功<strong>{{.Today}}</strong></div><div class="card">近 30 天成功<strong>{{.Total}}</strong></div></div>
+<section class="card" aria-labelledby="trend"><h2 id="trend">每日成功调用趋势</h2>
+<svg class="chart" viewBox="0 0 640 225" role="img" aria-labelledby="plot-title plot-desc">
+<title id="plot-title">每日成功调用折线图</title><desc id="plot-desc">横轴为日期，纵轴为次数，数据也列在下方表格。</desc>
+{{range .YLabels}}<line class="grid" x1="48" x2="606" y1="{{.Y}}" y2="{{.Y}}"/><text class="axis" x="{{.X}}" y="{{.Y}}" text-anchor="end" dominant-baseline="middle">{{.Label}}</text>{{end}}
+{{range .XLabels}}<text class="axis" x="{{.X}}" y="{{.Y}}" text-anchor="middle">{{.Label}}</text>{{end}}
+<polyline class="trend" points="{{.Line}}"/>
+{{range .Points}}<circle class="dot" cx="{{.X}}" cy="{{.Y}}" r="4"><title>{{.Label}}</title></circle>{{end}}
+</svg></section>
+<section class="card" aria-labelledby="daily"><h2 id="daily">每日明细</h2><table>
+<thead><tr><th scope="col">日期</th><th scope="col">成功次数</th></tr></thead>
+<tbody>{{range .Days}}<tr><th scope="row">{{.Date}}</th><td>{{.Count}}</td></tr>{{end}}</tbody>
+<tfoot><tr><th scope="row">合计</th><td>{{.Total}}</td></tr></tfoot>
+</table></section>
+</main></body></html>

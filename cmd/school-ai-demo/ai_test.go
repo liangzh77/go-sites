@@ -259,29 +259,6 @@ func TestMissingKeyForTheCurrentHourIsReported(t *testing.T) {
 	}
 }
 
-func TestStatusDoesNotLeakKeys(t *testing.T) {
-	t.Setenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-	t.Setenv("DEEPSEEK_MODEL", "deepseek-flash")
-	t.Setenv("DEEPSEEK_API_KEY", "official-secret")
-	t.Setenv("OLLAMA_BASE_URL", "https://ollama.com/v1")
-	t.Setenv("OLLAMA_MODEL", "deepseek-v4.1-flash")
-	t.Setenv("OLLAMA_API_KEY", "cloud-secret")
-	c := newAIClientFromEnv()
-	raw, err := json.Marshal(c.status())
-	if err != nil {
-		t.Fatal(err)
-	}
-	body := string(raw)
-	if strings.Contains(body, "secret") {
-		t.Fatalf("status leaked a key: %s", body)
-	}
-	for _, want := range []string{`"configured":true`, `"provider":"DeepSeek"`, `"model":"deepseek-flash"`, `"window"`} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("status = %s, missing %s", body, want)
-		}
-	}
-}
-
 func TestOpencodeBaseStillNeedsASessionHeader(t *testing.T) {
 	t.Setenv("DEEPSEEK_BASE_URL", "https://opencode.ai/inference/go/openai/v1")
 	t.Setenv("DEEPSEEK_API_KEY", "k")

@@ -99,6 +99,7 @@
     @legacy_school path_regexp legacy_school ^/school-ai-demo(?:/(.*))?$
     redir @legacy_school /ai-demo/{re.legacy_school.1}?{query} 308
     redir /ai-demo /ai-demo/ 308
+    redir /ai-demo/admin /ai-demo/admin/ 308
 
     handle /ai-demo/* {
         @review_api path /ai-demo/api/essay-review /ai-demo/api/essay-review/* /ai-demo/api/math-review /ai-demo/api/math-review/*
@@ -108,7 +109,7 @@
                 header_up X-Real-IP {remote_host}
             }
         }
-        @form_api path /ai-demo/api/* /ai-demo/health
+        @form_api path /ai-demo/api/* /ai-demo/health /ai-demo/admin/
         handle @form_api {
             uri replace /ai-demo/ /school-ai-demo/ 1
             reverse_proxy 127.0.0.1:9025
